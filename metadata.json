@@ -1,0 +1,5 @@
+{
+  "name": "My Invoice",
+  "description": "A smart invoice generation dashboard for web developers featuring multi-company support and AI-powered work log conversion.",
+  "requestFramePermissions": []
+}
