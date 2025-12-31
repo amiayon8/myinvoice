@@ -24,7 +24,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data, company })
       <div className="gap-8 grid grid-cols-2 mb-4">
         <div className="flex flex-col items-start text-start">
           {company.logo_url ? (
-            <img src={company.logo_url} alt="Logo" className="mb-4 border border-slate-100 rounded-lg w-64 h-auto object-contain" />
+            <img
+              src={company.logo_url}
+              alt="Logo"
+              className="self-start mb-4 rounded-lg w-64 max-h-10 object-contain object-left"
+            />
           ) : (
             <h2 className="font-black text-slate-900 text-2xl leading-tight" style={{ color: company.color }}>{company.name || 'Your Company Name'}</h2>
           )}
