@@ -35,6 +35,8 @@ export default function DashboardPage() {
 
   const [recurringLogs, setRecurringLogs] = useState<any[]>([]);
   const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
+  const [loans, setLoans] = useState<any[]>([]);
+  const [loanPayments, setLoanPayments] = useState<any[]>([]);
 
   const toggleExpandTemplate = (id: string) => {
     setExpandedTemplates((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -153,20 +155,30 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, logsRes] = await Promise.all([
+      const [invRes, logsRes, loansRes, paymentsRes] = await Promise.all([
         supabase
           .from('invoices')
           .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
           .order('created_at', { ascending: false }),
         supabase
           .from('recurring_invoices')
+          .select('*'),
+        supabase
+          .from('loans')
+          .select('*'),
+        supabase
+          .from('loan_payments')
           .select('*')
       ]);
 
       if (invRes.error) throw invRes.error;
+      if (loansRes.error) throw loansRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
 
       setInvoices(invRes.data || []);
       setRecurringLogs(logsRes.data || []);
+      setLoans(loansRes.data || []);
+      setLoanPayments(paymentsRes.data || []);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -271,6 +283,33 @@ export default function DashboardPage() {
     );
   }
 
+  // Map payments into loans to compute remaining balances
+  const enrichedLoans = loans.map((loan) => {
+    const loanPaymentsData = loanPayments.filter((p) => p.loan_id === loan.id);
+    const totalPaid = loanPaymentsData.reduce((sum, p) => sum + p.amount, 0);
+    const remainingBalance = Math.max(0, loan.principal_amount - totalPaid);
+
+    return {
+      ...loan,
+      total_paid: totalPaid,
+      remaining_balance: remainingBalance,
+    };
+  });
+
+  const loanStats = enrichedLoans.reduce(
+    (acc, loan) => {
+      if (loan.type === 'given') {
+        acc.givenPrincipal += loan.principal_amount;
+        acc.givenOutstanding += loan.remaining_balance;
+      } else {
+        acc.takenPrincipal += loan.principal_amount;
+        acc.takenOutstanding += loan.remaining_balance;
+      }
+      return acc;
+    },
+    { givenPrincipal: 0, givenOutstanding: 0, takenPrincipal: 0, takenOutstanding: 0 }
+  );
+
   // Slice recent 10 invoices for dashboard list (excluding child invoices from top-level)
   const childInvoiceIds = new Set(recurringLogs.map((l) => l.child_invoice_id));
   const topLevelInvoices = invoices.filter((inv) => !childInvoiceIds.has(inv.id));
@@ -299,6 +338,75 @@ export default function DashboardPage() {
 
       {/* Dashboard Stats Cards */}
       <DashboardStats invoices={invoices} />
+
+      {/* Loan Stats Cards */}
+      <div className="space-y-4">
+        <h2 className="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">
+          Loan Portfolio Overview
+        </h2>
+        <div className="gap-8 grid grid-cols-1 md:grid-cols-4 mb-8 animate-slide-in no-print">
+          <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-indigo-500/10 text-indigo-500 shadow-inner">
+                <i className="fa-solid fa-hand-holding-dollar text-lg"></i>
+              </div>
+              <div>
+                <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  Total Lending (Given)
+                </h3>
+                <p className="font-black text-slate-900 dark:text-white text-2xl tracking-tighter">
+                  ৳{loanStats.givenPrincipal.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-rose-500/10 text-rose-500 shadow-inner">
+                <i className="fa-solid fa-clock-rotate-left text-lg"></i>
+              </div>
+              <div>
+                <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  Lending Outstanding
+                </h3>
+                <p className="font-black text-rose-500 text-2xl tracking-tighter">
+                  ৳{loanStats.givenOutstanding.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-slate-500/10 text-slate-500 dark:text-slate-400 shadow-inner">
+                <i className="fa-solid fa-briefcase text-lg"></i>
+              </div>
+              <div>
+                <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  Total Borrowed (Taken)
+                </h3>
+                <p className="font-black text-slate-900 dark:text-white text-2xl tracking-tighter">
+                  ৳{loanStats.takenPrincipal.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-500 shadow-inner">
+                <i className="fa-solid fa-circle-check text-lg"></i>
+              </div>
+              <div>
+                <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  Borrowing Outstanding
+                </h3>
+                <p className="font-black text-emerald-500 text-2xl tracking-tighter">
+                  ৳{loanStats.takenOutstanding.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Recent Records list */}
       <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/50 rounded-lg overflow-hidden">
@@ -351,12 +459,14 @@ export default function DashboardPage() {
                     <React.Fragment key={invoice.id}>
                       {/* Accordion Header Row */}
                       <tr
-                        onClick={() => toggleExpandTemplate(invoice.id)}
-                        className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors cursor-pointer"
+                        onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                            {totalChildrenCount > 0 && (
+                              <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                            )}
                             <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
                               {invoice.invoice_number}
                             </span>
@@ -443,7 +553,7 @@ export default function DashboardPage() {
                       </tr>
 
                       {/* Accordion Content Row (Children Invoices) */}
-                      {isExpanded && (
+                      {isExpanded && totalChildrenCount > 0 && (
                         <tr>
                           <td colSpan={8} className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4">
                             <div className="space-y-3 pl-6">

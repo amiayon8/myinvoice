@@ -323,12 +323,14 @@ export default function InvoicesPage() {
                     <React.Fragment key={invoice.id}>
                       {/* Accordion Header Row */}
                       <tr
-                        onClick={() => toggleExpandTemplate(invoice.id)}
-                        className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors cursor-pointer"
+                        onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                            {totalChildrenCount > 0 && (
+                              <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                            )}
                             <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
                               {invoice.invoice_number}
                             </span>
@@ -415,7 +417,7 @@ export default function InvoicesPage() {
                       </tr>
 
                       {/* Accordion Content Row (Children Invoices) */}
-                      {isExpanded && (
+                      {isExpanded && totalChildrenCount > 0 && (
                         <tr>
                           <td colSpan={8} className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4">
                             <div className="space-y-3 pl-6">

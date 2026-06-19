@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -13,12 +11,17 @@
     font-family: var(--font-sans);
     transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
   }
-  
+
   .dark body {
     @apply bg-[#020617] text-slate-100;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
   }
 }
@@ -64,6 +67,7 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
@@ -96,11 +100,14 @@
     display: block !important;
   }
 
-  body, .dark body {
+  body,
+  .dark body {
     background: white !important;
     color: black !important;
     overflow: visible !important;
     height: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .invoice-container {
@@ -110,9 +117,6 @@
     width: 100% !important;
     min-height: 297mm !important;
   }
-
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
 }
 
 /* Animations */
@@ -121,6 +125,7 @@
     transform: translateY(16px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -135,6 +140,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
