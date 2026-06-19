@@ -62,42 +62,100 @@ export async function deleteInvoice(id: string) {
   revalidatePath('/dashboard');
 }
 
-export async function generateInvoiceAccessToken(invoiceId: string, daysExpiry: number = 30) {
-  const supabase = await createClient();
-  
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + daysExpiry);
 
-  // Check if token already exists
-  const { data: existing } = await supabase
+export async function createInvoiceShareToken(
+  invoiceId: string,
+  options: {
+    label?: string;
+    neverExpires?: boolean;
+    daysExpiry?: number;
+  } = {}
+) {
+  const supabase = await createClient();
+  const { label, neverExpires = false, daysExpiry = 30 } = options;
+
+  const expiresAt = neverExpires
+    ? null
+    : (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + daysExpiry);
+        return d.toISOString();
+      })();
+
+  const { data, error } = await supabase
+    .from('invoice_access_tokens')
+    .insert({
+      invoice_id: invoiceId,
+      expires_at: expiresAt,
+      never_expires: neverExpires,
+      label: label || null,
+      is_public: true,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/invoices');
+  return data;
+}
+
+export async function revokeInvoiceToken(tokenId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('invoice_access_tokens')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', tokenId);
+  if (error) throw new Error(error.message);
+  revalidatePath('/invoices');
+}
+
+export async function listInvoiceTokens(invoiceId: string) {
+  const supabase = await createClient();
+
+  const { data: tokens, error } = await supabase
     .from('invoice_access_tokens')
     .select('*')
     .eq('invoice_id', invoiceId)
-    .single();
+    .order('created_at', { ascending: false });
 
-  if (existing) {
-    const { data, error } = await supabase
-      .from('invoice_access_tokens')
-      .update({ expires_at: expiresAt.toISOString() })
-      .eq('invoice_id', invoiceId)
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data.token;
-  } else {
-    const { data, error } = await supabase
-      .from('invoice_access_tokens')
-      .insert({
-        invoice_id: invoiceId,
-        expires_at: expiresAt.toISOString(),
-        is_public: true
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data.token;
-  }
+  if (error) throw new Error(error.message);
+
+  // Fetch view counts for each token
+  const tokenIds = (tokens || []).map((t: any) => t.id);
+  const { data: logCounts } = await supabase
+    .from('invoice_view_logs')
+    .select('token_id')
+    .in('token_id', tokenIds);
+
+  const countMap: Record<string, number> = {};
+  (logCounts || []).forEach((l: any) => {
+    countMap[l.token_id] = (countMap[l.token_id] || 0) + 1;
+  });
+
+  return (tokens || []).map((t: any) => ({
+    ...t,
+    view_count: countMap[t.id] || 0,
+  }));
 }
+
+export async function listInvoiceViewLogs(invoiceId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('invoice_view_logs')
+    .select('*, token:invoice_access_tokens(label, token)')
+    .eq('invoice_id', invoiceId)
+    .order('viewed_at', { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+/** @deprecated Use createInvoiceShareToken instead */
+export async function generateInvoiceAccessToken(invoiceId: string, daysExpiry: number = 30) {
+  return createInvoiceShareToken(invoiceId, { daysExpiry });
+}
+
+
 
 export async function generateRecurringInstanceAction(templateId: string, count: number = 1) {
   const supabase = await createClient();

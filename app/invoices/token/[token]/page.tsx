@@ -1,9 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { InvoicePreview } from '@/components/invoice-preview';
 import { ResponsiveInvoiceWrapper } from '@/components/responsive-invoice-wrapper';
 import { PublicHeader } from '@/components/public-header';
 import { CompanyProfile } from '@/types';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 interface PublicInvoicePageProps {
   params: Promise<{ token: string }>;
@@ -11,59 +12,83 @@ interface PublicInvoicePageProps {
 
 export default async function PublicInvoicePage({ params }: PublicInvoicePageProps) {
   const { token } = await params;
-  const supabase = await createClient();
+  const reqHeaders = await headers();
 
-  // Query token details
-  const { data: tokenRecord, error: tokenError } = await supabase
-    .from('invoice_access_tokens')
-    .select('*')
-    .eq('token', token)
-    .single();
+  // -------------------------------------------------------
+  // Call our view-logging API route (server-to-server).
+  // This validates the token AND inserts the view log.
+  // -------------------------------------------------------
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    `http://localhost:${process.env.PORT || 3001}`;
 
-  if (tokenError || !tokenRecord) {
-    return notFound();
+  let tokenRecord: any = null;
+  let validationResult: { valid: boolean; reason?: string; tokenRecord?: any } = {
+    valid: false,
+    reason: 'not_found',
+  };
+
+  try {
+    const res = await fetch(`${baseUrl}/api/invoice-view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        referrer: reqHeaders.get('referer') || '',
+      }),
+      // Forward the real visitor IP headers so the API can read them
+      cache: 'no-store',
+    });
+    validationResult = await res.json();
+    tokenRecord = validationResult.tokenRecord;
+  } catch (err) {
+    console.error('[public token page] Failed to call invoice-view API:', err);
   }
 
-  // Check if token has expired
-  const now = new Date();
-  const expiry = new Date(tokenRecord.expires_at);
-  if (expiry < now || !tokenRecord.is_public) {
+  // Token not found
+  if (!tokenRecord) return notFound();
+
+  // Token invalid — show branded error page
+  if (!validationResult.valid) {
+    const reason = validationResult.reason;
+    const isRevoked = reason === 'revoked';
     return (
       <div className="flex flex-col justify-center items-center bg-slate-50 dark:bg-[#020617] min-h-screen text-center p-6 font-sans">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full">
-          <div className="text-red-500 mb-4">
-            <i className="fa-solid fa-circle-exclamation text-5xl"></i>
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full space-y-4">
+          <div className={isRevoked ? 'text-orange-500' : 'text-red-500'}>
+            <i className={`fa-solid ${isRevoked ? 'fa-ban' : 'fa-circle-exclamation'} text-5xl`}></i>
           </div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2">
-            Access Expired
+          <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+            {isRevoked ? 'Link Revoked' : 'Access Expired'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
-            This invoice sharing link has expired or is no longer public. Please contact the issuer to request a new link.
+          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+            {isRevoked
+              ? 'This invoice sharing link has been revoked by the issuer.'
+              : 'This invoice sharing link has expired or is no longer active. Please contact the issuer to request a new link.'}
           </p>
         </div>
       </div>
     );
   }
 
-  // Fetch invoice details
+  // Token valid — fetch invoice
+  const supabase = createServiceRoleClient();
   const { data: invoice, error: invError } = await supabase
     .from('invoices')
     .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
     .eq('id', tokenRecord.invoice_id)
     .single();
 
-  if (invError || !invoice) {
-    return notFound();
-  }
+  if (invError || !invoice) return notFound();
 
-  // Fetch payments to compute totals
+  // Fetch payments
   const { data: payments } = await supabase
     .from('invoice_payments')
     .select('amount')
     .eq('invoice_id', invoice.id);
 
-  const totalPaid = (payments || []).reduce((sum, p) => sum + p.amount, 0);
-  const subtotal = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.rate), 0) || 0;
+  const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
+  const subtotal = invoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
   const taxAmount = subtotal * ((invoice.tax_rate || 0) / 100);
   const totalAmount = subtotal + taxAmount;
 

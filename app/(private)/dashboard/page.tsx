@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { deleteInvoice, saveInvoice, generateRecurringInstanceAction } from '@/services/invoices';
 import { DashboardStats } from '@/components/dashboard-stats';
+import { RevenueCharts } from '@/components/revenue-charts';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { TableSkeleton } from '@/components/skeleton';
@@ -339,6 +340,9 @@ export default function DashboardPage() {
       {/* Dashboard Stats Cards */}
       <DashboardStats invoices={invoices} />
 
+      {/* Revenue Analytics Charts */}
+      <RevenueCharts invoices={invoices} />
+
       {/* Loan Stats Cards */}
       <div className="space-y-4">
         <h2 className="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">
@@ -347,8 +351,8 @@ export default function DashboardPage() {
         <div className="gap-8 grid grid-cols-1 md:grid-cols-4 mb-8 animate-slide-in no-print">
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-indigo-500/10 text-indigo-500 shadow-inner">
-                <i className="fa-solid fa-hand-holding-dollar text-lg"></i>
+              <div className="flex justify-center items-center bg-indigo-500/10 shadow-inner rounded-lg w-12 h-12 text-indigo-500">
+                <i className="text-lg fa-solid fa-hand-holding-dollar"></i>
               </div>
               <div>
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
@@ -362,14 +366,14 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-rose-500/10 text-rose-500 shadow-inner">
-                <i className="fa-solid fa-clock-rotate-left text-lg"></i>
+              <div className="flex justify-center items-center bg-rose-500/10 shadow-inner rounded-lg w-12 h-12 text-rose-500">
+                <i className="text-lg fa-clock-rotate-left fa-solid"></i>
               </div>
               <div>
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                   Lending Outstanding
                 </h3>
-                <p className="font-black text-rose-500 text-2xl tracking-tighter">
+                <p className={`font-black text-2xl tracking-tighter ${loanStats.givenOutstanding > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
                   ৳{loanStats.givenOutstanding.toLocaleString()}
                 </p>
               </div>
@@ -377,8 +381,8 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-slate-500/10 text-slate-500 dark:text-slate-400 shadow-inner">
-                <i className="fa-solid fa-briefcase text-lg"></i>
+              <div className="flex justify-center items-center bg-slate-500/10 shadow-inner rounded-lg w-12 h-12 text-slate-500 dark:text-slate-400">
+                <i className="text-lg fa-solid fa-briefcase"></i>
               </div>
               <div>
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
@@ -392,14 +396,14 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-500 shadow-inner">
-                <i className="fa-solid fa-circle-check text-lg"></i>
+              <div className="flex justify-center items-center bg-emerald-500/10 shadow-inner rounded-lg w-12 h-12 text-emerald-500">
+                <i className="text-lg fa-solid fa-circle-check"></i>
               </div>
               <div>
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                   Borrowing Outstanding
                 </h3>
-                <p className="font-black text-emerald-500 text-2xl tracking-tighter">
+                <p className={`font-black text-2xl tracking-tighter ${loanStats.takenOutstanding > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
                   ৳{loanStats.takenOutstanding.toLocaleString()}
                 </p>
               </div>
@@ -460,7 +464,7 @@ export default function DashboardPage() {
                       {/* Accordion Header Row */}
                       <tr
                         onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
-                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''}`}
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''} ${isExpanded ? 'border-l-4 border-indigo-500' : ''}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -498,11 +502,11 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-xs">
                           {totalChildrenCount} Invoices
                         </td>
-                        <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                        <td className="px-6 py-4 font-black text-black dark:text-white text-sm">
                           {invoice.currency}
                           {totalChildrenPaid.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 font-black text-rose-600 dark:text-rose-400 text-sm">
+                        <td className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-black dark:text-white'}`}>
                           {invoice.currency}
                           {totalChildrenDue.toLocaleString()}
                         </td>

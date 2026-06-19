@@ -162,3 +162,8 @@
 .dark-border {
   border-color: #1e293b;
 }
+
+button,
+a {
+  cursor: pointer;
+}

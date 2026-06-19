@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { deleteInvoice, saveInvoice, generateRecurringInstanceAction } from '@/services/invoices';
+import {
+  deleteInvoice,
+  saveInvoice,
+  generateRecurringInstanceAction,
+  createInvoiceShareToken,
+  revokeInvoiceToken,
+  listInvoiceTokens,
+  listInvoiceViewLogs,
+} from '@/services/invoices';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { TableSkeleton } from '@/components/skeleton';
@@ -35,6 +43,17 @@ export default function InvoicesPage() {
   const [recurringLogs, setRecurringLogs] = useState<any[]>([]);
   const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
 
+  // Share Link Manager state
+  const [shareInvoice, setShareInvoice] = useState<Invoice | null>(null);
+  const [shareTab, setShareTab] = useState<'create' | 'tokens' | 'logs'>('create');
+  const [shareLabel, setShareLabel] = useState('');
+  const [shareNeverExpires, setShareNeverExpires] = useState(false);
+  const [shareDays, setShareDays] = useState(30);
+  const [shareTokens, setShareTokens] = useState<any[]>([]);
+  const [shareLogs, setShareLogs] = useState<any[]>([]);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+
   const toggleExpandTemplate = (id: string) => {
     setExpandedTemplates((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -45,6 +64,64 @@ export default function InvoicesPage() {
       .map((l) => l.child_invoice_id);
     return invoices.filter((inv) => childIds.includes(inv.id));
   };
+
+  const openShareModal = useCallback(async (invoice: Invoice) => {
+    setShareInvoice(invoice);
+    setShareTab('create');
+    setShareLabel('');
+    setShareNeverExpires(false);
+    setShareDays(30);
+    setGeneratedLink(null);
+    setShareLoading(true);
+    try {
+      const [tokens, logs] = await Promise.all([
+        listInvoiceTokens(invoice.id),
+        listInvoiceViewLogs(invoice.id),
+      ]);
+      setShareTokens(tokens);
+      setShareLogs(logs);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setShareLoading(false);
+    }
+  }, []);
+
+  const handleCreateShareLink = async () => {
+    if (!shareInvoice) return;
+    setShareLoading(true);
+    try {
+      const tokenData = await createInvoiceShareToken(shareInvoice.id, {
+        label: shareLabel || undefined,
+        neverExpires: shareNeverExpires,
+        daysExpiry: shareNeverExpires ? undefined : shareDays,
+      });
+      const origin = window.location.origin;
+      setGeneratedLink(`${origin}/invoices/token/${tokenData.token}`);
+      const tokens = await listInvoiceTokens(shareInvoice.id);
+      setShareTokens(tokens);
+      setShareLabel('');
+      toast.success('Share link generated!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate link');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRevokeToken = async (tokenId: string) => {
+    if (!confirm('Revoke this link? Anyone with it will no longer be able to view the invoice.')) return;
+    try {
+      await revokeInvoiceToken(tokenId);
+      const tokens = await listInvoiceTokens(shareInvoice!.id);
+      setShareTokens(tokens);
+      toast.success('Link revoked.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to revoke');
+    }
+  };
+
+
 
   const handleOpenManager = (invoice: Invoice) => {
     setSelectedManageInvoice(invoice);
@@ -275,8 +352,8 @@ export default function InvoicesPage() {
             key={t}
             onClick={() => setFilter(t)}
             className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${filter === t
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
           >
             {t}
@@ -324,7 +401,7 @@ export default function InvoicesPage() {
                       {/* Accordion Header Row */}
                       <tr
                         onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
-                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 border-indigo-500 border-l-4 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''}`}
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''} ${isExpanded ? 'border-l-4 border-indigo-500' : ''}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -362,11 +439,11 @@ export default function InvoicesPage() {
                         <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-xs">
                           {totalChildrenCount} Invoices
                         </td>
-                        <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                        <td className="px-6 py-4 font-black text-black dark:text-white text-sm">
                           {invoice.currency}
                           {totalChildrenPaid.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 font-black text-rose-600 dark:text-rose-400 text-sm">
+                        <td className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-black dark:text-white'}`}>
                           {invoice.currency}
                           {totalChildrenDue.toLocaleString()}
                         </td>
@@ -377,6 +454,13 @@ export default function InvoicesPage() {
                         </td>
                         <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => openShareModal(invoice)}
+                              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title="Share Link"
+                            >
+                              <i className="fa-solid fa-link"></i>
+                            </button>
                             <button
                               onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
                               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
@@ -579,6 +663,13 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => openShareModal(invoice)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                            title="Share Link"
+                          >
+                            <i className="fa-solid fa-link"></i>
+                          </button>
                           <button
                             onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
@@ -883,6 +974,234 @@ export default function InvoicesPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+      {/* ====================================================
+          Share Link Manager Modal
+      ==================================================== */}
+      {shareInvoice && (
+        <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-slate-100 dark:border-slate-800 border-b">
+              <div>
+                <h2 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">
+                  Share Invoice
+                </h2>
+                <p className="mt-0.5 text-slate-400 text-xs">{shareInvoice.invoice_number}</p>
+              </div>
+              <button onClick={() => setShareInvoice(null)} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                <i className="text-lg fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 p-4 border-slate-100 dark:border-slate-800 border-b">
+              {(['create', 'tokens', 'logs'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setShareTab(tab)}
+                  className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${shareTab === tab
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                >
+                  {tab === 'create' ? 'New Link' : tab === 'tokens' ? `Links (${shareTokens.length})` : `View Log (${shareLogs.length})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 space-y-5 p-6 overflow-y-auto">
+
+              {/* ---- CREATE TAB ---- */}
+              {shareTab === 'create' && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="block mb-1.5 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">Link Label (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Sent to John — June 2026"
+                      value={shareLabel}
+                      onChange={(e) => setShareLabel(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 px-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/40 w-full text-slate-800 dark:text-slate-200 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">Expiry</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[7, 14, 30, 90].map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => { setShareNeverExpires(false); setShareDays(d); }}
+                          className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${!shareNeverExpires && shareDays === d
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            }`}
+                        >
+                          {d} days
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setShareNeverExpires(true)}
+                        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${shareNeverExpires
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          }`}
+                      >
+                        Never
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCreateShareLink}
+                    disabled={shareLoading}
+                    className="flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 shadow-indigo-600/20 shadow-lg py-3 rounded-xl w-full font-black text-white text-xs uppercase tracking-widest transition-all"
+                  >
+                    <i className={`fa-solid ${shareLoading ? 'fa-spinner animate-spin' : 'fa-link'}`}></i>
+                    {shareLoading ? 'Generating...' : 'Generate Share Link'}
+                  </button>
+
+                  {generatedLink && (
+                    <div className="space-y-3 bg-emerald-50 dark:bg-emerald-950/30 p-4 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
+                      <p className="font-black text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Link Ready</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          readOnly
+                          value={generatedLink}
+                          className="flex-1 bg-white dark:bg-slate-900 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-mono text-slate-700 dark:text-slate-300 text-xs"
+                        />
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success('Copied!'); }}
+                          className="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg font-black text-white text-xs transition-colors"
+                        >
+                          <i className="fa-solid fa-copy"></i>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ---- TOKENS TAB ---- */}
+              {shareTab === 'tokens' && (
+                <div className="space-y-3">
+                  {shareLoading && <p className="py-4 text-slate-400 text-xs text-center">Loading...</p>}
+                  {!shareLoading && shareTokens.length === 0 && (
+                    <p className="py-6 text-slate-400 text-xs text-center italic">No share links yet. Create one from the New Link tab.</p>
+                  )}
+                  {shareTokens.map((t) => {
+                    const isRevoked = !!t.revoked_at;
+                    const isExpired = !t.never_expires && t.expires_at && new Date(t.expires_at) < new Date();
+                    return (
+                      <div
+                        key={t.id}
+                        className={`rounded-xl border p-4 flex items-start gap-4 ${isRevoked || isExpired
+                            ? 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                          }`}
+                      >
+                        <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isRevoked ? 'bg-orange-500/10 text-orange-500' :
+                            isExpired ? 'bg-red-500/10 text-red-500' :
+                              'bg-emerald-500/10 text-emerald-500'
+                          }`}>
+                          <i className={`fa-solid text-xs ${isRevoked ? 'fa-ban' :
+                              isExpired ? 'fa-clock' :
+                                'fa-check'
+                            }`}></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
+                            {t.label || 'Untitled Link'}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            {isRevoked ? `Revoked ${new Date(t.revoked_at).toLocaleDateString()}` :
+                              isExpired ? `Expired ${new Date(t.expires_at).toLocaleDateString()}` :
+                                t.never_expires ? 'Never expires' :
+                                  `Expires ${new Date(t.expires_at).toLocaleDateString()}`}
+                            {' · '}
+                            <span className="font-bold text-indigo-500">{t.view_count} view{t.view_count !== 1 ? 's' : ''}</span>
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              readOnly
+                              value={`${window.location.origin}/invoices/token/${t.token}`}
+                              className="flex-1 bg-slate-50 dark:bg-slate-950 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-mono text-[10px] text-slate-500"
+                            />
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/invoices/token/${t.token}`); toast.success('Copied!'); }}
+                              className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title="Copy"
+                            >
+                              <i className="text-xs fa-solid fa-copy"></i>
+                            </button>
+                          </div>
+                        </div>
+                        {!isRevoked && (
+                          <button
+                            onClick={() => handleRevokeToken(t.id)}
+                            className="font-bold text-slate-400 hover:text-red-500 text-xs uppercase tracking-wider transition-colors shrink-0"
+                            title="Revoke"
+                          >
+                            <i className="fa-solid fa-ban"></i>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ---- LOGS TAB ---- */}
+              {shareTab === 'logs' && (
+                <div>
+                  {shareLoading && <p className="py-4 text-slate-400 text-xs text-center">Loading...</p>}
+                  {!shareLoading && shareLogs.length === 0 && (
+                    <p className="py-6 text-slate-400 text-xs text-center italic">No views recorded yet.</p>
+                  )}
+                  {shareLogs.length > 0 && (
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 border-b font-black text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
+                          <tr>
+                            <th className="px-4 py-3">Viewed At</th>
+                            <th className="px-4 py-3">IP</th>
+                            <th className="px-4 py-3">Browser</th>
+                            <th className="px-4 py-3">OS</th>
+                            <th className="px-4 py-3">Device</th>
+                            <th className="px-4 py-3">Link Label</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                          {shareLogs.map((log) => (
+                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                              <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                                {new Date(log.viewed_at).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 font-mono text-slate-700 dark:text-slate-300">{log.ip_address || '—'}</td>
+                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{log.browser || '—'}</td>
+                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{log.os || '—'}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={`px-2 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${log.device === 'Mobile' ? 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400' :
+                                    log.device === 'Tablet' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' :
+                                      'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                  }`}>{log.device || '—'}</span>
+                              </td>
+                              <td className="px-4 py-2.5 text-[10px] text-slate-400">{log.token?.label || 'Untitled'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
       )}
