@@ -378,6 +378,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+
           </div>
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
