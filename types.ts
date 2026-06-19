@@ -44,6 +44,7 @@ export interface Invoice {
   recurring_frequency?: RecurringFrequency;
   next_generation_date?: string;
   created_at?: string;
+  paid_amount: number;
   // Joined data
   items?: InvoiceItem[];
   client?: Client;
@@ -67,5 +68,14 @@ export interface InvoiceData {
   recurringFrequency?: RecurringFrequency;
 }
 
-export type ViewType = 'dashboard' | 'invoices' | 'clients' | 'companies' | 'edit-invoice' | 'recurring';
+export type ViewType = 'dashboard' | 'invoices' | 'clients' | 'companies' | 'edit-invoice' | 'recurring' | 'sources';
 export type Theme = 'light' | 'dark';
+
+export interface LoanSource {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  created_at?: string;
+}
+

@@ -1,11 +1,11 @@
+'use client';
 
 import React from 'react';
-import { ViewType, Theme } from '../types';
 
 interface SidebarProps {
-  currentView: ViewType;
-  onViewChange: (view: ViewType) => void;
-  theme: Theme;
+  currentView: string;
+  onViewChange: (view: string) => void;
+  theme: 'light' | 'dark';
   toggleTheme: () => void;
   onLogout: () => void;
   isOpen: boolean;
@@ -13,22 +13,29 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  currentView, onViewChange, theme, toggleTheme, onLogout, isOpen, setIsOpen
+  currentView,
+  onViewChange,
+  theme,
+  toggleTheme,
+  onLogout,
+  isOpen,
+  setIsOpen,
 }) => {
   const primaryLinks = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
     { id: 'invoices', label: 'Invoices', icon: 'fa-file-invoice-dollar' },
-    { id: 'recurring', label: 'Automation', icon: 'fa-arrows-rotate' },
+    { id: 'loans', label: 'Loans', icon: 'fa-hand-holding-dollar' },
   ];
 
   const manageLinks = [
     { id: 'clients', label: 'Clients', icon: 'fa-users' },
     { id: 'companies', label: 'Entities', icon: 'fa-building' },
+    { id: 'sources', label: 'Loan Sources', icon: 'fa-building-columns' },
   ];
 
   const isActive = (id: string) => currentView === id;
 
-  const handleNav = (id: ViewType) => {
+  const handleNav = (id: string) => {
     onViewChange(id);
     if (window.innerWidth < 1024) setIsOpen(false);
   };
@@ -43,10 +50,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 w-72 bg-slate-900 dark:bg-dark-bg text-slate-400 flex flex-col h-full z-50 transition-transform duration-300 ease-in-out border-r border-slate-800 dark:border-dark-border
+      <aside
+        className={`
+        fixed lg:static inset-y-0 left-0 w-72 bg-slate-900 dark:bg-[#020617] text-slate-400 flex flex-col h-screen z-50 transition-transform duration-300 ease-in-out border-r border-slate-800 dark:border-slate-800/50
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      `}
+      >
         <div className="flex justify-between items-center p-8">
           <div className="flex items-center gap-3">
             <div className="flex justify-center items-center bg-indigo-600 shadow-indigo-600/20 shadow-lg rounded-lg w-10 h-10 font-bold text-white">
@@ -54,7 +63,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div>
               <span className="block font-black text-white text-xl tracking-tight">My Invoice</span>
-              <span className="block font-black text-[8px] text-indigo-400 uppercase tracking-[0.3em]">Cloud OS</span>
+              <span className="block font-black text-[8px] text-indigo-400 uppercase tracking-[0.3em]">
+                Enterprise OS
+              </span>
             </div>
           </div>
           <button
@@ -67,16 +78,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex-1 space-y-8 mt-4 px-4 overflow-y-auto custom-scrollbar">
           <section>
-            <p className="mb-4 px-4 font-black text-[10px] text-slate-600 uppercase tracking-[0.2em]">Core</p>
+            <p className="mb-4 px-4 font-black text-[10px] text-slate-600 uppercase tracking-[0.2em]">
+              Core Modules
+            </p>
             <nav className="space-y-1">
               {primaryLinks.map(link => (
                 <button
                   key={link.id}
-                  onClick={() => handleNav(link.id as ViewType)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all text-sm font-bold ${isActive(link.id)
-                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
-                    : 'hover:bg-slate-800 hover:text-slate-200'
-                    }`}
+                  onClick={() => handleNav(link.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
+                    isActive(link.id)
+                      ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
+                      : 'hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1'
+                  }`}
                 >
                   <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                   {link.label}
@@ -86,16 +100,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </section>
 
           <section>
-            <p className="mb-4 px-4 font-black text-[10px] text-slate-600 uppercase tracking-[0.2em]">Management</p>
+            <p className="mb-4 px-4 font-black text-[10px] text-slate-600 uppercase tracking-[0.2em]">
+              Management
+            </p>
             <nav className="space-y-1">
               {manageLinks.map(link => (
                 <button
                   key={link.id}
-                  onClick={() => handleNav(link.id as ViewType)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all text-sm font-bold ${isActive(link.id)
-                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
-                    : 'hover:bg-slate-800 hover:text-slate-200'
-                    }`}
+                  onClick={() => handleNav(link.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
+                    isActive(link.id)
+                      ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
+                      : 'hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1'
+                  }`}
                 >
                   <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                   {link.label}
@@ -118,3 +135,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+export default Sidebar;
