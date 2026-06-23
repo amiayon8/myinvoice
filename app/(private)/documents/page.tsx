@@ -37,6 +37,10 @@ export default function DocumentsPage() {
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
 
+  // Generation History state
+  const [rightPanelTab, setRightPanelTab] = useState<'payload' | 'history'>('payload');
+  const [historyItems, setHistoryItems] = useState<any[]>([]);
+
   // Default configurations
   const defaultCommonData = {
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -223,6 +227,23 @@ export default function DocumentsPage() {
 
   const activeData = docConfigs[activeDocType];
 
+  const fetchHistory = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data, error } = await supabase
+        .from('document_generations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setHistoryItems(data || []);
+    } catch (err) {
+      console.error('Error fetching generation history:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchDBData = async () => {
       setLoading(true);
@@ -233,6 +254,7 @@ export default function DocumentsPage() {
         ]);
         setCompanies(comps.data || []);
         setClients(cls.data || []);
+        await fetchHistory();
       } catch (err) {
         console.error('Error fetching entities/clients:', err);
         toast.error('Failed to load database profiles');
@@ -348,7 +370,7 @@ export default function DocumentsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
 
-      const response = await fetch(`http://localhost:5000/api/documents/${activeDocType}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${activeDocType}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -379,6 +401,68 @@ export default function DocumentsPage() {
       clientName = clientName.replace(/\s+/g, '_');
 
       a.download = `${activeDocType.toUpperCase()}_${clientName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF successfully generated!');
+      await fetchHistory();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error compiling PDF document');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const restoreHistoryItem = (item: any) => {
+    const updatedConfigs = { ...docConfigs };
+    updatedConfigs[item.document_type] = item.payload;
+    setDocConfigs(updatedConfigs);
+    setActiveDocType(item.document_type);
+
+    const compName = item.payload.developer?.name || item.payload.receivingParty?.name;
+    const company = companies.find((c) => c.name === compName);
+    if (company) setSelectedEntityId(company.id);
+    else setSelectedEntityId('');
+
+    const cliName = item.payload.client?.name || item.payload.disclosingParty?.name;
+    const client = clients.find((c) => c.name === cliName);
+    if (client) setSelectedClientId(client.id);
+    else setSelectedClientId('');
+
+    toast.success(`Restored ${item.document_type === 'sow' ? 'SOW' : item.document_type} configuration.`);
+  };
+
+  const downloadHistoryItem = async (item: any) => {
+    setGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${item.document_type}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(item.payload),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP error ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      let clientName = item.payload.client?.name || item.payload.disclosingParty?.name || 'Client';
+      clientName = clientName.replace(/\s+/g, '_');
+
+      a.download = `${item.document_type.toUpperCase()}_${clientName}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1436,18 +1520,94 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Real-time sync Raw JSON preview panel (Right) */}
-        <div className="flex flex-col bg-slate-950 border-slate-800 border-l w-96 h-full overflow-hidden">
-          <div className="flex justify-between items-center p-4 border-slate-850 border-b">
-            <h3 className="font-semibold text-slate-300 text-xs uppercase tracking-wider">
-              Post Request JSON
-            </h3>
-            <span className="font-mono text-[9px] text-emerald-400 tracking-widest animate-pulse">
-              REAL-TIME SYNC
-            </span>
+        {/* Real-time sync Raw JSON & History panel (Right) */}
+        <div className="flex flex-col bg-slate-950 border-slate-800 border-l w-96 h-full overflow-hidden no-print">
+          {/* Tab Selection Header */}
+          <div className="flex bg-slate-900 border-slate-800 border-b">
+            <button
+              onClick={() => setRightPanelTab('payload')}
+              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider text-center border-b-2 transition-all ${
+                rightPanelTab === 'payload'
+                  ? 'border-indigo-500 text-white bg-slate-950/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              JSON Payload
+            </button>
+            <button
+              onClick={() => {
+                setRightPanelTab('history');
+                fetchHistory();
+              }}
+              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider text-center border-b-2 transition-all ${
+                rightPanelTab === 'history'
+                  ? 'border-indigo-500 text-white bg-slate-950/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              History Logs ({historyItems.length})
+            </button>
           </div>
-          <div className="flex-1 p-4 overflow-auto font-mono text-[10px] text-emerald-400 whitespace-pre custom-scrollbar">
-            {JSON.stringify(activeData, null, 4)}
+
+          <div className="flex-1 flex flex-col min-h-0">
+            {rightPanelTab === 'payload' ? (
+              <div className="flex-1 p-4 overflow-auto font-mono text-[10px] text-emerald-400 whitespace-pre custom-scrollbar">
+                {JSON.stringify(activeData, null, 4)}
+              </div>
+            ) : (
+              <div className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-3">
+                {historyItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-center text-slate-500">
+                    <i className="text-3xl mb-2 fa-solid fa-clock-rotate-left"></i>
+                    <p className="text-xs font-semibold uppercase tracking-wider">No history recorded yet</p>
+                    <p className="text-[10px] mt-1 text-slate-600">Generated PDFs will appear here automatically.</p>
+                  </div>
+                ) : (
+                  historyItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-slate-900/50 border border-slate-800/85 p-3 rounded-lg flex flex-col gap-2 shadow-sm hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-indigo-500/10 text-indigo-400 capitalize">
+                            {item.document_type === 'sow' ? 'SOW' : item.document_type}
+                          </span>
+                          <h4 className="font-bold text-slate-200 text-sm mt-1.5 truncate max-w-[200px]">
+                            {item.client_name}
+                          </h4>
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-semibold">
+                          {new Date(item.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate font-semibold">
+                        Project: {item.project_name}
+                      </p>
+                      <div className="flex gap-2 mt-1 border-t border-slate-800/60 pt-2">
+                        <button
+                          onClick={() => restoreHistoryItem(item)}
+                          className="flex-1 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          onClick={() => downloadHistoryItem(item)}
+                          className="flex-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
+                        >
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
