@@ -1,9 +1,1 @@
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-1. Install dependencies:
-   `npm install`
-2. Set the `SUPABASE_URL` and `SUPABASE_ANON_KEY` in [.env]
-3. Run the app:
-   `npm run dev`
+Add an individual page for managing/logs and everything of links

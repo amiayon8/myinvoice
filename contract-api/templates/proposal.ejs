@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Project Proposal</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Cover Page styling */
+        .cover-page {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px 0;
+            page-break-after: always;
+        }
+
+        .cover-accent {
+            width: 80px;
+            height: 6px;
+            background-color: #6366f1; /* Indigo */
+            margin-bottom: 25px;
+        }
+
+        .cover-title {
+            font-size: 28pt;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+            margin: 0 0 10px 0;
+        }
+
+        .cover-subtitle {
+            font-size: 14pt;
+            color: #6366f1;
+            font-weight: 500;
+            margin: 0 0 40px 0;
+        }
+
+        .cover-details {
+            margin-top: 100px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 30px;
+        }
+
+        .details-grid {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10pt;
+        }
+
+        .details-col p {
+            margin: 0 0 8px 0;
+        }
+
+        /* Standard Header */
+        .doc-header {
+            border-bottom: 3px solid #6366f1;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .doc-subtitle-small {
+            font-size: 10pt;
+            color: #6366f1;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        /* Sections */
+        h2 {
+            font-size: 13pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            font-size: 11pt;
+            font-weight: 600;
+            color: #6366f1;
+            margin-top: 18px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Two Column Box Layout */
+        .grid-box {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .box-item {
+            width: 48%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .box-title {
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 10.5pt;
+        }
+
+        .box-desc {
+            font-size: 9.5pt;
+            color: #475569;
+            margin: 0;
+        }
+
+        /* Timeline / Phases */
+        .timeline-container {
+            margin-bottom: 25px;
+        }
+
+        .phase-item {
+            border-left: 2px solid #6366f1;
+            padding-left: 15px;
+            margin-left: 10px;
+            padding-bottom: 15px;
+            position: relative;
+            page-break-inside: avoid;
+        }
+
+        .phase-item::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background-color: #6366f1;
+            border-radius: 50%;
+            position: absolute;
+            left: -6px;
+            top: 5px;
+        }
+
+        .phase-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .phase-title {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 10.5pt;
+        }
+
+        .phase-duration {
+            font-size: 9pt;
+            color: #6366f1;
+            font-weight: 600;
+        }
+
+        .phase-desc {
+            font-size: 9.5pt;
+            color: #475569;
+            margin: 0;
+        }
+
+        /* Pricing Table */
+        .price-table {
+            width: 100%;
+            margin-bottom: 25px;
+            border-collapse: collapse;
+        }
+
+        .price-table th {
+            background-color: #6366f1;
+            color: #ffffff;
+            font-weight: 500;
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 9.5pt;
+        }
+
+        .price-table td {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            font-size: 9.5pt;
+            vertical-align: top;
+        }
+
+        .price-table tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+
+        .price-table td.amount {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .why-us-list {
+            padding-left: 20px;
+        }
+
+        .why-us-list li {
+            margin-bottom: 10px;
+        }
+
+        .next-steps-box {
+            background-color: #e0e7ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 30px;
+        }
+
+        .next-steps-title {
+            font-weight: 600;
+            color: #3730a3;
+            margin-bottom: 8px;
+            font-size: 11pt;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Cover Page -->
+    <div class="cover-page">
+        <div>
+            <div class="cover-accent"></div>
+            <h1 class="cover-title">PROJECT PROPOSAL</h1>
+            <p class="cover-subtitle">Tailored Software Engineering & Integration Plan</p>
+            <p style="font-size: 11pt; color: #475569; max-width: 80%;">A comprehensive proposal detailing the problem analysis, strategic solution architecture, estimated project timeline, and pricing tiers prepared specifically for <%= client.name %>.</p>
+        </div>
+
+        <div class="cover-details">
+            <div class="details-grid">
+                <div class="details-col">
+                    <p style="color: #64748b; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.5px;">PREPARED FOR</p>
+                    <p><strong><%= client.name %></strong></p>
+                    <p><%= client.company || 'Client Organization' %></p>
+                    <p><%= client.email %></p>
+                </div>
+                <div class="details-col" style="text-align: right;">
+                    <p style="color: #64748b; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.5px;">PREPARED BY</p>
+                    <p><strong><%= developer.name %></strong></p>
+                    <p><%= developer.email %></p>
+                    <p><%= developer.website || '' %></p>
+                    <p><strong>Date:</strong> <%= date %> | <strong>Valid Until:</strong> <%= validUntil || '30 days from date' %></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Header -->
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Project Overview</h1>
+                <div class="doc-subtitle-small">Proposal Summary & Solution Architecture</div>
+            </div>
+            <div style="font-size: 9pt; color: #64748b; text-align: right;">
+                <strong>Project:</strong> <%= project.name %>
+            </div>
+        </div>
+    </div>
+
+    <h2>1. Executive Summary</h2>
+    <div class="grid-box">
+        <div class="box-item">
+            <div class="box-title">The Challenge / Problem</div>
+            <div class="box-desc"><%= problem %></div>
+        </div>
+        <div class="box-item">
+            <div class="box-title">Our Strategic Solution</div>
+            <div class="box-desc"><%= solution %></div>
+        </div>
+    </div>
+
+    <h2>2. Proposed Timeline & Project Phases</h2>
+    <p>To ensure high quality and alignment, we propose dividing the development cycle into structured phases. Each phase concludes with client review and milestone approval:</p>
+    
+    <div class="timeline-container">
+        <% if (typeof phases !== 'undefined' && phases && phases.length > 0) { %>
+            <% phases.forEach(function(phase) { %>
+                <div class="phase-item">
+                    <div class="phase-header">
+                        <span class="phase-title"><%= phase.name %></span>
+                        <span class="phase-duration"><%= phase.duration %></span>
+                    </div>
+                    <p class="phase-desc"><%= phase.description %></p>
+                </div>
+            <% }); %>
+        <% } else { %>
+            <div class="phase-item">
+                <div class="phase-header">
+                    <span class="phase-title">Phase 1: Discovery & Architecture</span>
+                    <span class="phase-duration">1-2 Weeks</span>
+                </div>
+                <p class="phase-desc">Wireframing, API design, database schema planning, and environment setups.</p>
+            </div>
+            <div class="phase-item">
+                <div class="phase-header">
+                    <span class="phase-title">Phase 2: Core Sprint Development</span>
+                    <span class="phase-duration">4-6 Weeks</span>
+                </div>
+                <p class="phase-desc">Frontend construction, API integrations, authentication setup, and core database interactions.</p>
+            </div>
+            <div class="phase-item">
+                <div class="phase-header">
+                    <span class="phase-title">Phase 3: Quality Assurance & Testing</span>
+                    <span class="phase-duration">1-2 Weeks</span>
+                </div>
+                <p class="phase-desc">Cross-browser visual checks, performance optimizations, end-to-end user testing, and bug resolutions.</p>
+            </div>
+            <div class="phase-item">
+                <div class="phase-header">
+                    <span class="phase-title">Phase 4: Launch & Handover</span>
+                    <span class="phase-duration">1 Week</span>
+                </div>
+                <p class="phase-desc">Production server configurations, domain routing, credentials handover, and support setup.</p>
+            </div>
+        <% } %>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>3. Pricing Options & Estimates</h2>
+    <p>We propose a transparent pricing model for the project execution. Below are the estimated investments for the scope of work described:</p>
+    
+    <table class="price-table">
+        <thead>
+            <tr>
+                <th style="width: 70%;">Deliverable / Package Option</th>
+                <th style="width: 30%; text-align: right;">Estimated Investment</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (typeof pricingOptions !== 'undefined' && pricingOptions && pricingOptions.length > 0) { %>
+                <% pricingOptions.forEach(function(opt) { %>
+                    <tr>
+                        <td>
+                            <strong><%= opt.name %></strong><br>
+                            <span style="font-size: 8.5pt; color: #64748b;"><%= opt.description %></span>
+                        </td>
+                        <td class="amount" style="text-align: right;"><%= currency %> <%= opt.amount %></td>
+                    </tr>
+                <% }); %>
+            <% } else { %>
+                <tr>
+                    <td>
+                        <strong>Full-Scale Scope (Fixed Price)</strong><br>
+                        <span style="font-size: 8.5pt; color: #64748b;">Includes all features in the SOW, 3 months post-launch support, and deployments.</span>
+                    </td>
+                    <td class="amount" style="text-align: right;"><%= currency %> <%= pricing.total %></td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+
+    <h2>4. Why Partner With Us</h2>
+    <ul class="why-us-list">
+        <% if (typeof whyUs !== 'undefined' && whyUs && whyUs.length > 0) { %>
+            <% whyUs.forEach(function(point) { %>
+                <li><%= point %></li>
+            <% }); %>
+        <% } else { %>
+            <li><strong>Expert Technical Capability:</strong> Specialized experience in building modern, scalable React/Node.js products that handle high user volumes cleanly.</li>
+            <li><strong>Clear & Prompt Communication:</strong> Weekly progress updates via video calls, direct access to the active Git repository, and interactive testing links.</li>
+            <li><strong>Security First Approach:</strong> Implementation of OAuth2, secure JWT protocols, data encryption, and proper environmental setups from day one.</li>
+        <% } %>
+    </ul>
+
+    <div class="next-steps-box">
+        <div class="next-steps-title">5. Next Steps to Get Started</div>
+        <ol style="margin: 0; padding-left: 18px; font-size: 9.5pt; color: #3730a3;">
+            <li style="margin-bottom: 6px;"><strong>Proposal Approval:</strong> Notify the Developer of your package preference and timeline confirmation.</li>
+            <li style="margin-bottom: 6px;"><strong>Contract Execution:</strong> Sign the formal Service Agreement / Contract and finalize the SOW.</li>
+            <li><strong>Advance Deposit:</strong> Process the initial <%= currency %> <%= pricing.advance %> advance invoice to trigger project kick-off.</li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

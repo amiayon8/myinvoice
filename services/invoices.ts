@@ -317,3 +317,44 @@ function advanceFrequency(dateStr: string, frequency: string): string {
   return nextGenDate.toISOString().split('T')[0];
 }
 
+export async function listAllInvoiceTokens() {
+  const supabase = await createClient();
+
+  const { data: tokens, error } = await supabase
+    .from('invoice_access_tokens')
+    .select('*, invoice:invoices(id, invoice_number, currency, client:clients(id, name), company:companies(id, name, color))')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const tokenIds = (tokens || []).map((t: any) => t.id);
+  
+  if (tokenIds.length === 0) return [];
+
+  const { data: logCounts } = await supabase
+    .from('invoice_view_logs')
+    .select('token_id')
+    .in('token_id', tokenIds);
+
+  const countMap: Record<string, number> = {};
+  (logCounts || []).forEach((l: any) => {
+    countMap[l.token_id] = (countMap[l.token_id] || 0) + 1;
+  });
+
+  return (tokens || []).map((t: any) => ({
+    ...t,
+    view_count: countMap[t.id] || 0,
+  }));
+}
+
+export async function listAllInvoiceViewLogs() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('invoice_view_logs')
+    .select('*, token:invoice_access_tokens(label, token), invoice:invoices(invoice_number, currency, client:clients(name), company:companies(name))')
+    .order('viewed_at', { ascending: false })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+

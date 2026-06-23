@@ -43,6 +43,12 @@ export default function PrivateLayout({
     currentView = 'companies';
   } else if (pathname.startsWith('/sources')) {
     currentView = 'sources';
+  } else if (pathname.startsWith('/links/logs')) {
+    currentView = 'logs';
+  } else if (pathname.startsWith('/links')) {
+    currentView = 'links';
+  } else if (pathname.startsWith('/documents')) {
+    currentView = 'documents';
   }
 
   const handleViewChange = (view: string) => {
@@ -52,6 +58,9 @@ export default function PrivateLayout({
     else if (view === 'clients') router.push('/clients');
     else if (view === 'companies') router.push('/companies');
     else if (view === 'sources') router.push('/sources');
+    else if (view === 'links') router.push('/links');
+    else if (view === 'logs') router.push('/links/logs');
+    else if (view === 'documents') router.push('/documents');
   };
 
   return (

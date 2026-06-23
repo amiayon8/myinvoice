@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Maintenance & Support Agreement</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Header Layout */
+        .doc-header {
+            border-bottom: 3px solid #f59e0b; /* Amber theme for maintenance */
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-subtitle {
+            font-size: 11pt;
+            color: #f59e0b;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        .doc-date {
+            font-size: 9.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Meta Table */
+        .meta-table {
+            width: 100%;
+            margin-bottom: 25px;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+
+        .meta-table td {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .meta-table td.label {
+            font-weight: 600;
+            background-color: #f8fafc;
+            color: #0f172a;
+            width: 20%;
+        }
+
+        .meta-table td.value {
+            color: #334155;
+            width: 30%;
+        }
+
+        /* Highlight box */
+        .highlight-box {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            border-radius: 0 6px 6px 0;
+        }
+
+        /* SLA Grid */
+        .sla-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .sla-box {
+            width: 48%;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            background-color: #f8fafc;
+        }
+
+        .sla-title {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 10.5pt;
+            margin-bottom: 4px;
+        }
+
+        .sla-value {
+            font-size: 14pt;
+            color: #f59e0b;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        /* Signatures Container */
+        .signatures {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            page-break-inside: avoid;
+        }
+
+        .sig-box {
+            width: 45%;
+            border-top: 1px solid #94a3b8;
+            text-align: left;
+            padding-top: 8px;
+            margin-top: 60px;
+            page-break-inside: avoid;
+        }
+
+        .sig-title {
+            font-weight: 600;
+            color: #0f172a;
+            margin: 0 0 4px 0;
+            font-size: 9.5pt;
+        }
+
+        .sig-sub {
+            color: #64748b;
+            margin: 0;
+            font-size: 8.5pt;
+        }
+
+        .legal-clause {
+            font-size: 8.5pt;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Maintenance Agreement</h1>
+                <div class="doc-subtitle">Software Maintenance & Technical Support Agreement</div>
+            </div>
+            <div class="doc-date">
+                <strong>Agreement Date:</strong> <%= date %><br>
+                <strong>Term:</strong> <%= termMonths %> Months
+            </div>
+        </div>
+    </div>
+
+    <p>This Software Maintenance & Technical Support Agreement (the "Agreement") is entered into as of <strong><%= date %></strong>, by and between:</p>
+
+    <table class="meta-table">
+        <tr>
+            <td class="label">Provider / Dev:</td>
+            <td class="value">
+                <strong><%= developer.name %></strong><br>
+                Email: <%= developer.email %><br>
+                <%= developer.address ? 'Address: ' + developer.address : '' %>
+            </td>
+            <td class="label">Client:</td>
+            <td class="value">
+                <strong><%= client.name %></strong><br>
+                Email: <%= client.email %><br>
+                <%= client.address ? 'Address: ' + client.address : '' %>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">Covered System:</td>
+            <td class="value">
+                <%= project.name %>
+            </td>
+            <td class="label">Monthly Support Fee:</td>
+            <td class="value">
+                <strong><%= currency %> <%= monthlyFee %>/month</strong>
+            </td>
+        </tr>
+    </table>
+
+    <div class="highlight-box">
+        <p><strong>Purpose:</strong> The Client desires to retain the Provider to perform post-launch software maintenance, performance optimization, and operational support to ensure the stability and security of the Covered System. The Provider agrees to perform these services as detailed below.</p>
+    </div>
+
+    <h2>1. Monthly Maintenance Scope</h2>
+    <p>Under this agreement, the Provider agrees to perform the following core services on an ongoing monthly basis:</p>
+    <ul>
+        <% if (typeof maintenanceScope !== 'undefined' && maintenanceScope && maintenanceScope.length > 0) { %>
+            <% maintenanceScope.forEach(function(item) { %>
+                <li><%= item %></li>
+            <% }); %>
+        <% } else { %>
+            <li><strong>Software Updates:</strong> Installing updates, patches, and version upgrades of frameworks, packages, and database libraries to maintain compatibility and security.</li>
+            <li><strong>Bug Resolves:</strong> Diagnosing and correcting application bugs, server configuration glitches, or logic errors that occur during standard runtime.</li>
+            <li><strong>Server Monitoring & Optimization:</strong> Uptime monitoring, database tuning, log audits, and checking server health metrics.</li>
+            <li><strong>Small Enhancements Allowance:</strong> Up to <%= supportHoursAllowance || 5 %> hours per month of minor UI styling adjustments, text changes, or light backend modifications.</li>
+        <% } %>
+    </ul>
+
+    <h2>2. Response Time SLA (Service Level Agreement)</h2>
+    <p>Support requests submitted by the Client will be categorized by severity and responded to within the following maximum target timelines. Support is available during standard business hours (9:00 AM – 5:00 PM in Provider's timezone, Monday through Friday, excluding public holidays):</p>
+    
+    <div class="sla-grid">
+        <div class="sla-box">
+            <div class="sla-title">Critical Severity</div>
+            <div class="sla-value"><%= responseTimeSLA.critical || 4 %> Hours</div>
+            <p style="font-size: 8.5pt; color: #475569; margin: 0;">System-wide outages, databases crashes, user logins disabled, or major payments failing. Critical incidents are addressed immediately.</p>
+        </div>
+        <div class="sla-box">
+            <div class="sla-title">Standard Severity</div>
+            <div class="sla-value"><%= responseTimeSLA.normal || 24 %> Hours</div>
+            <p style="font-size: 8.5pt; color: #475569; margin: 0;">Minor formatting issues, reporting errors, functional glitches not disrupting vital workflows, or styling requests.</p>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>3. Out of Scope Work & Pricing</h2>
+    <p>Any software changes, UI revisions, or new functional modules that exceed the monthly hours allowance or scope defined in Section 1 shall be billed at the Provider's standard hourly support rate of <strong><%= currency %> <%= extraHourlyRate %>/hour</strong>, or executed under a separate fixed-price project scope.</p>
+
+    <h2>4. Hosting & Third-Party Service Responsibilities</h2>
+    <p class="legal-clause">4.1 <strong>Hosting Ownership:</strong> The Client maintains direct ownership and billing responsibility for all infrastructure costs, including but not limited to hosting providers (Vercel, AWS, Supabase, Heroku), domain names, SSL certificates, and 3rd-party API subscriptions (SendGrid, Stripe, Twilio).</p>
+    <p class="legal-clause">4.2 <strong>Third-Party Failure:</strong> The Provider is not responsible for outages, database corruption, or service degradation caused directly by failures or API modifications of third-party platforms.</p>
+
+    <h2>5. Term & Termination</h2>
+    <p class="legal-clause">5.1 <strong>Term:</strong> This Agreement shall commence on the Effective Date and remain active for an initial commitment term of <strong><%= termMonths %> months</strong>. Thereafter, it shall automatically renew on a month-to-month basis.</p>
+    <p class="legal-clause">5.2 <strong>Termination:</strong> Either party may terminate this Agreement by providing at least <strong><%= terminationNoticeDays || 30 %> days</strong> prior written notice to the other party.</p>
+
+    <h2>6. Limitation of Liability</h2>
+    <p class="legal-clause">THE PROVIDER'S TOTAL LIABILITY FOR ALL CLAIMS OR DISPUTES ARISING UNDER THIS AGREEMENT IS STRICTLY LIMITED TO THE ACCUMULATED FEES PAID BY THE CLIENT UNDER THIS MAINTENANCE AGREEMENT OVER THE LAST THREE (3) MONTHS IMMEDIATELY PRECEDING THE CLAIM. IN NO EVENT SHALL PROVIDER BE LIABLE FOR LOSS OF REVENUES, DATA, OR BUSINESS INTERRUPTION.</p>
+
+    <div class="signatures">
+        <div class="sig-box">
+            <p class="sig-title"><%= developer.name %></p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= developer.representative || developer.name %></p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+        <div class="sig-box">
+            <p class="sig-title"><%= client.name %></p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= client.representative || client.name %></p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+    </div>
+
+</body>
+
+</html>

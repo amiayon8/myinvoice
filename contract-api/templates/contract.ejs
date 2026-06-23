@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Service Agreement / Development Contract</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Header Layout */
+        .doc-header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-subtitle {
+            font-size: 11pt;
+            color: #2563eb;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        .doc-date {
+            font-size: 9.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Meta Table */
+        .meta-table {
+            width: 100%;
+            margin-bottom: 25px;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+
+        .meta-table td {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .meta-table td.label {
+            font-weight: 600;
+            background-color: #f8fafc;
+            color: #0f172a;
+            width: 20%;
+        }
+
+        .meta-table td.value {
+            color: #334155;
+            width: 30%;
+        }
+
+        /* Milestones List */
+        ul {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        /* Highlight box */
+        .highlight-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #2563eb;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .highlight-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Signatures Container */
+        .signatures {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            page-break-inside: avoid;
+        }
+
+        .sig-box {
+            width: 45%;
+            border-top: 1px solid #94a3b8;
+            text-align: left;
+            padding-top: 8px;
+            margin-top: 60px;
+            page-break-inside: avoid;
+        }
+
+        .sig-title {
+            font-weight: 600;
+            color: #0f172a;
+            margin: 0 0 4px 0;
+            font-size: 9.5pt;
+        }
+
+        .sig-sub {
+            color: #64748b;
+            margin: 0;
+            font-size: 8.5pt;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .legal-clause {
+            font-size: 8.5pt;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Service Agreement</h1>
+                <div class="doc-subtitle">Development & Software Services Contract</div>
+            </div>
+            <div class="doc-date">
+                <strong>Agreement Date:</strong> <%= date %><br>
+                <strong>Status:</strong> Execution Copy
+            </div>
+        </div>
+    </div>
+
+    <p>This Service Agreement (the "Agreement") is entered into and made effective as of <strong><%= date %></strong>, by and between the following parties:</p>
+
+    <table class="meta-table">
+        <tr>
+            <td class="label">Developer:</td>
+            <td class="value">
+                <strong><%= developer.name %></strong><br>
+                <%= developer.representative ? 'Rep: ' + developer.representative + '<br>' : '' %>
+                Email: <%= developer.email %><br>
+                <%= developer.address ? 'Address: ' + developer.address : '' %>
+            </td>
+            <td class="label">Client:</td>
+            <td class="value">
+                <strong><%= client.name %></strong><br>
+                <%= client.representative ? 'Rep: ' + client.representative + '<br>' : '' %>
+                Email: <%= client.email %><br>
+                <%= client.address ? 'Address: ' + client.address : '' %>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">Project Title:</td>
+            <td class="value">
+                <%= project.name %>
+            </td>
+            <td class="label">Total Project Fee:</td>
+            <td class="value">
+                <strong><%= currency %> <%= pricing.total %></strong>
+            </td>
+        </tr>
+    </table>
+
+    <div class="highlight-box">
+        <p><strong>Recitals:</strong> Whereas, the Client wishes to retain the Developer to perform software development services, and the Developer agrees to perform such services under the terms and conditions set forth herein. Now, therefore, the parties agree as follows:</p>
+    </div>
+
+    <h2>1. Project Scope & Deliverables</h2>
+    <p>The Developer agrees to perform development services for the project titled <strong>"<%= project.name %>"</strong> as detailed in the attached Scope of Work (SOW). Any changes, expansion of features, or additional modifications requested outside the specified SOW shall be governed by Section 4 (Revisions & Out of Scope Work) of this Agreement.</p>
+
+    <h2>2. Timeline & Milestones</h2>
+    <p>The project will be executed in phases according to the following estimated timeline and due dates. The Developer will make reasonable efforts to meet these dates, subject to the Client's timely provision of feedback, assets, and approvals:</p>
+    <ul>
+        <% milestones.forEach(function(m) { %>
+            <li><strong><%= m.name %>:</strong> Expected completion on <%= m.dueDate %></li>
+        <% }); %>
+    </ul>
+
+    <h2>3. Payment Terms</h2>
+    <p>The Client agrees to pay the Developer the total project fee of <strong><%= currency %> <%= pricing.total %></strong>. Payment shall be structured and invoiced in installments according to the following schedule:</p>
+    <ul>
+        <li><strong>Advance Deposit:</strong> <%= currency %> <%= pricing.advance %> (Due immediately upon execution of this Agreement; work will commence only after receipt of this deposit).</li>
+        <% milestones.forEach(function(m) { %>
+            <li><strong><%= m.name %> Milestone:</strong> <%= currency %> <%= m.paymentAmount %> (Due upon Developer's delivery and Client's verification of this milestone).</li>
+        <% }); %>
+    </ul>
+    <p>Invoices are payable within <strong><%= pricing.paymentTermsDays || 15 %> days</strong> of invoice date. Late payments may result in the suspension of all development work.</p>
+
+    <h2>4. Revisions & Out of Scope Work</h2>
+    <p>The agreed-upon project fee includes up to <strong><%= revisions.limit %> rounds of revisions</strong> for each milestone, provided that such revision requests do not deviate from the specifications defined in the SOW. Any additional revisions, or requests for features/pages outside the initial SOW, will be billed separately at an hourly rate of <strong><%= currency %> <%= pricing.hourlyRate %>/hour</strong>, or agreed upon in writing as a separate Scope of Work change order.</p>
+
+    <div class="page-break"></div>
+
+    <h2>5. Intellectual Property (IP) Ownership</h2>
+    <p class="legal-clause">5.1 <strong>Transfer of Rights:</strong> Subject to full, final, and unconditional payment of all outstanding fees due under this Agreement, all rights, title, and interest in the custom source code and assets created specifically for this project (the "Deliverables") shall transfer to the Client. Until full payment is received, all materials and code remain the exclusive property of the Developer.</p>
+    <p class="legal-clause">5.2 <strong>Developer Tools:</strong> The Developer retains all ownership rights in any pre-existing code, libraries, frameworks, templates, or general developer utilities used in creating the Deliverables ("Developer Tools"). Developer grants Client a non-exclusive, perpetual, royalty-free license to use such Developer Tools solely as embedded within the Deliverables.</p>
+    <p class="legal-clause">5.3 <strong>Portfolio Rights:</strong> The Developer retains the right to display screenshots, mockups, or case studies of the completed project in their design portfolio, website, or marketing materials, unless explicitly prohibited in writing by a separate NDA.</p>
+
+    <h2>6. Termination & Suspension</h2>
+    <p class="legal-clause">6.1 <strong>Termination for Convenience:</strong> Either party may terminate this Agreement at any time by providing <strong><%= termination.noticeDays %> days</strong> prior written notice to the other party.</p>
+    <p class="legal-clause">6.2 <strong>Termination for Cause:</strong> Either party may terminate this Agreement immediately if the other party breaches a material term and fails to cure such breach within 10 business days of receiving written notice of the breach.</p>
+    <p class="legal-clause">6.3 <strong>Payment on Termination:</strong> Upon termination of this Agreement, the Client shall immediately pay the Developer for all hours logged and work completed up to the date of termination, calculated on a pro-rata basis of completed milestones or at the standard hourly rate.</p>
+
+    <h2>7. Warranties & Limitation of Liability</h2>
+    <p class="legal-clause">7.1 <strong>Limited Warranty:</strong> The Developer warrants that the Deliverables will perform substantially in accordance with the SOW for a period of 30 days post-handover. This warranty does not cover issues caused by third-party services, APIs, hosting environments, or unauthorized modifications made by the Client.</p>
+    <p class="legal-clause">7.2 <strong>Disclaimer:</strong> EXCEPT AS EXPRESSLY PROVIDED, THE DEVELOPER PROVIDES THE SERVICES "AS IS" AND DISCLAIMS ALL OTHER WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p>
+    <p class="legal-clause">7.3 <strong>Limitation:</strong> THE DEVELOPER'S MAXIMUM LIABILITY FOR ANY CLAIMS, DAMAGES, OR DISPUTES ARISING UNDER THIS AGREEMENT IS STRICTLY LIMITED TO THE ACTUAL TOTAL MONETARY AMOUNT PAID BY THE CLIENT TO THE DEVELOPER UNDER THIS AGREEMENT. IN NO EVENT SHALL DEVELOPER BE LIABLE FOR ANY CONSEQUENTIAL, INDIRECT, OR SPECIAL DAMAGES (INCLUDING LOSS OF PROFITS OR DATA).</p>
+
+    <h2>8. General Terms</h2>
+    <p class="legal-clause">8.1 <strong>Independent Contractor:</strong> The Developer is an independent contractor. Nothing in this Agreement shall construct a partnership, joint venture, or employer-employee relationship.</p>
+    <p class="legal-clause">8.2 <strong>Dispute Resolution & Governing Law:</strong> This Agreement shall be governed by and construed in accordance with the laws of <strong><%= legal.governingLaw || 'the State of California' %></strong>. Any dispute arising out of this Agreement shall be resolved through binding arbitration or in courts located in <strong><%= legal.jurisdiction || 'San Francisco County, California' %></strong>.</p>
+    <p class="legal-clause">8.3 <strong>Severability:</strong> If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.</p>
+
+    <div class="signatures">
+        <div class="sig-box">
+            <p class="sig-title"><%= developer.name %></p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= developer.representative || developer.name %></p>
+            <p class="sig-sub">Title: Developer / Contractor</p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+        <div class="sig-box">
+            <p class="sig-title"><%= client.name %></p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= client.representative || client.name %></p>
+            <p class="sig-sub">Title: Authorized Representative</p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+    </div>
+
+</body>
+
+</html>

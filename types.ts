@@ -68,7 +68,7 @@ export interface InvoiceData {
   recurringFrequency?: RecurringFrequency;
 }
 
-export type ViewType = 'dashboard' | 'invoices' | 'clients' | 'companies' | 'edit-invoice' | 'recurring' | 'sources';
+export type ViewType = 'dashboard' | 'invoices' | 'clients' | 'companies' | 'edit-invoice' | 'recurring' | 'sources' | 'links';
 export type Theme = 'light' | 'dark';
 
 export interface LoanSource {

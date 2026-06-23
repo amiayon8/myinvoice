@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Scope of Work (SOW)</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Header Layout */
+        .doc-header {
+            border-bottom: 3px solid #10b981; /* Emerald/Green theme for SOW */
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-subtitle {
+            font-size: 11pt;
+            color: #10b981;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        .doc-date {
+            font-size: 9.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px 18px;
+        }
+
+        .info-col {
+            width: 48%;
+        }
+
+        .info-item {
+            margin-bottom: 6px;
+            font-size: 9.5pt;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .info-value {
+            color: #0f172a;
+        }
+
+        /* Tech Stack Table/List */
+        .tech-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+
+        .tech-table td {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .tech-table td.category {
+            font-weight: 600;
+            background-color: #f8fafc;
+            color: #0f172a;
+            width: 30%;
+        }
+
+        /* Feature List */
+        .feature-item {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #e2e8f0;
+            page-break-inside: avoid;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 10.5pt;
+            margin-bottom: 4px;
+        }
+
+        .feature-desc {
+            margin: 0;
+            color: #475569;
+        }
+
+        /* Badges */
+        .exclusion-badge {
+            background-color: #fee2e2;
+            color: #dc2626;
+            padding: 2px 6px;
+            font-size: 8pt;
+            font-weight: 600;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        /* Exclusion box */
+        .exclusion-box {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .exclusion-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .exclusion-list li {
+            color: #78350f;
+            margin-bottom: 6px;
+        }
+
+        /* Deliverables Grid */
+        .deliverables-list {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .deliverables-list li {
+            margin-bottom: 8px;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Scope of Work</h1>
+                <div class="doc-subtitle">Technical Project Specifications & Scope</div>
+            </div>
+            <div class="doc-date">
+                <strong>Project:</strong> <%= project.name %><br>
+                <strong>Client:</strong> <%= client.name %>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-col">
+            <div class="info-item">
+                <span class="info-label">Associated Client:</span>
+                <span class="info-value"><%= client.name %></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Client Contact Email:</span>
+                <span class="info-value"><%= client.email %></span>
+            </div>
+        </div>
+        <div class="info-col">
+            <div class="info-item">
+                <span class="info-label">Project Name:</span>
+                <span class="info-value"><strong><%= project.name %></strong></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Date of Scope:</span>
+                <span class="info-value"><%= date || new Date().toLocaleDateString() %></span>
+            </div>
+        </div>
+    </div>
+
+    <p>This Scope of Work ("SOW") defines the specific features, technologies, pages, deliverables, and boundaries for the development of <strong><%= project.name %></strong>. Only the features and deliverables explicitly documented here are included in the scope of this project phases. Any changes or expansions will require a written change order.</p>
+
+    <h2>1. Core Features List</h2>
+    <div>
+        <% features.forEach(function(f) { %>
+            <div class="feature-item">
+                <div class="feature-title"><%= f.title %></div>
+                <div class="feature-desc"><%= f.description %></div>
+            </div>
+        <% }); %>
+    </div>
+
+    <% if (typeof pages !== 'undefined' && pages && pages.length > 0) { %>
+        <h2>2. Pages & Modules</h2>
+        <p>The following pages/screens or layout structures are included in the scope of delivery:</p>
+        <ul>
+            <% pages.forEach(function(p) { %>
+                <li><strong><%= p.name %>:</strong> <%= p.description %></li>
+            <% }); %>
+        </ul>
+    <% } %>
+
+    <div class="page-break"></div>
+
+    <h2>3. Technology Stack</h2>
+    <table class="tech-table">
+        <tr>
+            <td class="category">Frontend Framework / Library</td>
+            <td><%= techStack.frontend || 'Not Specified' %></td>
+        </tr>
+        <tr>
+            <td class="category">Backend / API Service</td>
+            <td><%= techStack.backend || 'Not Specified' %></td>
+        </tr>
+        <tr>
+            <td class="category">Database Service</td>
+            <td><%= techStack.database || 'Not Specified' %></td>
+        </tr>
+        <tr>
+            <td class="category">Infrastructure, Hosting & Deploy</td>
+            <td><%= techStack.other || 'Not Specified' %></td>
+        </tr>
+        <% if (techStack.thirdPartyApis) { %>
+            <tr>
+                <td class="category">3rd-Party APIs & Integrations</td>
+                <td><%= techStack.thirdPartyApis %></td>
+            </tr>
+        <% } %>
+    </table>
+
+    <h2>4. Explicitly Excluded (Out of Scope) <span class="exclusion-badge">CRITICAL</span></h2>
+    <div class="exclusion-box">
+        <p>The following features, integrations, and tasks are explicitly excluded from this phase of the project. Any requests for these items will require a separate budget, estimation, and contract modification:</p>
+        <ul class="exclusion-list">
+            <% exclusions.forEach(function(ex) { %>
+                <li><%= ex %></li>
+            <% }); %>
+        </ul>
+    </div>
+
+    <h2>5. Project Deliverables</h2>
+    <ul class="deliverables-list">
+        <li><strong>Source Code Access:</strong> Transfer of clean, documented source code repository hosted on GitHub or GitLab.</li>
+        <li><strong>Deployment Environment:</strong> One (1) staging/sandbox deployment environment and one (1) production deployment environment configured as specified in the SOW.</li>
+        <li><strong>Documentation:</strong> Handover document containing deployment instructions, local system configurations, and standard API routes (if applicable).</li>
+        <li><strong>Quality Testing:</strong> Functional testing of all specified features on major modern browsers (Chrome, Safari, Firefox, Edge).</li>
+    </ul>
+
+    <% if (typeof clientDependencies !== 'undefined' && clientDependencies && clientDependencies.length > 0) { %>
+        <h2>6. Client Responsibilities & Dependencies</h2>
+        <p>Timely completion of this project is dependent on the Client providing the following items within agreed timelines (typically within 3 business days of a request):</p>
+        <ul>
+            <% clientDependencies.forEach(function(dep) { %>
+                <li><%= dep %></li>
+            <% }); %>
+        </ul>
+    <% } %>
+
+</body>
+
+</html>

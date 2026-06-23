@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { notFound } from 'next/navigation';
 import { PrintPageContent } from '@/components/print-page-content';
 import { CompanyProfile } from '@/types';
@@ -9,7 +9,8 @@ interface TokenPrintInvoicePageProps {
 
 export async function generateMetadata({ params }: TokenPrintInvoicePageProps) {
   const { token } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceRoleClient();
+
   const { data: tokenRecord } = await supabase
     .from('invoice_access_tokens')
     .select('invoice_id')
@@ -31,59 +32,46 @@ export async function generateMetadata({ params }: TokenPrintInvoicePageProps) {
 
 export default async function TokenPrintInvoicePage({ params }: TokenPrintInvoicePageProps) {
   const { token } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceRoleClient();
 
-  // Query token details
+  // Validate token using service-role (no RLS issues on Vercel)
   const { data: tokenRecord, error: tokenError } = await supabase
     .from('invoice_access_tokens')
     .select('*')
     .eq('token', token)
     .single();
 
-  if (tokenError || !tokenRecord) {
-    return notFound();
+  if (tokenError || !tokenRecord) return notFound();
+
+  // Check revoked
+  if (tokenRecord.revoked_at || !tokenRecord.is_public) {
+    return <InvalidPage />;
   }
 
-  // Check if token has expired
-  const now = new Date();
-  const expiry = new Date(tokenRecord.expires_at);
-  if (expiry < now || !tokenRecord.is_public) {
-    return (
-      <div className="flex flex-col justify-center items-center bg-slate-50 dark:bg-[#020617] min-h-screen text-center p-6 font-sans">
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full">
-          <div className="text-red-500 mb-4">
-            <i className="fa-solid fa-circle-exclamation text-5xl"></i>
-          </div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2">
-            Access Expired
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
-            This invoice sharing link has expired or is no longer public. Please contact the issuer to request a new link.
-          </p>
-        </div>
-      </div>
-    );
+  // Check expiry — respect never_expires flag
+  if (!tokenRecord.never_expires && tokenRecord.expires_at) {
+    if (new Date(tokenRecord.expires_at) < new Date()) {
+      return <InvalidPage />;
+    }
   }
 
-  // Fetch invoice details
+  // Fetch invoice
   const { data: invoice, error: invError } = await supabase
     .from('invoices')
     .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
     .eq('id', tokenRecord.invoice_id)
     .single();
 
-  if (invError || !invoice) {
-    return notFound();
-  }
+  if (invError || !invoice) return notFound();
 
-  // Fetch payments to compute totals
+  // Fetch payments
   const { data: payments } = await supabase
     .from('invoice_payments')
     .select('amount')
     .eq('invoice_id', invoice.id);
 
-  const totalPaid = (payments || []).reduce((sum, p) => sum + p.amount, 0);
-  const subtotal = invoice.items?.reduce((sum, item) => sum + (item.quantity * item.rate), 0) || 0;
+  const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
+  const subtotal = invoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
   const taxAmount = subtotal * ((invoice.tax_rate || 0) / 100);
   const totalAmount = subtotal + taxAmount;
 
@@ -104,5 +92,24 @@ export default async function TokenPrintInvoicePage({ params }: TokenPrintInvoic
 
   return (
     <PrintPageContent previewData={previewData} company={invoice.company as CompanyProfile} />
+  );
+}
+
+function InvalidPage() {
+  return (
+    <div className="flex flex-col justify-center items-center bg-slate-50 dark:bg-[#020617] min-h-screen text-center p-6 font-sans">
+      <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full">
+        <div className="text-red-500 mb-4">
+          <i className="fa-solid fa-circle-exclamation text-5xl"></i>
+        </div>
+        <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2">
+          Access Expired
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+          This invoice sharing link has expired, been revoked, or is no longer public.
+          Please contact the issuer to request a new link.
+        </p>
+      </div>
+    </div>
   );
 }

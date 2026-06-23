@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Project Handover & Documentation</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Header Layout */
+        .doc-header {
+            border-bottom: 3px solid #6366f1; /* Indigo theme for Handover */
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-subtitle {
+            font-size: 11pt;
+            color: #6366f1;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        .doc-date {
+            font-size: 9.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            font-size: 10.5pt;
+            font-weight: 600;
+            color: #6366f1;
+            margin-top: 15px;
+            margin-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Highlight warning box */
+        .warning-box {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            border-radius: 0 6px 6px 0;
+            color: #991b1b;
+            font-size: 9pt;
+        }
+
+        /* Standard Info Grid */
+        .info-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px 18px;
+        }
+
+        .info-col {
+            width: 48%;
+        }
+
+        .info-item {
+            margin-bottom: 6px;
+            font-size: 9.5pt;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .info-value {
+            color: #0f172a;
+        }
+
+        /* Code display styling */
+        code, pre {
+            font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-size: 8.5pt;
+            border-radius: 4px;
+        }
+
+        code {
+            padding: 2px 5px;
+        }
+
+        pre {
+            padding: 12px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+
+        /* Tables styling */
+        .data-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+            font-size: 9pt;
+        }
+
+        .data-table th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .data-table td {
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .data-table tr:nth-child(even) td {
+            background-color: #fafbfc;
+        }
+
+        .security-action {
+            background-color: #fef3c7;
+            color: #d97706;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 7.5pt;
+            text-transform: uppercase;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Project Handover</h1>
+                <div class="doc-subtitle">Credentials, Environments & Repository Handover</div>
+            </div>
+            <div class="doc-date">
+                <strong>Handover Date:</strong> <%= date %><br>
+                <strong>Project:</strong> <%= project.name %>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-col">
+            <div class="info-item">
+                <span class="info-label">Developer:</span>
+                <span class="info-value"><%= developer.name %></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Developer Contact:</span>
+                <span class="info-value"><%= developer.email %></span>
+            </div>
+        </div>
+        <div class="info-col">
+            <div class="info-item">
+                <span class="info-label">Client Name:</span>
+                <span class="info-value"><%= client.name %></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Client Contact:</span>
+                <span class="info-value"><%= client.email %></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="warning-box">
+        <strong>SECURITY NOTICE:</strong> This document contains highly sensitive access credentials, API keys, and environment details. Upon receipt, the Client must change all default passwords, rotate API secrets immediately, and store this document in a secure credentials manager (e.g., 1Password, Bitwarden).
+    </div>
+
+    <p>This Handover Document signifies the official transfer of operational ownership of the <strong><%= project.name %></strong> application from the Developer to the Client. Below you will find technical resources, hosting access, environment variables, database details, and deployment guides required to maintain and run the software system.</p>
+
+    <h2>1. Git Repository Access</h2>
+    <p>The custom source code of the project has been pushed and is maintained in the following secure repository:</p>
+    <table class="data-table">
+        <tr>
+            <td style="width: 25%; font-weight: 600;">Repository URL:</td>
+            <td><code><%= git.url %></code></td>
+        </tr>
+        <tr>
+            <td style="font-weight: 600;">Main/Production Branch:</td>
+            <td><code><%= git.mainBranch || 'main' %></code></td>
+        </tr>
+        <% if (git.stagingBranch) { %>
+            <tr>
+                <td style="font-weight: 600;">Staging Branch:</td>
+                <td><code><%= git.stagingBranch %></code></td>
+            </tr>
+        <% } %>
+        <tr>
+            <td style="font-weight: 600;">Transfer Status:</td>
+            <td>Ownership transferred; Client developers invited as Administrators.</td>
+        </tr>
+    </table>
+
+    <h2>2. Deployment & Environments</h2>
+    <p>The software is configured and deployed across the following hosting platforms:</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 20%;">Environment</th>
+                <th style="width: 30%;">Hosting Provider</th>
+                <th style="width: 50%;">Public URL / Access</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Production</strong></td>
+                <td><%= deployment.productionHost || 'Not Specified' %></td>
+                <td><a href="<%= deployment.productionUrl %>"><%= deployment.productionUrl %></a></td>
+            </tr>
+            <% if (deployment.stagingUrl) { %>
+                <tr>
+                    <td><strong>Staging / QA</strong></td>
+                    <td><%= deployment.stagingHost || deployment.productionHost || 'Not Specified' %></td>
+                    <td><a href="<%= deployment.stagingUrl %>"><%= deployment.stagingUrl %></a></td>
+                </tr>
+            <% } %>
+            <% if (deployment.adminUrl) { %>
+                <tr>
+                    <td><strong>Admin Portal</strong></td>
+                    <td><%= deployment.productionHost %></td>
+                    <td><a href="<%= deployment.adminUrl %>"><%= deployment.adminUrl %></a></td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>3. Application Credentials</h2>
+    <p>Below is a summary of the accounts, hosting consoles, databases, and third-party dashboards created for this project:</p>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 25%;">Service Name</th>
+                <th style="width: 30%;">Access URL / Console</th>
+                <th style="width: 25%;">Admin User / Email</th>
+                <th style="width: 20%;">Security Action Required</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% credentials.forEach(function(cred) { %>
+                <tr>
+                    <td><strong><%= cred.service %></strong></td>
+                    <td><code><%= cred.url %></code></td>
+                    <td><%= cred.username %></td>
+                    <td>
+                        <% if (cred.actionRequired) { %>
+                            <span class="security-action"><%= cred.actionRequired %></span>
+                        <% } else { %>
+                            <span class="security-action" style="background-color: #e2e8f0; color: #475569;">Review Account</span>
+                        <% } %>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+
+    <h2>4. Environment Variables Configuration</h2>
+    <p>The following variables must be configured in the production and staging environment settings (e.g. Vercel dashboard, AWS ECS, or `.env` configuration files) for the application to function correctly:</p>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 30%;">Variable Key</th>
+                <th style="width: 45%;">Description / Purpose</th>
+                <th style="width: 25%;">Default / Example Format</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% environmentVariables.forEach(function(env) { %>
+                <tr>
+                    <td><code><%= env.key %></code></td>
+                    <td><%= env.description %></td>
+                    <td><code><%= env.exampleValue || '********' %></code></td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+
+    <h2>5. Local Developer Setup Guide</h2>
+    <p>To run the application locally on a new workstation, follow these standard development configurations:</p>
+    
+    <h3>Prerequisites:</h3>
+    <p>Ensure your machine has the following tools installed: Node.js (v<%= localSetup.nodeVersion || '18+' %>), npm / yarn, and git.</p>
+
+    <h3>Setup Steps:</h3>
+    <pre>
+# 1. Clone the repository
+git clone <%= git.url %>
+cd <%= project.name.toLowerCase().replace(/\s+/g, '-') %>
+
+# 2. Configure environment keys
+cp .env.example .env
+# (Open the .env file and fill in values from Section 4)
+
+# 3. Install core dependencies
+<%= localSetup.installCommand || 'npm install' %>
+
+# 4. Start local database / migrations (if applicable)
+<%= localSetup.dbCommand || 'npx prisma db push' %>
+
+# 5. Run the local dev server
+<%= localSetup.runCommand || 'npm run dev' %>
+    </pre>
+
+    <p style="font-size: 9.5pt; color: #475569; margin-top: 20px;">By executing the above steps, the local server will spin up on <code>http://localhost:3000</code>. For detailed API endpoints and controller models, refer to the inline comments in the repository code.</p>
+
+</body>
+
+</html>

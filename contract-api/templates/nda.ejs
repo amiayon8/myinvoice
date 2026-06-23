@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Non-Disclosure Agreement (NDA)</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 20mm 20mm 20mm;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+        }
+
+        /* Header Layout */
+        .doc-header {
+            border-bottom: 3px solid #475569; /* Slate theme for NDA */
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .doc-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-subtitle {
+            font-size: 11pt;
+            color: #475569;
+            font-weight: 600;
+            margin: 5px 0 0 0;
+        }
+
+        .doc-date {
+            font-size: 9.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+
+        /* Section Styling */
+        h2 {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #0f172a;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        /* Meta Table */
+        .meta-table {
+            width: 100%;
+            margin-bottom: 25px;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+
+        .meta-table td {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .meta-table td.label {
+            font-weight: 600;
+            background-color: #f8fafc;
+            color: #0f172a;
+            width: 25%;
+        }
+
+        .meta-table td.value {
+            color: #334155;
+            width: 75%;
+        }
+
+        /* Signatures Container */
+        .signatures {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            page-break-inside: avoid;
+        }
+
+        .sig-box {
+            width: 45%;
+            border-top: 1px solid #94a3b8;
+            text-align: left;
+            padding-top: 8px;
+            margin-top: 60px;
+            page-break-inside: avoid;
+        }
+
+        .sig-title {
+            font-weight: 600;
+            color: #0f172a;
+            margin: 0 0 4px 0;
+            font-size: 9.5pt;
+        }
+
+        .sig-sub {
+            color: #64748b;
+            margin: 0;
+            font-size: 8.5pt;
+        }
+
+        .legal-clause {
+            font-size: 8.5pt;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="doc-header">
+        <div class="doc-title-container">
+            <div>
+                <h1 class="doc-title">Mutual NDA</h1>
+                <div class="doc-subtitle">Non-Disclosure & Confidentiality Agreement</div>
+            </div>
+            <div class="doc-date">
+                <strong>Effective Date:</strong> <%= date %><br>
+                <strong>Security Class:</strong> Strictly Confidential
+            </div>
+        </div>
+    </div>
+
+    <p>This Mutual Non-Disclosure Agreement (the "Agreement") is entered into as of <strong><%= date %></strong>, by and between the parties named below, to protect confidential information disclosed in connection with a potential or active software development collaboration (the "Purpose").</p>
+
+    <table class="meta-table">
+        <tr>
+            <td class="label">Disclosing Party:</td>
+            <td class="value">
+                <strong><%= disclosingParty.company || disclosingParty.name %></strong><br>
+                <%= disclosingParty.representative ? 'Rep: ' + disclosingParty.representative + '<br>' : '' %>
+                Email: <%= disclosingParty.email %><br>
+                <%= disclosingParty.address ? 'Address: ' + disclosingParty.address : '' %>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">Receiving Party:</td>
+            <td class="value">
+                <strong><%= receivingParty.company || receivingParty.name %></strong><br>
+                <%= receivingParty.representative ? 'Rep: ' + receivingParty.representative + '<br>' : '' %>
+                Email: <%= receivingParty.email %><br>
+                <%= receivingParty.address ? 'Address: ' + receivingParty.address : '' %>
+            </td>
+        </tr>
+        <tr>
+            <td class="label">The Purpose:</td>
+            <td class="value">
+                <%= purpose || 'Evaluating, designing, building, and delivering software services and integrations.' %>
+            </td>
+        </tr>
+    </table>
+
+    <h2>1. Definition of Confidential Information</h2>
+    <p class="legal-clause">1.1 <strong>Scope:</strong> "Confidential Information" refers to any proprietary information, technical data, trade secrets, designs, source code, database structures, business models, user data, server credentials, marketing plans, financial forecasts, or product roadmaps disclosed by one party (the "Disclosing Party") to the other party (the "Receiving Party"), whether orally, visually, or in writing, which is marked as confidential or should reasonably be understood to be confidential given the nature of the information.</p>
+
+    <h2>2. Obligations of the Receiving Party</h2>
+    <p class="legal-clause">2.1 <strong>Duty of Confidentiality:</strong> The Receiving Party agrees to hold all Confidential Information in strict confidence and to prevent any unauthorized disclosure or use. The Receiving Party shall apply at least the same degree of care it uses for its own confidential data, but in no case less than a reasonable standard of care.</p>
+    <p class="legal-clause">2.2 <strong>Restricted Purpose:</strong> The Receiving Party shall use the Confidential Information solely for the Purpose described above. It shall not use the Confidential Information for its own commercial benefit or the benefit of any third party.</p>
+    <p class="legal-clause">2.3 <strong>Authorized Disclosures:</strong> The Receiving Party may only disclose Confidential Information to its employees, contractors, or professional advisors who have a clear "need to know" in connection with the Purpose and who are bound by written confidentiality obligations at least as restrictive as those contained in this Agreement.</p>
+
+    <div class="page-break"></div>
+
+    <h2>3. Exclusions from Confidentiality</h2>
+    <p class="legal-clause">The obligations of confidentiality shall not apply to any information that:</p>
+    <ul style="font-size: 8.5pt; color: #475569;">
+        <li>Is or becomes publicly known through no breach or wrongful act of the Receiving Party;</li>
+        <li>Was already in the lawful possession of the Receiving Party prior to disclosure, without confidentiality restrictions;</li>
+        <li>Is independently developed by the Receiving Party without reference to or reliance on the Disclosing Party's Confidential Information;</li>
+        <li>Is rightfully acquired from a third party who has no obligation of confidentiality regarding such information;</li>
+        <li>Is required to be disclosed by law or court order, provided the Receiving Party gives the Disclosing Party prompt written notice to allow them to seek a protective order.</li>
+    </ul>
+
+    <h2>4. Term and Survival</h2>
+    <p class="legal-clause">4.1 <strong>Active Term:</strong> This Agreement shall govern all disclosures made between the parties for a period of <strong><%= activeTermYears || 2 %> years</strong> from the Effective Date.</p>
+    <p class="legal-clause">4.2 <strong>Confidentiality Survival:</strong> The obligations of confidentiality and non-use under this Agreement shall survive the termination of this Agreement for a period of <strong><%= survivalYears || 3 %> years</strong> after the date of disclosure, except for trade secrets and core source code, which shall remain confidential in perpetuity.</p>
+
+    <h2>5. Return or Destruction of Materials</h2>
+    <p class="legal-clause">Upon written request from the Disclosing Party, or upon completion of the Purpose, the Receiving Party shall immediately return or securely destroy all physical documents, electronic files, server keys, and media containing Confidential Information, and certify such destruction in writing if requested.</p>
+
+    <h2>6. Remedies & Injunctive Relief</h2>
+    <p class="legal-clause">The Receiving Party acknowledges that any breach of this Agreement may cause irreparable harm to the Disclosing Party for which monetary damages alone would be inadequate. Consequently, the Disclosing Party shall be entitled to seek injunctive relief to prevent breaches, in addition to any other remedies available at law.</p>
+
+    <h2>7. Governing Law & Jurisdiction</h2>
+    <p class="legal-clause">This Agreement shall be governed by and construed in accordance with the laws of <strong><%= governingState || 'the State of California' %></strong>. Any legal action arising from this Agreement shall be brought exclusively in courts located in <strong><%= governingState || 'San Francisco County, California' %></strong>.</p>
+
+    <div class="signatures">
+        <div class="sig-box">
+            <p class="sig-title">For Disclosing Party</p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= disclosingParty.representative || disclosingParty.name %></p>
+            <p class="sig-sub">Title: Authorized Representative</p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+        <div class="sig-box">
+            <p class="sig-title">For Receiving Party</p>
+            <p class="sig-sub">By: ___________________________</p>
+            <p class="sig-sub">Name: <%= receivingParty.representative || receivingParty.name %></p>
+            <p class="sig-sub">Title: Authorized Representative</p>
+            <p class="sig-sub">Date: ________________________</p>
+        </div>
+    </div>
+
+</body>
+
+</html>

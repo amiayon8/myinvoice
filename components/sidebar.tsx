@@ -25,12 +25,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
     { id: 'invoices', label: 'Invoices', icon: 'fa-file-invoice-dollar' },
     { id: 'loans', label: 'Loans', icon: 'fa-hand-holding-dollar' },
+    { id: 'documents', label: 'Documents', icon: 'fa-file-signature' },
   ];
 
   const manageLinks = [
     { id: 'clients', label: 'Clients', icon: 'fa-users' },
     { id: 'companies', label: 'Entities', icon: 'fa-building' },
     { id: 'sources', label: 'Loan Sources', icon: 'fa-building-columns' },
+    { id: 'links', label: 'Share Links', icon: 'fa-share-nodes' },
+    { id: 'logs', label: 'Activity Logs', icon: 'fa-clock-rotate-left' },
   ];
 
   const isActive = (id: string) => currentView === id;
