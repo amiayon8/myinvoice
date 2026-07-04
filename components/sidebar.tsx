@@ -67,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div>
               <span className="block font-black text-white text-xl tracking-tight">My Invoice</span>
               <span className="block font-black text-[8px] text-indigo-400 uppercase tracking-[0.3em]">
-                Enterprise OS
+                The Nice Developer
               </span>
             </div>
           </div>
@@ -89,11 +89,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={link.id}
                   onClick={() => handleNav(link.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
-                    isActive(link.id)
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${isActive(link.id)
                       ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
                       : 'hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1'
-                  }`}
+                    }`}
                 >
                   <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                   {link.label}
@@ -111,11 +110,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={link.id}
                   onClick={() => handleNav(link.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
-                    isActive(link.id)
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${isActive(link.id)
                       ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20'
                       : 'hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1'
-                  }`}
+                    }`}
                 >
                   <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                   {link.label}
