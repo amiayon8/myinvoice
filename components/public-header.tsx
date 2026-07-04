@@ -20,7 +20,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ token }) => {
       <div className="flex items-center gap-2">
         <i className="fa-solid fa-shield-halved text-emerald-500"></i>
         <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-          Secure Invoice Portal
+          Invoice | The Nice Developer
         </span>
       </div>
       <button
