@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-  
+
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      
+
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
@@ -43,10 +43,10 @@ export default function LoginPage() {
             <i className="text-2xl fa-solid fa-bolt-lightning"></i>
           </div>
           <h1 className="font-black text-slate-900 dark:text-white text-2xl uppercase tracking-tight font-display">
-            My Invoice <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">Pro</span>
+            Invoices
           </h1>
           <p className="mt-2 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
-            Enterprise OS billing gate
+            The Nice Developer
           </p>
         </div>
 

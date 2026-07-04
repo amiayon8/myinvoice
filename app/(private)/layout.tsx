@@ -84,7 +84,7 @@ export default function PrivateLayout({
             <i className="text-xl fa-solid fa-bars"></i>
           </button>
           <span className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-            My Invoice Pro
+            Invoice | The Nice Developer
           </span>
           <button
             onClick={toggleTheme}

@@ -17,7 +17,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'My Invoice Pro',
+  title: 'Invoice | The Nice Developer',
   description: 'Enterprise financial management system for invoices and loans',
   robots: {
     index: false,
