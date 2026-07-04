@@ -14,6 +14,7 @@ import {
 } from '@/services/invoices';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
+import { calculateNextGenDate } from '@/lib/date-utils';
 import { TableSkeleton } from '@/components/skeleton';
 
 export default function InvoicesPage() {
@@ -788,7 +789,13 @@ export default function InvoicesPage() {
                       type="date"
                       className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                       value={manageDate}
-                      onChange={(e) => setManageDate(e.target.value)}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        setManageDate(newDate);
+                        if (manageIsRecurring && newDate) {
+                          setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
+                        }
+                      }}
                     />
                   </div>
                   <div className="gap-2 grid grid-cols-2">
@@ -841,7 +848,13 @@ export default function InvoicesPage() {
                     id="modalIsRecurringInvoicesPage"
                     className="border-slate-300 rounded focus:ring-indigo-500 w-4 h-4 text-indigo-600"
                     checked={manageIsRecurring}
-                    onChange={(e) => setManageIsRecurring(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setManageIsRecurring(checked);
+                      if (checked && manageDate) {
+                        setManageNextGenDate(calculateNextGenDate(manageDate, manageRecurringFrequency));
+                      }
+                    }}
                   />
                   <label htmlFor="modalIsRecurringInvoicesPage" className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide cursor-pointer">
                     Enable Recurring Invoicing for this Record
@@ -857,7 +870,13 @@ export default function InvoicesPage() {
                       <select
                         className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                         value={manageRecurringFrequency}
-                        onChange={(e) => setManageRecurringFrequency(e.target.value)}
+                        onChange={(e) => {
+                          const newFreq = e.target.value;
+                          setManageRecurringFrequency(newFreq);
+                          if (manageIsRecurring && manageDate) {
+                            setManageNextGenDate(calculateNextGenDate(manageDate, newFreq));
+                          }
+                        }}
                       >
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>

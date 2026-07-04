@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Inter, Outfit } from 'next/font/google';
+import Preloader from './fucking-client';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -47,7 +48,8 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${outfit.variable} bg-slate-50 dark:bg-[#020617] font-sans antialiased custom-scrollbar`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <Preloader />
           <ToastProvider>
             {children}
           </ToastProvider>

@@ -8,6 +8,7 @@ import { Invoice, Client, CompanyProfile, InvoiceItem } from '@/types';
 import { InvoicePreview } from '@/components/invoice-preview';
 import { ResponsiveInvoiceWrapper } from '@/components/responsive-invoice-wrapper';
 
+import { calculateNextGenDate } from '@/lib/date-utils';
 import { useToast } from '@/components/ui/toast';
 
 interface InvoiceEditorProps {
@@ -255,7 +256,16 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
               type="date"
               className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
               value={invoice.date || ''}
-              onChange={(e) => setInvoice((p) => ({ ...p!, date: e.target.value }))}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setInvoice((p) => {
+                  const updated = { ...p!, date: newDate };
+                  if (updated.is_recurring) {
+                    updated.next_generation_date = calculateNextGenDate(newDate, updated.recurring_frequency || 'monthly');
+                  }
+                  return updated;
+                });
+              }}
             />
           </div>
 
@@ -383,7 +393,16 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
                 type="checkbox"
                 className="sr-only peer"
                 checked={invoice.is_recurring || false}
-                onChange={(e) => setInvoice((p) => ({ ...p!, is_recurring: e.target.checked }))}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  setInvoice((p) => {
+                    const updated = { ...p!, is_recurring: isChecked };
+                    if (isChecked && updated.date) {
+                      updated.next_generation_date = calculateNextGenDate(updated.date, updated.recurring_frequency || 'monthly');
+                    }
+                    return updated;
+                  });
+                }}
               />
               <div className="peer after:top-1/2 after:left-[2px] after:absolute bg-slate-300 after:bg-white dark:bg-slate-700 peer-checked:bg-indigo-600 after:border after:border-gray-300 peer-checked:after:border-white rounded-full after:rounded-full peer-focus:outline-none w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all after:translate-y-[-50%] peer-checked:after:translate-x-[calc(100%-6px)]"></div>
               <span className="ml-3 font-bold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
@@ -400,9 +419,16 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
                   <select
                     className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-xs font-bold"
                     value={invoice.recurring_frequency || 'monthly'}
-                    onChange={(e) =>
-                      setInvoice((p) => ({ ...p!, recurring_frequency: e.target.value as any }))
-                    }
+                    onChange={(e) => {
+                      const newFreq = e.target.value as any;
+                      setInvoice((p) => {
+                        const updated = { ...p!, recurring_frequency: newFreq };
+                        if (updated.is_recurring && updated.date) {
+                          updated.next_generation_date = calculateNextGenDate(updated.date, newFreq);
+                        }
+                        return updated;
+                      });
+                    }}
                   >
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>

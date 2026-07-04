@@ -6,6 +6,7 @@ import {
   listAllInvoiceTokens,
   createInvoiceShareToken,
   revokeInvoiceToken,
+  updateInvoiceToken,
 } from '@/services/invoices';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
@@ -21,6 +22,50 @@ export default function ShareLinksPage() {
   // Data states
   const [tokens, setTokens] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  // Edit states for inline editing
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [editLabelText, setEditLabelText] = useState('');
+  const [editingExpiryId, setEditingExpiryId] = useState<string | null>(null);
+
+  const handleSaveLabel = async (tokenId: string) => {
+    try {
+      await updateInvoiceToken(tokenId, { label: editLabelText || null });
+      toast.success('Label updated successfully.');
+      setEditingLabelId(null);
+      // Refresh token list
+      const updatedTokens = await listAllInvoiceTokens();
+      setTokens(updatedTokens);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update label.');
+    }
+  };
+
+  const handleSaveExpiry = async (tokenId: string, value: string) => {
+    try {
+      const neverExpires = value === 'never';
+      const expiresAt = neverExpires
+        ? null
+        : (() => {
+            const days = parseInt(value, 10);
+            const d = new Date();
+            d.setDate(d.getDate() + days);
+            return d.toISOString();
+          })();
+
+      await updateInvoiceToken(tokenId, {
+        neverExpires,
+        expiresAt,
+      });
+      toast.success('Expiry period updated successfully.');
+      setEditingExpiryId(null);
+      // Refresh token list
+      const updatedTokens = await listAllInvoiceTokens();
+      setTokens(updatedTokens);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update expiry.');
+    }
+  };
 
   // Search & Filters states
   const [linkSearch, setLinkSearch] = useState('');
@@ -391,7 +436,48 @@ export default function ShareLinksPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4.5 text-slate-700 dark:text-slate-350 text-xs">
-                          {t.label || <span className="text-slate-400 italic">Untitled</span>}
+                          {editingLabelId === t.id ? (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                className="bg-slate-50 dark:bg-slate-950 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-xs dark:text-white"
+                                value={editLabelText}
+                                onChange={(e) => setEditLabelText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveLabel(t.id);
+                                  if (e.key === 'Escape') setEditingLabelId(null);
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveLabel(t.id)}
+                                className="text-emerald-500 hover:text-emerald-600 transition-colors p-1"
+                                title="Save"
+                              >
+                                <i className="fa-solid fa-check text-xs"></i>
+                              </button>
+                              <button
+                                onClick={() => setEditingLabelId(null)}
+                                className="text-slate-400 hover:text-slate-500 transition-colors p-1"
+                                title="Cancel"
+                              >
+                                <i className="fa-solid fa-xmark text-xs"></i>
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => {
+                                setEditingLabelId(t.id);
+                                setEditLabelText(t.label || '');
+                                setEditingExpiryId(null); // Close expiry edit if open
+                              }}
+                              className="group flex items-center gap-2 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-semibold"
+                              title="Click to edit label"
+                            >
+                              <span>{t.label || <span className="text-slate-405 italic font-normal">Untitled</span>}</span>
+                              <i className="fa-solid fa-pencil text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4.5">
                           {isRevoked ? (
@@ -409,10 +495,48 @@ export default function ShareLinksPage() {
                           )}
                         </td>
                         <td className="px-6 py-4.5 text-slate-500 text-xs whitespace-nowrap">
-                          {t.never_expires ? (
-                            <span className="text-slate-400 dark:text-slate-500 italic">Never</span>
+                          {editingExpiryId === t.id ? (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                className="bg-slate-50 dark:bg-slate-950 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-xs dark:text-white"
+                                defaultValue={t.never_expires ? 'never' : '30'} // fallback if not match
+                                onChange={(e) => handleSaveExpiry(t.id, e.target.value)}
+                                onBlur={() => setEditingExpiryId(null)}
+                                autoFocus
+                              >
+                                <option value="" disabled>-- Set Expiry --</option>
+                                <option value="7">7 Days</option>
+                                <option value="14">14 Days</option>
+                                <option value="30">30 Days</option>
+                                <option value="90">90 Days</option>
+                                <option value="never">Never</option>
+                              </select>
+                              <button
+                                onClick={() => setEditingExpiryId(null)}
+                                className="text-slate-400 hover:text-slate-500 transition-colors p-1"
+                                title="Cancel"
+                              >
+                                <i className="fa-solid fa-xmark text-xs"></i>
+                              </button>
+                            </div>
                           ) : (
-                            new Date(t.expires_at).toLocaleDateString()
+                            <div
+                              onClick={() => {
+                                setEditingExpiryId(t.id);
+                                setEditingLabelId(null); // Close label edit if open
+                              }}
+                              className="group flex items-center gap-2 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-semibold"
+                              title="Click to edit expiry period"
+                            >
+                              <span>
+                                {t.never_expires ? (
+                                  <span className="text-slate-400 dark:text-slate-500 italic font-normal">Never</span>
+                                ) : (
+                                  new Date(t.expires_at).toLocaleDateString()
+                                )}
+                              </span>
+                              <i className="fa-solid fa-pencil text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4.5 font-bold text-indigo-500 text-sm">

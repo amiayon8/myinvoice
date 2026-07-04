@@ -358,3 +358,33 @@ export async function listAllInvoiceViewLogs() {
   return data || [];
 }
 
+export async function updateInvoiceToken(
+  tokenId: string,
+  updates: { label?: string | null; expiresAt?: string | null; neverExpires?: boolean }
+) {
+  const supabase = await createClient();
+
+  const dbUpdates: any = {};
+  if (updates.label !== undefined) {
+    dbUpdates.label = updates.label;
+  }
+  if (updates.expiresAt !== undefined) {
+    dbUpdates.expires_at = updates.expiresAt;
+  }
+  if (updates.neverExpires !== undefined) {
+    dbUpdates.never_expires = updates.neverExpires;
+  }
+
+  const { data, error } = await supabase
+    .from('invoice_access_tokens')
+    .update(dbUpdates)
+    .eq('id', tokenId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/invoices');
+  revalidatePath('/links');
+  return data;
+}
+

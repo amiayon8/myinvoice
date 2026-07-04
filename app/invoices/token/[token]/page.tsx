@@ -138,8 +138,9 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
   // Fetch payments for active invoice
   const { data: payments } = await supabase
     .from('invoice_payments')
-    .select('amount')
-    .eq('invoice_id', activeInvoice.id);
+    .select('id, amount, payment_date, payment_method, notes')
+    .eq('invoice_id', activeInvoice.id)
+    .order('payment_date', { ascending: false });
 
   const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
   const subtotal = activeInvoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
@@ -237,6 +238,55 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
           >
             View Parent Invoice
           </a>
+        </div>
+      )}
+
+      {/* Payment History section */}
+      {payments && payments.length > 0 && (
+        <div className="mb-6 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print animate-slide-in">
+          <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+            <i className="fa-solid fa-receipt text-emerald-500"></i> Payment History
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
+              <thead className="bg-slate-50 dark:bg-slate-950/50 font-black text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Reference/Notes</th>
+                  <th className="px-4 py-3 text-right">Amount Paid</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
+                {payments.map((pay: any) => (
+                  <tr key={pay.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors">
+                    <td className="px-4 py-3 text-slate-900 dark:text-slate-300 font-semibold">
+                      {new Date(pay.payment_date).toLocaleDateString(undefined, {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
+                        {pay.payment_method ? pay.payment_method.replace('_', ' ') : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-[200px] truncate" title={pay.notes || undefined}>
+                      {pay.notes || <span className="italic text-slate-400">No notes</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">
+                      {activeInvoice.currency}
+                      {pay.amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
