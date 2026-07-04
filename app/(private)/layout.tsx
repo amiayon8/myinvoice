@@ -64,7 +64,7 @@ export default function PrivateLayout({
   };
 
   return (
-    <div className="flex bg-slate-50 dark:bg-[#020617] w-full min-h-screen transition-colors duration-500">
+    <div className="flex bg-slate-50 dark:bg-[#020617] w-full min-h-screen">
 
       <Sidebar
         currentView={currentView}

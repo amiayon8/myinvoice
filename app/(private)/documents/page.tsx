@@ -571,11 +571,11 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden document-os-page">
       {/* Top Banner actions */}
       <div className="flex justify-between items-center bg-slate-900 p-6 border-slate-800 border-b no-print">
         <div>
-          <h1 className="font-black text-white text-xl uppercase tracking-tight">
+          <h1 className="font-black text-slate-900 dark:text-white text-xl uppercase tracking-tight">
             Document Generation OS
           </h1>
           <p className="text-slate-400 text-xs">
@@ -621,7 +621,7 @@ export default function DocumentsPage() {
                 }}
                 className={`w-full flex items-center justify-between p-3.5 rounded-lg text-left text-sm font-semibold transition-all ${activeDocType === docType
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/55 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
                 <span className="capitalize">{docType === 'sow' ? 'Scope of Work (SOW)' : docType}</span>

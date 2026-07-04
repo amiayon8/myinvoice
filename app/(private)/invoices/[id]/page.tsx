@@ -14,7 +14,7 @@ import { InvoicePreview } from '@/components/invoice-preview';
 import { ResponsiveInvoiceWrapper } from '@/components/responsive-invoice-wrapper';
 import { Invoice, CompanyProfile, Client, InvoiceItem } from '@/types';
 import { useToast } from '@/components/ui/toast';
-import { calculateNextGenDate } from '@/lib/date-utils';
+import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { DetailSkeleton } from '@/components/skeleton';
 
 export default function InvoiceDetailsPage() {
@@ -60,10 +60,10 @@ export default function InvoiceDetailsPage() {
         .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
         .eq('id', invoiceId)
         .single();
-      
+
       if (invError) throw invError;
       setInvoice(invData);
-      
+
       // Initialize edit form values with fetched data
       if (invData) {
         const { items: loadedItems, ...loadedInvoice } = invData;
@@ -153,7 +153,7 @@ export default function InvoiceDetailsPage() {
     try {
       const neverExpires = tokenExpiry === 'never';
       const daysExpiry = neverExpires ? 30 : Number(tokenExpiry);
-      
+
       await createInvoiceShareToken(invoiceId, {
         label: tokenLabel.trim() || undefined,
         neverExpires,
@@ -305,28 +305,27 @@ export default function InvoiceDetailsPage() {
       </div>
 
       {/* Right Sidebar: Tabs with Editor + Control Panel */}
-      <div className="w-full xl:w-[480px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col xl:h-screen xl:overflow-hidden no-print">
+      <div className="w-full xl:w-[480px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col xl:h-screen xl:sticky top-0 xl:overflow-hidden no-print">
         {/* Tab Headers */}
         <div className="flex border-b border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => setActiveTab('manage')}
-            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
-              activeTab === 'manage'
-                ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 font-black'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-            }`}
-          >
-            <i className="fa-solid fa-gears mr-1.5"></i> Manage
-          </button>
+
           <button
             onClick={() => setActiveTab('edit')}
-            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
-              activeTab === 'edit'
-                ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 font-black'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-            }`}
+            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'edit'
+              ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 font-black'
+              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
           >
             <i className="fa-solid fa-pen mr-1.5"></i> Edit Details
+          </button>
+          <button
+            onClick={() => setActiveTab('manage')}
+            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'manage'
+              ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 font-black'
+              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+          >
+            <i className="fa-solid fa-gears mr-1.5"></i> Manage
           </button>
         </div>
 
@@ -394,108 +393,6 @@ export default function InvoiceDetailsPage() {
                 </div>
               </div>
 
-              {/* Client Secure Sharing */}
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">
-                  Client Secure Sharing Links
-                </h3>
-                
-                {/* Generate Token Form */}
-                <form onSubmit={handleCreateToken} className="space-y-3 p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg">
-                  <div className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-                    Generate Labeled Sharing Link
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Label (e.g. Email to Client, Accounting)"
-                      value={tokenLabel}
-                      onChange={(e) => setTokenLabel(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
-                    />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={tokenExpiry}
-                      onChange={(e) => setTokenExpiry(e.target.value as any)}
-                      className="flex-1 bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-white font-bold"
-                    >
-                      <option value="30">Expires in 30 Days</option>
-                      <option value="90">Expires in 90 Days</option>
-                      <option value="never">Never Expires</option>
-                    </select>
-                    <button
-                      type="submit"
-                      disabled={isGeneratingToken}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800 text-white font-black uppercase tracking-wider px-4 py-3 rounded-lg text-xs transition-all whitespace-nowrap"
-                    >
-                      {isGeneratingToken ? 'Creating...' : 'Create Link'}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Tokens List */}
-                <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
-                  {tokens.map((t) => {
-                    const isExpired = !t.never_expires && t.expires_at && new Date(t.expires_at) < new Date();
-                    const isRevoked = !!t.revoked_at;
-                    let statusText = 'Active';
-                    let statusColor = 'text-emerald-500 bg-emerald-500/10';
-                    if (isRevoked) {
-                      statusText = 'Revoked';
-                      statusColor = 'text-rose-500 bg-rose-500/10';
-                    } else if (isExpired) {
-                      statusText = 'Expired';
-                      statusColor = 'text-amber-500 bg-amber-500/10';
-                    }
-
-                    return (
-                      <div key={t.id} className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col gap-2 relative group animate-slide-in">
-                        <div className="flex justify-between items-start">
-                          <div className="min-w-0 flex-1 pr-2">
-                            <div className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">
-                              {t.label || 'Default Sharing Link'}
-                            </div>
-                            <div className="text-[9px] text-slate-400 mt-1">
-                              Views: <span className="font-bold text-slate-600 dark:text-slate-300">{t.view_count}</span>
-                              {t.expires_at && ` • Expiry: ${new Date(t.expires_at).toLocaleDateString()}`}
-                              {t.never_expires && ` • Never expires`}
-                            </div>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusColor} whitespace-nowrap`}>
-                            {statusText}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-2 mt-1">
-                          <button
-                            onClick={() => handleCopyLink(t.token)}
-                            disabled={isRevoked || isExpired}
-                            className="flex-1 py-2 bg-indigo-50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-600 dark:text-indigo-400 font-bold rounded text-[10px] transition-colors flex items-center justify-center gap-1.5"
-                          >
-                            <i className="fa-solid fa-copy"></i>
-                            {copiedToken === t.token ? 'Copied!' : 'Copy Link'}
-                          </button>
-                          {!isRevoked && (
-                            <button
-                              onClick={() => handleRevokeToken(t.id)}
-                              className="px-3 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold rounded text-[10px] border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 transition-all"
-                              title="Revoke Link"
-                            >
-                              Revoke
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {tokens.length === 0 && (
-                    <p className="text-slate-400 dark:text-slate-500 text-xs italic text-center py-4">
-                      No sharing links created yet.
-                    </p>
-                  )}
-                </div>
-              </div>
 
               {invoiceForm.is_recurring && (
                 <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800 animate-slide-in">
@@ -628,6 +525,110 @@ export default function InvoiceDetailsPage() {
                   )}
                 </div>
               </div>
+
+              {/* Client Secure Sharing */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                  Client Secure Sharing Links
+                </h3>
+
+                {/* Generate Token Form */}
+                <form onSubmit={handleCreateToken} className="space-y-3 p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg">
+                  <div className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+                    Generate Labeled Sharing Link
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Label (e.g. Email to Client, Accounting)"
+                      value={tokenLabel}
+                      onChange={(e) => setTokenLabel(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <select
+                      value={tokenExpiry}
+                      onChange={(e) => setTokenExpiry(e.target.value as any)}
+                      className="flex-1 bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-white font-bold"
+                    >
+                      <option value="30">Expires in 30 Days</option>
+                      <option value="90">Expires in 90 Days</option>
+                      <option value="never">Never Expires</option>
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={isGeneratingToken}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800 text-white font-black uppercase tracking-wider px-4 py-3 rounded-lg text-xs transition-all whitespace-nowrap"
+                    >
+                      {isGeneratingToken ? 'Creating...' : 'Create Link'}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Tokens List */}
+                <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                  {tokens.map((t) => {
+                    const isExpired = !t.never_expires && t.expires_at && new Date(t.expires_at) < new Date();
+                    const isRevoked = !!t.revoked_at;
+                    let statusText = 'Active';
+                    let statusColor = 'text-emerald-500 bg-emerald-500/10';
+                    if (isRevoked) {
+                      statusText = 'Revoked';
+                      statusColor = 'text-rose-500 bg-rose-500/10';
+                    } else if (isExpired) {
+                      statusText = 'Expired';
+                      statusColor = 'text-amber-500 bg-amber-500/10';
+                    }
+
+                    return (
+                      <div key={t.id} className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col gap-2 relative group animate-slide-in">
+                        <div className="flex justify-between items-start">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">
+                              {t.label || 'Default Sharing Link'}
+                            </div>
+                            <div className="text-[9px] text-slate-400 mt-1">
+                              Views: <span className="font-bold text-slate-600 dark:text-slate-300">{t.view_count}</span>
+                              {t.expires_at && ` • Expiry: ${new Date(t.expires_at).toLocaleDateString()}`}
+                              {t.never_expires && ` • Never expires`}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusColor} whitespace-nowrap`}>
+                            {statusText}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            onClick={() => handleCopyLink(t.token)}
+                            disabled={isRevoked || isExpired}
+                            className="flex-1 py-2 bg-indigo-50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-600 dark:text-indigo-400 font-bold rounded text-[10px] transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                            {copiedToken === t.token ? 'Copied!' : 'Copy Link'}
+                          </button>
+                          {!isRevoked && (
+                            <button
+                              onClick={() => handleRevokeToken(t.id)}
+                              className="px-3 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold rounded text-[10px] border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 transition-all"
+                              title="Revoke Link"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {tokens.length === 0 && (
+                    <p className="text-slate-400 dark:text-slate-500 text-xs italic text-center py-4">
+                      No sharing links created yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+
             </div>
           ) : (
             /* EDITOR FORM CONTENT */
@@ -670,7 +671,7 @@ export default function InvoiceDetailsPage() {
               </div>
 
               {/* Invoice Number & Status */}
-              <div className="gap-4 grid grid-cols-2">
+              <div className={invoiceForm.is_recurring ? "w-full" : "gap-4 grid grid-cols-2"}>
                 <div>
                   <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
                     Invoice ID
@@ -682,44 +683,48 @@ export default function InvoiceDetailsPage() {
                     onChange={(e) => setInvoiceForm((p) => ({ ...p!, invoice_number: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                    Status
-                  </label>
-                  <select
-                    className="bg-slate-50 dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
-                    value={invoiceForm.status || 'draft'}
-                    onChange={(e) => setInvoiceForm((p) => ({ ...p!, status: e.target.value as any }))}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="sent">Sent</option>
-                    <option value="paid">Paid</option>
-                    <option value="overdue">Overdue</option>
-                  </select>
-                </div>
+                {!invoiceForm.is_recurring && (
+                  <div>
+                    <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                      Status
+                    </label>
+                    <select
+                      className="bg-slate-50 dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
+                      value={invoiceForm.status || 'draft'}
+                      onChange={(e) => setInvoiceForm((p) => ({ ...p!, status: e.target.value as any }))}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="sent">Sent</option>
+                      <option value="paid">Paid</option>
+                      <option value="overdue">Overdue</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Issue Date */}
-              <div>
-                <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                  Issue Date
-                </label>
-                <input
-                  type="date"
-                  className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
-                  value={invoiceForm.date || ''}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setInvoiceForm((p) => {
-                      const updated = { ...p!, date: newDate };
-                      if (updated.is_recurring) {
-                        updated.next_generation_date = calculateNextGenDate(newDate, updated.recurring_frequency || 'monthly');
-                      }
-                      return updated;
-                    });
-                  }}
-                />
-              </div>
+              {!invoiceForm.is_recurring && (
+                <div>
+                  <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                    Issue Date
+                  </label>
+                  <input
+                    type="date"
+                    className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
+                    value={invoiceForm.date || ''}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      setInvoiceForm((p) => {
+                        const updated = { ...p!, date: newDate };
+                        if (updated.is_recurring) {
+                          updated.next_generation_date = calculateNextGenDate(newDate, updated.recurring_frequency || 'monthly');
+                        }
+                        return updated;
+                      });
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Work Items List */}
               <div className="space-y-4">
@@ -799,44 +804,48 @@ export default function InvoiceDetailsPage() {
               </div>
 
               {/* Currency & Tax Rate */}
-              <div className="gap-4 grid grid-cols-2">
-                <div>
-                  <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                    Currency Symbol
-                  </label>
-                  <input
-                    className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
-                    placeholder="৳"
-                    value={invoiceForm.currency || ''}
-                    onChange={(e) => setInvoiceForm((p) => ({ ...p!, currency: e.target.value }))}
-                  />
+              {!invoiceForm.is_recurring && (
+                <div className="gap-4 grid grid-cols-2">
+                  <div>
+                    <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                      Currency Symbol
+                    </label>
+                    <input
+                      className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
+                      placeholder="৳"
+                      value={invoiceForm.currency || ''}
+                      onChange={(e) => setInvoiceForm((p) => ({ ...p!, currency: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                      Tax Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
+                      placeholder="0"
+                      value={invoiceForm.tax_rate || 0}
+                      onChange={(e) => setInvoiceForm((p) => ({ ...p!, tax_rate: Number(e.target.value) }))}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                    Tax Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
-                    placeholder="0"
-                    value={invoiceForm.tax_rate || 0}
-                    onChange={(e) => setInvoiceForm((p) => ({ ...p!, tax_rate: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Notes */}
-              <div>
-                <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                  Notes
-                </label>
-                <textarea
-                  className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full h-24 dark:text-white text-sm resize-none"
-                  placeholder="Official Notes"
-                  value={invoiceForm.notes || ''}
-                  onChange={(e) => setInvoiceForm((p) => ({ ...p!, notes: e.target.value }))}
-                />
-              </div>
+              {!invoiceForm.is_recurring && (
+                <div>
+                  <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                    Notes
+                  </label>
+                  <textarea
+                    className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full h-24 dark:text-white text-sm resize-none"
+                    placeholder="Official Notes"
+                    value={invoiceForm.notes || ''}
+                    onChange={(e) => setInvoiceForm((p) => ({ ...p!, notes: e.target.value }))}
+                  />
+                </div>
+              )}
 
               {/* Subscription Options */}
               <div className="bg-slate-50 dark:bg-slate-950/50 p-5 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
@@ -900,6 +909,25 @@ export default function InvoiceDetailsPage() {
                           setInvoiceForm((p) => ({ ...p!, next_generation_date: e.target.value }))
                         }
                       />
+                    </div>
+                    <div>
+                      <label className="block mb-1 ml-1 font-black text-[8px] text-slate-400 uppercase">
+                        Billing Timing
+                      </label>
+                      <select
+                        className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-xs font-bold"
+                        value={parseBillingTiming(invoiceForm.notes)}
+                        onChange={(e) => {
+                          const timingVal = e.target.value as 'advanced' | 'after_period';
+                          setInvoiceForm((p) => {
+                            const updatedNotes = appendBillingTiming(p?.notes, timingVal);
+                            return { ...p!, notes: updatedNotes };
+                          });
+                        }}
+                      >
+                        <option value="advanced">In Advance (Default)</option>
+                        <option value="after_period">After Period (Arrears)</option>
+                      </select>
                     </div>
                   </div>
                 )}

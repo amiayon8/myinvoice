@@ -8,7 +8,7 @@ import { DashboardStats } from '@/components/dashboard-stats';
 import { RevenueCharts } from '@/components/revenue-charts';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
-import { calculateNextGenDate } from '@/lib/date-utils';
+import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { TableSkeleton } from '@/components/skeleton';
 
 export default function DashboardPage() {
@@ -252,9 +252,12 @@ export default function DashboardPage() {
     switch (status) {
       case 'paid':
         return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+      case 'partially_paid':
+        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
       case 'sent':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
       case 'overdue':
+      case 'due':
         return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
       default:
         return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400';
@@ -339,10 +342,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Dashboard Stats Cards */}
-      <DashboardStats invoices={invoices} />
+      <DashboardStats invoices={invoices.filter(inv => !inv.is_recurring)} />
 
       {/* Revenue Analytics Charts */}
-      <RevenueCharts invoices={invoices} />
+      <RevenueCharts invoices={invoices.filter(inv => !inv.is_recurring)} />
 
       {/* Loan Stats Cards */}
       <div className="space-y-4">
@@ -451,6 +454,7 @@ export default function DashboardPage() {
                 const amount = invoice.items?.reduce((sum, i) => sum + (i.quantity * i.rate), 0) || 0;
                 const paid = invoice.paid_amount || 0;
                 const due = amount - paid;
+                const calculatedStatus = paid >= amount ? 'paid' : paid > 0 ? 'partially_paid' : invoice.status;
 
                 // Combined children stats for templates
                 const totalChildrenCount = children.length;
@@ -459,6 +463,7 @@ export default function DashboardPage() {
                 }, 0);
                 const totalChildrenPaid = children.reduce((sum, child) => sum + (child.paid_amount || 0), 0);
                 const totalChildrenDue = totalChildrenValue - totalChildrenPaid;
+                const templateStatus = totalChildrenDue > 0 ? 'due' : 'paid';
 
                 if (isTemplate) {
                   return (
@@ -477,7 +482,7 @@ export default function DashboardPage() {
                               {invoice.invoice_number}
                             </span>
                             <span className="bg-indigo-100 dark:bg-indigo-950/40 ml-1 px-2 py-0.5 rounded-full font-black text-[8px] text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
-                              MAIN
+                              TEMPLATE
                             </span>
                           </div>
                         </td>
@@ -497,12 +502,16 @@ export default function DashboardPage() {
                               Freq: {invoice.recurring_frequency}
                             </span>
                             <span className="text-[10px] text-slate-400">
-                              Next: {invoice.next_generation_date}
+                              Next: {new Date(invoice.next_generation_date).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-xs">
-                          {totalChildrenCount} Invoices
+                          {totalChildrenCount} Generated
                         </td>
                         <td className="px-6 py-4 font-black text-black dark:text-white text-sm">
                           {invoice.currency}
@@ -513,8 +522,8 @@ export default function DashboardPage() {
                           {totalChildrenDue.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-full font-black text-[8px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                            Recurring
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}>
+                            {templateStatus}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -565,7 +574,7 @@ export default function DashboardPage() {
                             <div className="space-y-3 pl-6">
                               <div className="flex justify-between items-center pb-2 border-slate-100 dark:border-slate-800 border-b">
                                 <span className="font-black text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                  Generated Child Invoices ({totalChildrenCount})
+                                  Generated Invoices ({totalChildrenCount})
                                 </span>
                                 <span className="font-black text-[10px] text-indigo-500 uppercase">
                                   Combined Total: {invoice.currency}{totalChildrenValue.toLocaleString()}
@@ -594,6 +603,7 @@ export default function DashboardPage() {
                                         const childAmount = child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0;
                                         const childPaid = child.paid_amount || 0;
                                         const childDue = childAmount - childPaid;
+                                        const childStatus = childPaid >= childAmount ? 'paid' : childPaid > 0 ? 'partially_paid' : child.status;
                                         return (
                                           <tr
                                             key={child.id}
@@ -620,8 +630,8 @@ export default function DashboardPage() {
                                               {child.currency}{childDue.toLocaleString()}
                                             </td>
                                             <td className="px-4 py-2.5">
-                                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(child.status)}`}>
-                                                {child.status}
+                                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}>
+                                                {childStatus === 'partially_paid' ? 'Partially Paid' : childStatus}
                                               </span>
                                             </td>
                                             <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -632,13 +642,6 @@ export default function DashboardPage() {
                                                   title="Print"
                                                 >
                                                   <i className="fa-solid fa-print"></i>
-                                                </button>
-                                                <button
-                                                  onClick={() => handleOpenManager(child)}
-                                                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                                                  title="Manage"
-                                                >
-                                                  <i className="fa-solid fa-gears"></i>
                                                 </button>
                                                 <button
                                                   onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
@@ -713,10 +716,10 @@ export default function DashboardPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(
-                            invoice.status
+                            calculatedStatus
                           )}`}
                         >
-                          {invoice.status}
+                          {calculatedStatus === 'partially_paid' ? 'Partially Paid' : calculatedStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -804,7 +807,7 @@ export default function DashboardPage() {
                 <h4 className="pb-2 border-indigo-50 dark:border-indigo-950/30 border-b font-black text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                   1. General Details
                 </h4>
-                <div className="gap-4 grid grid-cols-1 md:grid-cols-2">
+                <div className={manageIsRecurring ? "w-full" : "gap-4 grid grid-cols-1 md:grid-cols-2"}>
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
                       Invoice Number
@@ -816,74 +819,80 @@ export default function DashboardPage() {
                       onChange={(e) => setManageInvoiceNumber(e.target.value)}
                     />
                   </div>
+                  {!manageIsRecurring && (
+                    <>
+                      <div>
+                        <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                          Status
+                        </label>
+                        <select
+                          className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                          value={manageStatus}
+                          onChange={(e) => setManageStatus(e.target.value)}
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="sent">Sent</option>
+                          <option value="paid">Paid</option>
+                          <option value="overdue">Overdue</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                          Issue Date
+                        </label>
+                        <input
+                          type="date"
+                          className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                          value={manageDate}
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            setManageDate(newDate);
+                            if (manageIsRecurring && newDate) {
+                              setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="gap-2 grid grid-cols-2">
+                        <div>
+                          <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                            Currency
+                          </label>
+                          <input
+                            type="text"
+                            className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                            value={manageCurrency}
+                            onChange={(e) => setManageCurrency(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                            Tax Rate (%)
+                          </label>
+                          <input
+                            type="number"
+                            className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                            value={manageTaxRate}
+                            onChange={(e) => setManageTaxRate(Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {!manageIsRecurring && (
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                      Status
+                      Invoice Notes
                     </label>
-                    <select
-                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                      value={manageStatus}
-                      onChange={(e) => setManageStatus(e.target.value)}
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="sent">Sent</option>
-                      <option value="paid">Paid</option>
-                      <option value="overdue">Overdue</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                      Issue Date
-                    </label>
-                    <input
-                      type="date"
-                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                      value={manageDate}
-                      onChange={(e) => {
-                        const newDate = e.target.value;
-                        setManageDate(newDate);
-                        if (manageIsRecurring && newDate) {
-                          setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
-                        }
-                      }}
+                    <textarea
+                      rows={2}
+                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-medium dark:text-white text-xs"
+                      value={manageNotes}
+                      onChange={(e) => setManageNotes(e.target.value)}
                     />
                   </div>
-                  <div className="gap-2 grid grid-cols-2">
-                    <div>
-                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                        Currency
-                      </label>
-                      <input
-                        type="text"
-                        className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                        value={manageCurrency}
-                        onChange={(e) => setManageCurrency(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                        Tax Rate (%)
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                        value={manageTaxRate}
-                        onChange={(e) => setManageTaxRate(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                    Invoice Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-medium dark:text-white text-xs"
-                    value={manageNotes}
-                    onChange={(e) => setManageNotes(e.target.value)}
-                  />
-                </div>
+                )}
               </div>
 
               {/* Part 2: Recurring Billing Configuration */}
@@ -944,6 +953,22 @@ export default function DashboardPage() {
                         value={manageNextGenDate}
                         onChange={(e) => setManageNextGenDate(e.target.value)}
                       />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                        Billing Timing
+                      </label>
+                      <select
+                        className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                        value={parseBillingTiming(manageNotes)}
+                        onChange={(e) => {
+                          const timingVal = e.target.value as 'advanced' | 'after_period';
+                          setManageNotes(appendBillingTiming(manageNotes, timingVal));
+                        }}
+                      >
+                        <option value="advanced">In Advance (Default)</option>
+                        <option value="after_period">After Period (Arrears)</option>
+                      </select>
                     </div>
                   </div>
                 )}

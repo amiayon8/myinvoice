@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { NextResponse } from 'next/server';
+import { parseBillingTiming, getPeriodDate } from '@/lib/date-utils';
 
 async function processRecurring(targetDate: string) {
   const supabase = createServiceRoleClient();
@@ -16,8 +17,10 @@ async function processRecurring(targetDate: string) {
   const generated = [];
 
   for (const template of templates || []) {
-    // Extract month and year from next_generation_date (expected format: YYYY-MM-DD)
-    const parts = template.next_generation_date.split('-');
+    // Compute the actual period date based on billing timing (advanced or after_period)
+    const timing = parseBillingTiming(template.notes);
+    const periodDate = getPeriodDate(template.next_generation_date, template.recurring_frequency || 'monthly', timing);
+    const parts = periodDate.split('-');
     if (parts.length !== 3) continue;
 
     const yearFull = parts[0];

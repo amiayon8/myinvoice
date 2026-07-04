@@ -163,7 +163,7 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center py-12 p-4 print:p-0 print:bg-white transition-colors duration-500">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center py-12 p-4 print:p-0 print:bg-white">
       <PublicHeader token={token} />
       {/* Generated child bills section */}
       {parentInvoice.is_recurring && childBills.length > 0 && (

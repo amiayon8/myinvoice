@@ -8,7 +8,7 @@ import { Invoice, Client, CompanyProfile, InvoiceItem } from '@/types';
 import { InvoicePreview } from '@/components/invoice-preview';
 import { ResponsiveInvoiceWrapper } from '@/components/responsive-invoice-wrapper';
 
-import { calculateNextGenDate } from '@/lib/date-utils';
+import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { useToast } from '@/components/ui/toast';
 
 interface InvoiceEditorProps {
@@ -218,7 +218,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
           </div>
 
           {/* Invoice ID & Status */}
-          <div className="gap-4 grid grid-cols-2">
+          <div className={invoice.is_recurring ? "w-full" : "gap-4 grid grid-cols-2"}>
             <div>
               <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
                 Invoice ID
@@ -230,44 +230,48 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
                 onChange={(e) => setInvoice((p) => ({ ...p!, invoice_number: e.target.value }))}
               />
             </div>
-            <div>
-              <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                Status
-              </label>
-              <select
-                className="bg-slate-50 dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
-                value={invoice.status || 'draft'}
-                onChange={(e) => setInvoice((p) => ({ ...p!, status: e.target.value as any }))}
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="paid">Paid</option>
-                <option value="overdue">Overdue</option>
-              </select>
-            </div>
+            {!invoice.is_recurring && (
+              <div>
+                <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                  Status
+                </label>
+                <select
+                  className="bg-slate-50 dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
+                  value={invoice.status || 'draft'}
+                  onChange={(e) => setInvoice((p) => ({ ...p!, status: e.target.value as any }))}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Date Created */}
-          <div>
-            <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-              Issue Date
-            </label>
-            <input
-              type="date"
-              className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
-              value={invoice.date || ''}
-              onChange={(e) => {
-                const newDate = e.target.value;
-                setInvoice((p) => {
-                  const updated = { ...p!, date: newDate };
-                  if (updated.is_recurring) {
-                    updated.next_generation_date = calculateNextGenDate(newDate, updated.recurring_frequency || 'monthly');
-                  }
-                  return updated;
-                });
-              }}
-            />
-          </div>
+          {!invoice.is_recurring && (
+            <div>
+              <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                Issue Date
+              </label>
+              <input
+                type="date"
+                className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
+                value={invoice.date || ''}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setInvoice((p) => {
+                    const updated = { ...p!, date: newDate };
+                    if (updated.is_recurring) {
+                      updated.next_generation_date = calculateNextGenDate(newDate, updated.recurring_frequency || 'monthly');
+                    }
+                    return updated;
+                  });
+                }}
+              />
+            </div>
+          )}
 
           {/* Items List */}
           <div className="space-y-4">
@@ -347,44 +351,48 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
           </div>
 
           {/* Tax and Currency */}
-          <div className="gap-4 grid grid-cols-2">
-            <div>
-              <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                Currency Symbol
-              </label>
-              <input
-                className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
-                placeholder="৳"
-                value={invoice.currency || ''}
-                onChange={(e) => setInvoice((p) => ({ ...p!, currency: e.target.value }))}
-              />
+          {!invoice.is_recurring && (
+            <div className="gap-4 grid grid-cols-2">
+              <div>
+                <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                  Currency Symbol
+                </label>
+                <input
+                  className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
+                  placeholder="৳"
+                  value={invoice.currency || ''}
+                  onChange={(e) => setInvoice((p) => ({ ...p!, currency: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                  Tax Rate (%)
+                </label>
+                <input
+                  type="number"
+                  className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
+                  placeholder="0"
+                  value={invoice.tax_rate || 0}
+                  onChange={(e) => setInvoice((p) => ({ ...p!, tax_rate: Number(e.target.value) }))}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-                Tax Rate (%)
-              </label>
-              <input
-                type="number"
-                className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full dark:text-white text-sm"
-                placeholder="0"
-                value={invoice.tax_rate || 0}
-                onChange={(e) => setInvoice((p) => ({ ...p!, tax_rate: Number(e.target.value) }))}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Notes */}
-          <div>
-            <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-              Notes
-            </label>
-            <textarea
-              className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full h-24 dark:text-white text-sm resize-none"
-              placeholder="Official Notes"
-              value={invoice.notes || ''}
-              onChange={(e) => setInvoice((p) => ({ ...p!, notes: e.target.value }))}
-            />
-          </div>
+          {!invoice.is_recurring && (
+            <div>
+              <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                Notes
+              </label>
+              <textarea
+                className="dark:bg-slate-950/50 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full h-24 dark:text-white text-sm resize-none"
+                placeholder="Official Notes"
+                value={invoice.notes || ''}
+                onChange={(e) => setInvoice((p) => ({ ...p!, notes: e.target.value }))}
+              />
+            </div>
+          )}
 
           {/* Recurring Option */}
           <div className="bg-slate-50 dark:bg-slate-950/50 p-5 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
@@ -448,6 +456,25 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ invoiceId }) => {
                       setInvoice((p) => ({ ...p!, next_generation_date: e.target.value }))
                     }
                   />
+                </div>
+                <div>
+                  <label className="block mb-1 ml-1 font-black text-[8px] text-slate-400 uppercase">
+                    Billing Timing
+                  </label>
+                  <select
+                    className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-xs font-bold"
+                    value={parseBillingTiming(invoice.notes)}
+                    onChange={(e) => {
+                      const timingVal = e.target.value as 'advanced' | 'after_period';
+                      setInvoice((p) => {
+                        const updatedNotes = appendBillingTiming(p?.notes, timingVal);
+                        return { ...p!, notes: updatedNotes };
+                      });
+                    }}
+                  >
+                    <option value="advanced">In Advance (Default)</option>
+                    <option value="after_period">After Period (Arrears)</option>
+                  </select>
                 </div>
               </div>
             )}

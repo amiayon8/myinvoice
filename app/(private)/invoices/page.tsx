@@ -14,7 +14,7 @@ import {
 } from '@/services/invoices';
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
-import { calculateNextGenDate } from '@/lib/date-utils';
+import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { TableSkeleton } from '@/components/skeleton';
 
 export default function InvoicesPage() {
@@ -259,9 +259,12 @@ export default function InvoicesPage() {
     switch (status) {
       case 'paid':
         return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+      case 'partially_paid':
+        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
       case 'sent':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
       case 'overdue':
+      case 'due':
         return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
       default:
         return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400';
@@ -387,6 +390,7 @@ export default function InvoicesPage() {
                 const amount = invoice.items?.reduce((sum, i) => sum + (i.quantity * i.rate), 0) || 0;
                 const paid = invoice.paid_amount || 0;
                 const due = amount - paid;
+                const calculatedStatus = paid >= amount ? 'paid' : paid > 0 ? 'partially_paid' : invoice.status;
 
                 // Combined children stats for templates
                 const totalChildrenCount = children.length;
@@ -395,6 +399,7 @@ export default function InvoicesPage() {
                 }, 0);
                 const totalChildrenPaid = children.reduce((sum, child) => sum + (child.paid_amount || 0), 0);
                 const totalChildrenDue = totalChildrenValue - totalChildrenPaid;
+                const templateStatus = totalChildrenDue > 0 ? 'due' : 'paid';
 
                 if (isTemplate && showGrouped) {
                   return (
@@ -413,7 +418,7 @@ export default function InvoicesPage() {
                               {invoice.invoice_number}
                             </span>
                             <span className="bg-indigo-100 dark:bg-indigo-950/40 ml-1 px-2 py-0.5 rounded-full font-black text-[8px] text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
-                              MAIN
+                              TEMPLATE
                             </span>
                           </div>
                         </td>
@@ -433,12 +438,16 @@ export default function InvoicesPage() {
                               Freq: {invoice.recurring_frequency}
                             </span>
                             <span className="text-[10px] text-slate-400">
-                              Next: {invoice.next_generation_date}
+                              Next: {new Date(invoice.next_generation_date).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400 text-xs">
-                          {totalChildrenCount} Invoices
+                          {totalChildrenCount} Generated
                         </td>
                         <td className="px-6 py-4 font-black text-black dark:text-white text-sm">
                           {invoice.currency}
@@ -449,8 +458,8 @@ export default function InvoicesPage() {
                           {totalChildrenDue.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-full font-black text-[8px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                            Recurring
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}>
+                            {templateStatus}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -484,13 +493,6 @@ export default function InvoicesPage() {
                               <i className="fa-solid fa-copy"></i>
                             </button>
                             <button
-                              onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
-                              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
-                              title="Edit"
-                            >
-                              <i className="fa-solid fa-pen"></i>
-                            </button>
-                            <button
                               onClick={(e) => handleDelete(invoice.id, e)}
                               className="p-2 text-slate-400 hover:text-red-500 transition-colors"
                               title="Delete"
@@ -508,104 +510,92 @@ export default function InvoicesPage() {
                             <div className="space-y-3 pl-6">
                               <div className="flex justify-between items-center pb-2 border-slate-100 dark:border-slate-800 border-b">
                                 <span className="font-black text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                  Generated Child Invoices ({totalChildrenCount})
+                                  Generated Invoices ({totalChildrenCount})
                                 </span>
                                 <span className="font-black text-[10px] text-indigo-500 uppercase">
                                   Combined Total: {invoice.currency}{totalChildrenValue.toLocaleString()}
                                 </span>
                               </div>
-                              {children.length === 0 ? (
-                                <p className="py-2 text-slate-400 text-xs italic">
-                                  No instances generated yet. Use the cron task or trigger manually from the gears panel.
-                                </p>
-                              ) : (
-                                <div className="bg-white dark:bg-slate-900/60 shadow-inner border border-slate-100 dark:border-slate-800/85 rounded-lg overflow-x-auto">
-                                  <table className="w-full text-xs text-left">
-                                    <thead className="bg-slate-50 dark:bg-slate-950/40 border-slate-100 dark:border-slate-800 border-b font-black text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                      <tr>
-                                        <th className="px-4 py-2">Invoice #</th>
-                                        <th className="px-4 py-2">Issue Date</th>
-                                        <th className="px-4 py-2">Total Amount</th>
-                                        <th className="px-4 py-2">Paid Amount</th>
-                                        <th className="px-4 py-2">Due Amount</th>
-                                        <th className="px-4 py-2">Status</th>
-                                        <th className="px-4 py-2 text-right">Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
-                                      {children.map((child) => {
-                                        const childAmount = child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0;
-                                        const childPaid = child.paid_amount || 0;
-                                        const childDue = childAmount - childPaid;
-                                        return (
-                                          <tr
-                                            key={child.id}
-                                            onClick={() => router.push(`/invoices/${child.id}`)}
-                                            className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors cursor-pointer"
-                                          >
-                                            <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-200">
-                                              {child.invoice_number}
-                                            </td>
-                                            <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">
-                                              {new Date(child.date).toLocaleDateString(undefined, {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                year: 'numeric'
-                                              })}
-                                            </td>
-                                            <td className="px-4 py-2.5 font-bold">
-                                              {child.currency}{childAmount.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-2.5 font-bold text-emerald-600 dark:text-emerald-400">
-                                              {child.currency}{childPaid.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-2.5 font-bold text-rose-600 dark:text-rose-400">
-                                              {child.currency}{childDue.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-2.5">
-                                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(child.status)}`}>
-                                                {child.status}
-                                              </span>
-                                            </td>
-                                            <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
-                                              <div className="flex justify-end gap-1">
-                                                <button
-                                                  onClick={() => window.open(`/invoices/${child.id}/print`, '_blank')}
-                                                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                                                  title="Print"
-                                                >
-                                                  <i className="fa-solid fa-print"></i>
-                                                </button>
-                                                <button
-                                                  onClick={() => handleOpenManager(child)}
-                                                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                                                  title="Manage"
-                                                >
-                                                  <i className="fa-solid fa-gears"></i>
-                                                </button>
-                                                <button
-                                                  onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
-                                                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                                                  title="Edit"
-                                                >
-                                                  <i className="fa-solid fa-pen"></i>
-                                                </button>
-                                                <button
-                                                  onClick={(e) => handleDelete(child.id, e)}
-                                                  className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                                  title="Delete"
-                                                >
-                                                  <i className="fa-solid fa-trash"></i>
-                                                </button>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
+                              <div className="bg-white dark:bg-slate-900/60 shadow-inner border border-slate-100 dark:border-slate-800/85 rounded-lg overflow-x-auto">
+                                <table className="w-full text-xs text-left">
+                                  <thead className="bg-slate-50 dark:bg-slate-950/40 border-slate-100 dark:border-slate-800 border-b font-black text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    <tr>
+                                      <th className="px-4 py-2">Invoice #</th>
+                                      <th className="px-4 py-2">Issue Date</th>
+                                      <th className="px-4 py-2">Total Amount</th>
+                                      <th className="px-4 py-2">Paid Amount</th>
+                                      <th className="px-4 py-2">Due Amount</th>
+                                      <th className="px-4 py-2">Status</th>
+                                      <th className="px-4 py-2 text-right">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
+                                    {children.map((child) => {
+                                      const childAmount = child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0;
+                                      const childPaid = child.paid_amount || 0;
+                                      const childDue = childAmount - childPaid;
+                                      const childStatus = childPaid >= childAmount ? 'paid' : childPaid > 0 ? 'partially_paid' : child.status;
+                                      return (
+                                        <tr
+                                          key={child.id}
+                                          onClick={() => router.push(`/invoices/${child.id}`)}
+                                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors cursor-pointer"
+                                        >
+                                          <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-200">
+                                            {child.invoice_number}
+                                          </td>
+                                          <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">
+                                            {new Date(child.date).toLocaleDateString(undefined, {
+                                              month: 'short',
+                                              day: 'numeric',
+                                              year: 'numeric'
+                                            })}
+                                          </td>
+                                          <td className="px-4 py-2.5 font-bold">
+                                            {child.currency}{childAmount.toLocaleString()}
+                                          </td>
+                                          <td className="px-4 py-2.5 font-bold text-emerald-600 dark:text-emerald-400">
+                                            {child.currency}{childPaid.toLocaleString()}
+                                          </td>
+                                          <td className="px-4 py-2.5 font-bold text-rose-600 dark:text-rose-400">
+                                            {child.currency}{childDue.toLocaleString()}
+                                          </td>
+                                          <td className="px-4 py-2.5">
+                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}>
+                                              {childStatus === 'partially_paid' ? 'Partially Paid' : childStatus}
+                                            </span>
+                                          </td>
+                                          <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex justify-end gap-1">
+                                              <button
+                                                onClick={() => window.open(`/invoices/${child.id}/print`, '_blank')}
+                                                className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                title="Print"
+                                              >
+                                                <i className="fa-solid fa-print"></i>
+                                              </button>
+                                              <button
+                                                onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
+                                                className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                title="Edit"
+                                              >
+                                                <i className="fa-solid fa-pen"></i>
+                                              </button>
+                                              <button
+                                                onClick={(e) => handleDelete(child.id, e)}
+                                                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                                title="Delete"
+                                              >
+                                                <i className="fa-solid fa-trash"></i>
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -656,10 +646,10 @@ export default function InvoicesPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(
-                            invoice.status
+                            calculatedStatus
                           )}`}
                         >
-                          {invoice.status}
+                          {calculatedStatus === 'partially_paid' ? 'Partially Paid' : calculatedStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -754,7 +744,7 @@ export default function InvoicesPage() {
                 <h4 className="pb-2 border-indigo-50 dark:border-indigo-950/30 border-b font-black text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                   1. General Details
                 </h4>
-                <div className="gap-4 grid grid-cols-1 md:grid-cols-2">
+                <div className={manageIsRecurring ? "w-full" : "gap-4 grid grid-cols-1 md:grid-cols-2"}>
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
                       Invoice Number
@@ -766,74 +756,80 @@ export default function InvoicesPage() {
                       onChange={(e) => setManageInvoiceNumber(e.target.value)}
                     />
                   </div>
+                  {!manageIsRecurring && (
+                    <>
+                      <div>
+                        <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                          Status
+                        </label>
+                        <select
+                          className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                          value={manageStatus}
+                          onChange={(e) => setManageStatus(e.target.value)}
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="sent">Sent</option>
+                          <option value="paid">Paid</option>
+                          <option value="overdue">Overdue</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                          Issue Date
+                        </label>
+                        <input
+                          type="date"
+                          className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                          value={manageDate}
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            setManageDate(newDate);
+                            if (manageIsRecurring && newDate) {
+                              setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="gap-2 grid grid-cols-2">
+                        <div>
+                          <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                            Currency
+                          </label>
+                          <input
+                            type="text"
+                            className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                            value={manageCurrency}
+                            onChange={(e) => setManageCurrency(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                            Tax Rate (%)
+                          </label>
+                          <input
+                            type="number"
+                            className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                            value={manageTaxRate}
+                            onChange={(e) => setManageTaxRate(Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {!manageIsRecurring && (
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                      Status
+                      Invoice Notes
                     </label>
-                    <select
-                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                      value={manageStatus}
-                      onChange={(e) => setManageStatus(e.target.value)}
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="sent">Sent</option>
-                      <option value="paid">Paid</option>
-                      <option value="overdue">Overdue</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                      Issue Date
-                    </label>
-                    <input
-                      type="date"
-                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                      value={manageDate}
-                      onChange={(e) => {
-                        const newDate = e.target.value;
-                        setManageDate(newDate);
-                        if (manageIsRecurring && newDate) {
-                          setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
-                        }
-                      }}
+                    <textarea
+                      rows={2}
+                      className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-medium dark:text-white text-xs"
+                      value={manageNotes}
+                      onChange={(e) => setManageNotes(e.target.value)}
                     />
                   </div>
-                  <div className="gap-2 grid grid-cols-2">
-                    <div>
-                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                        Currency
-                      </label>
-                      <input
-                        type="text"
-                        className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                        value={manageCurrency}
-                        onChange={(e) => setManageCurrency(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                        Tax Rate (%)
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
-                        value={manageTaxRate}
-                        onChange={(e) => setManageTaxRate(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
-                    Invoice Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-medium dark:text-white text-xs"
-                    value={manageNotes}
-                    onChange={(e) => setManageNotes(e.target.value)}
-                  />
-                </div>
+                )}
               </div>
 
               {/* Part 2: Recurring Billing Configuration */}
@@ -894,6 +890,22 @@ export default function InvoicesPage() {
                         value={manageNextGenDate}
                         onChange={(e) => setManageNextGenDate(e.target.value)}
                       />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
+                        Billing Timing
+                      </label>
+                      <select
+                        className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
+                        value={parseBillingTiming(manageNotes)}
+                        onChange={(e) => {
+                          const timingVal = e.target.value as 'advanced' | 'after_period';
+                          setManageNotes(appendBillingTiming(manageNotes, timingVal));
+                        }}
+                      >
+                        <option value="advanced">In Advance (Default)</option>
+                        <option value="after_period">After Period (Arrears)</option>
+                      </select>
                     </div>
                   </div>
                 )}
@@ -1023,8 +1035,8 @@ export default function InvoicesPage() {
                   key={tab}
                   onClick={() => setShareTab(tab)}
                   className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${shareTab === tab
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                 >
                   {tab === 'create' ? 'New Link' : tab === 'tokens' ? `Links (${shareTokens.length})` : `View Log (${shareLogs.length})`}
@@ -1057,8 +1069,8 @@ export default function InvoicesPage() {
                           key={d}
                           onClick={() => { setShareNeverExpires(false); setShareDays(d); }}
                           className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${!shareNeverExpires && shareDays === d
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                             }`}
                         >
                           {d} days
@@ -1067,8 +1079,8 @@ export default function InvoicesPage() {
                       <button
                         onClick={() => setShareNeverExpires(true)}
                         className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${shareNeverExpires
-                            ? 'bg-emerald-600 text-white shadow-md'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}
                       >
                         Never
@@ -1120,17 +1132,17 @@ export default function InvoicesPage() {
                       <div
                         key={t.id}
                         className={`rounded-xl border p-4 flex items-start gap-4 ${isRevoked || isExpired
-                            ? 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                          ? 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                           }`}
                       >
                         <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isRevoked ? 'bg-orange-500/10 text-orange-500' :
-                            isExpired ? 'bg-red-500/10 text-red-500' :
-                              'bg-emerald-500/10 text-emerald-500'
+                          isExpired ? 'bg-red-500/10 text-red-500' :
+                            'bg-emerald-500/10 text-emerald-500'
                           }`}>
                           <i className={`fa-solid text-xs ${isRevoked ? 'fa-ban' :
-                              isExpired ? 'fa-clock' :
-                                'fa-check'
+                            isExpired ? 'fa-clock' :
+                              'fa-check'
                             }`}></i>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1206,8 +1218,8 @@ export default function InvoicesPage() {
                               <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{log.os || '—'}</td>
                               <td className="px-4 py-2.5">
                                 <span className={`px-2 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${log.device === 'Mobile' ? 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400' :
-                                    log.device === 'Tablet' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' :
-                                      'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                  log.device === 'Tablet' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' :
+                                    'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                                   }`}>{log.device || '—'}</span>
                               </td>
                               <td className="px-4 py-2.5 text-[10px] text-slate-400">{log.token?.label || 'Untitled'}</td>

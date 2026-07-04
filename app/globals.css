@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+
+  --primary: #4F46E5;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-outfit), sans-serif;
+}
+
+.dark :root {
+  --primary: #ffffff;
+}
+
 @layer base {
   :root {
     --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -9,7 +22,6 @@
   body {
     @apply bg-slate-50/70 text-slate-900 antialiased;
     font-family: var(--font-sans);
-    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
   }
 
   .dark body {
@@ -24,6 +36,184 @@
   h6 {
     font-family: var(--font-display);
   }
+}
+
+/* Document OS Light Theme fixes */
+.document-os-page .bg-slate-900\/40 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  backdrop-filter: none !important;
+}
+
+.document-os-page .bg-slate-950\/20 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page .bg-slate-950\/30 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page .bg-slate-950 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page .bg-slate-900\/50 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page input,
+.document-os-page select,
+.document-os-page textarea {
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.document-os-page .border-slate-800,
+.document-os-page .border-slate-800\/50,
+.document-os-page .border-slate-800\/60,
+.document-os-page .border-slate-800\/80,
+.document-os-page .border-slate-800\/85 {
+  border-color: #cbd5e1 !important;
+}
+
+.document-os-page .text-slate-300,
+.document-os-page .text-slate-400 {
+  color: #475569 !important;
+}
+
+.document-os-page .text-slate-200 {
+  color: #1e293b !important;
+}
+
+/* Status badges and button colors under light theme */
+.document-os-page .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+.document-os-page .text-emerald-400 {
+  color: #047857 !important;
+}
+.document-os-page .text-amber-400 {
+  color: #b45309 !important;
+}
+.document-os-page .text-red-400 {
+  color: #b91c1c !important;
+}
+.document-os-page .text-indigo-400 {
+  color: #4338ca !important;
+}
+
+/* Document OS Dark Theme overrides */
+.dark .document-os-page .bg-slate-900\/40 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+  border-color: rgba(30, 41, 59, 0.8) !important;
+}
+
+.dark .document-os-page .bg-slate-950\/20 {
+  background-color: rgba(2, 6, 23, 0.2) !important;
+  border-color: #1e293b !important;
+}
+
+.dark .document-os-page .bg-slate-950\/30 {
+  background-color: rgba(2, 6, 23, 0.3) !important;
+  border-color: #1e293b !important;
+}
+
+.dark .document-os-page .bg-slate-950 {
+  background-color: #020617 !important;
+  border-color: #1e293b !important;
+}
+
+.dark .document-os-page .bg-slate-900 {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+.dark .document-os-page .bg-slate-900\/50 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  border-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+.dark .document-os-page input,
+.dark .document-os-page select,
+.dark .document-os-page textarea {
+  color: #cbd5e1 !important;
+  border-color: rgba(30, 41, 59, 0.8) !important;
+}
+
+.dark .document-os-page select option {
+  background-color: #020617 !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .document-os-page .border-slate-800,
+.dark .document-os-page .border-slate-800\/50,
+.dark .document-os-page .border-slate-800\/60,
+.dark .document-os-page .border-slate-800\/80,
+.dark .document-os-page .border-slate-800\/85 {
+  border-color: #1e293b !important;
+}
+
+.dark .document-os-page .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+.dark .document-os-page .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .document-os-page .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+/* Status badges and button colors under dark theme */
+.dark .document-os-page .text-blue-400 {
+  color: #60a5fa !important;
+}
+.dark .document-os-page .text-emerald-400 {
+  color: #34d399 !important;
+}
+.dark .document-os-page .text-amber-400 {
+  color: #fbbf24 !important;
+}
+.dark .document-os-page .text-red-400 {
+  color: #f87171 !important;
+}
+.dark .document-os-page .text-indigo-400 {
+  color: #818cf8 !important;
+}
+
+/* Secondary buttons and badges under light theme */
+.document-os-page button.bg-slate-800,
+.document-os-page span.bg-slate-800 {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+.document-os-page button.bg-slate-800:hover {
+  background-color: #cbd5e1 !important;
+}
+
+/* Secondary buttons and badges under dark theme */
+.dark .document-os-page button.bg-slate-800,
+.dark .document-os-page span.bg-slate-800 {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+.dark .document-os-page button.bg-slate-800:hover {
+  background-color: #334155 !important;
 }
 
 /* Custom Scrollbar */

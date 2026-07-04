@@ -3,10 +3,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { Invoice, InvoiceItem } from '@/types';
+import { parseBillingTiming, getPeriodDate } from '@/lib/date-utils';
 
 export async function saveInvoice(invoiceData: Partial<Invoice>, items: Partial<InvoiceItem>[]) {
   const supabase = await createClient();
-  const { id, items: _items, client: _c, company: _comp, created_at, ...baseData } = invoiceData;
+  const { id, items: _items, client: _c, company: _comp, created_at, isParent, ...baseData } = invoiceData as any;
 
   let savedInvoice;
   if (id) {
@@ -176,17 +177,19 @@ export async function generateRecurringInstanceAction(templateId: string, count:
   const generated = [];
 
   for (let run = 0; run < count; run++) {
-    // Extract month and year from currentNextGenDateStr (expected YYYY-MM-DD)
-    const parts = currentNextGenDateStr.split('-');
-    if (parts.length !== 3) {
-      throw new Error(`Invalid next generation date format: ${currentNextGenDateStr}`);
-    }
-
-    const yearFull = parts[0];
-    const monthStr = parts[1];
-    const yearStr = yearFull.slice(-2);
-
-    const generatedNumber = `${template.invoice_number}-${monthStr}-${yearStr}`;
+     // Compute the actual period date based on billing timing (advanced or after_period)
+     const timing = parseBillingTiming(template.notes);
+     const periodDate = getPeriodDate(currentNextGenDateStr, template.recurring_frequency || 'monthly', timing);
+     const parts = periodDate.split('-');
+     if (parts.length !== 3) {
+       throw new Error(`Invalid calculated period date format: ${periodDate}`);
+     }
+ 
+     const yearFull = parts[0];
+     const monthStr = parts[1];
+     const yearStr = yearFull.slice(-2);
+ 
+     const generatedNumber = `${template.invoice_number}-${monthStr}-${yearStr}`;
 
     // Check uq_parent_month_year constraint
     const { data: existingLog } = await supabase
