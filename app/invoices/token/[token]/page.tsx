@@ -8,37 +8,40 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 interface PublicInvoicePageProps {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ bill?: string }>;
 }
 
 function parseUserAgent(ua: string) {
   const browser =
     /Edg\//.test(ua) ? 'Edge' :
-    /OPR\/|Opera\//.test(ua) ? 'Opera' :
-    /Chrome\//.test(ua) && !/Chromium\//.test(ua) ? 'Chrome' :
-    /Chromium\//.test(ua) ? 'Chromium' :
-    /Firefox\//.test(ua) ? 'Firefox' :
-    /Safari\//.test(ua) && !/Chrome\//.test(ua) ? 'Safari' :
-    /MSIE |Trident\//.test(ua) ? 'IE' : 'Unknown';
+      /OPR\/|Opera\//.test(ua) ? 'Opera' :
+        /Chrome\//.test(ua) && !/Chromium\//.test(ua) ? 'Chrome' :
+          /Chromium\//.test(ua) ? 'Chromium' :
+            /Firefox\//.test(ua) ? 'Firefox' :
+              /Safari\//.test(ua) && !/Chrome\//.test(ua) ? 'Safari' :
+                /MSIE |Trident\//.test(ua) ? 'IE' : 'Unknown';
 
   const os =
     /Windows NT 10/.test(ua) ? 'Windows 10/11' :
-    /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' :
-    /Windows NT 6\.1/.test(ua) ? 'Windows 7' :
-    /Windows/.test(ua) ? 'Windows' :
-    /Mac OS X/.test(ua) ? 'macOS' :
-    /Android/.test(ua) ? 'Android' :
-    /iPhone|iPad/.test(ua) ? 'iOS' :
-    /Linux/.test(ua) ? 'Linux' : 'Unknown';
+      /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' :
+        /Windows NT 6\.1/.test(ua) ? 'Windows 7' :
+          /Windows/.test(ua) ? 'Windows' :
+            /Mac OS X/.test(ua) ? 'macOS' :
+              /Android/.test(ua) ? 'Android' :
+                /iPhone|iPad/.test(ua) ? 'iOS' :
+                  /Linux/.test(ua) ? 'Linux' : 'Unknown';
 
   const device =
     /Mobile|Android|iPhone/.test(ua) ? 'Mobile' :
-    /iPad|Tablet/.test(ua) ? 'Tablet' : 'Desktop';
+      /iPad|Tablet/.test(ua) ? 'Tablet' : 'Desktop';
 
   return { browser, os, device };
 }
 
-export default async function PublicInvoicePage({ params }: PublicInvoicePageProps) {
+export default async function PublicInvoicePage({ params, searchParams }: PublicInvoicePageProps) {
   const { token } = await params;
+  const { bill: selectedBillId } = await searchParams;
+
   const reqHeaders = await headers();
   const supabase = createServiceRoleClient();
 
@@ -88,52 +91,162 @@ export default async function PublicInvoicePage({ params }: PublicInvoicePagePro
     os,
     device,
     referrer,
-  }).then(() => {});
+  }).then(() => { });
 
-
-  // Fetch invoice
-  const { data: invoice, error: invError } = await supabase
+  // Fetch parent template invoice
+  const { data: parentInvoice, error: invError } = await supabase
     .from('invoices')
     .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
     .eq('id', tokenRecord.invoice_id)
     .single();
 
-  if (invError || !invoice) return notFound();
+  if (invError || !parentInvoice) return notFound();
 
-  // Fetch payments
+  // If template is recurring, fetch generated instances
+  let childBills: any[] = [];
+  if (parentInvoice.is_recurring) {
+    const { data: mappingLogs } = await supabase
+      .from('recurring_invoices')
+      .select('child_invoice_id')
+      .eq('parent_invoice_id', parentInvoice.id);
+
+    if (mappingLogs && mappingLogs.length > 0) {
+      const childIds = mappingLogs.map((m: any) => m.child_invoice_id);
+      const { data: childInvoices } = await supabase
+        .from('invoices')
+        .select('*, items:invoice_items(*)')
+        .in('id', childIds)
+        .order('date', { ascending: false });
+
+      childBills = childInvoices || [];
+    }
+  }
+
+  // Resolve active invoice to show (parent or specific child bill)
+  let activeInvoice = parentInvoice;
+  if (selectedBillId && parentInvoice.is_recurring) {
+    const matchedBill = childBills.find((b: any) => b.id === selectedBillId);
+    if (matchedBill) {
+      activeInvoice = {
+        ...matchedBill,
+        client: parentInvoice.client,
+        company: parentInvoice.company,
+      };
+    }
+  }
+
+  // Fetch payments for active invoice
   const { data: payments } = await supabase
     .from('invoice_payments')
     .select('amount')
-    .eq('invoice_id', invoice.id);
+    .eq('invoice_id', activeInvoice.id);
 
   const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
-  const subtotal = invoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
-  const taxAmount = subtotal * ((invoice.tax_rate || 0) / 100);
+  const subtotal = activeInvoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+  const taxAmount = subtotal * ((activeInvoice.tax_rate || 0) / 100);
   const totalAmount = subtotal + taxAmount;
 
   const previewData = {
-    invoiceNumber: invoice.invoice_number,
-    date: invoice.date,
-    companyId: invoice.company_id,
-    client: invoice.client || { name: 'Recipient', email: '', address: '' },
-    items: invoice.items || [],
-    notes: invoice.notes,
-    currency: invoice.currency,
-    taxRate: invoice.tax_rate,
-    isRecurring: invoice.is_recurring,
-    recurringFrequency: invoice.recurring_frequency,
+    invoiceNumber: activeInvoice.invoice_number,
+    date: activeInvoice.date,
+    companyId: activeInvoice.company_id,
+    client: activeInvoice.client || { name: 'Recipient', email: '', address: '' },
+    items: activeInvoice.items || [],
+    notes: activeInvoice.notes,
+    currency: activeInvoice.currency,
+    taxRate: activeInvoice.tax_rate,
+    isRecurring: activeInvoice.is_recurring,
+    recurringFrequency: activeInvoice.recurring_frequency,
     paid_amount: totalPaid,
-    status: totalPaid >= totalAmount ? 'paid' : totalPaid > 0 ? 'partially_paid' : invoice.status,
+    status: totalPaid >= totalAmount ? 'paid' : totalPaid > 0 ? 'partially_paid' : activeInvoice.status,
   };
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center py-12 p-4 print:p-0 print:bg-white transition-colors duration-500">
       <PublicHeader token={token} />
+      {/* Generated child bills section */}
+      {parentInvoice.is_recurring && childBills.length > 0 && (
+        <div className="mt-12 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print">
+          <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+            <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i> Generated Invoices
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
+              <thead className="bg-slate-50 dark:bg-slate-950/50 font-black text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="px-4 py-3">Invoice Number</th>
+                  <th className="px-4 py-3">Billing Date</th>
+                  <th className="px-4 py-3 text-right">Total Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
+                {childBills.map((bill) => {
+                  const billSubtotal = bill.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+                  const billTax = billSubtotal * ((bill.tax_rate || 0) / 100);
+                  const billTotal = billSubtotal + billTax;
+                  const isCurrent = activeInvoice.id === bill.id;
+
+                  return (
+                    <tr
+                      key={bill.id}
+                      className={`transition-colors ${isCurrent
+                        ? 'bg-indigo-50/50 dark:bg-indigo-950/15 font-bold text-slate-900 dark:text-white'
+                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/20'
+                        }`}
+                    >
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-300">
+                        #{bill.invoice_number}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a
+                          href={`/invoices/token/${token}?bill=${bill.id}`}
+                          className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline font-bold"
+                        >
+                          {new Date(bill.date).toLocaleDateString(undefined, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">
+                        {bill.currency}
+                        {billTotal.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Info Banner when viewing child bill */}
+      {activeInvoice.id !== parentInvoice.id && (
+        <div className="mb-6 w-full max-w-[800px] bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/50 rounded-xl p-4 flex justify-between items-center text-xs font-semibold text-indigo-700 dark:text-indigo-400 no-print animate-slide-in">
+          <span>
+            <i className="fa-solid fa-circle-info mr-2"></i> Viewing recurring invoice #{activeInvoice.invoice_number}
+          </span>
+          <a
+            href={`/invoices/token/${token}`}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+          >
+            View Parent Invoice
+          </a>
+        </div>
+      )}
+
       <ResponsiveInvoiceWrapper>
         <div className="shadow-2xl rounded-lg overflow-hidden print:shadow-none print:rounded-none">
-          <InvoicePreview data={previewData} company={invoice.company as CompanyProfile} />
+          <InvoicePreview data={previewData} company={parentInvoice.company as CompanyProfile} />
         </div>
       </ResponsiveInvoiceWrapper>
+
+
     </div>
   );
 }

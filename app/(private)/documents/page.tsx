@@ -38,7 +38,7 @@ export default function DocumentsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
 
   // Generation History state
-  const [rightPanelTab, setRightPanelTab] = useState<'payload' | 'history'>('payload');
+  const [rightPanelTab, setRightPanelTab] = useState<'payload' | 'history'>('history');
   const [historyItems, setHistoryItems] = useState<any[]>([]);
 
   // Default configurations
@@ -283,6 +283,62 @@ export default function DocumentsPage() {
     const updatedConfigs = { ...docConfigs };
     updatedConfigs[activeDocType][listName][index][field] = value;
     setDocConfigs(updatedConfigs);
+  };
+
+  const handleEnvPaste = (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
+    const pasteData = e.clipboardData.getData('text');
+    const lines = pasteData.split(/\r?\n/);
+    const pairs: { key: string; value: string }[] = [];
+
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith('#')) continue;
+
+      if (line.startsWith('export ')) {
+        line = line.substring(7).trim();
+      }
+
+      let sepIdx = line.indexOf('=');
+      if (sepIdx === -1) {
+        sepIdx = line.indexOf(':');
+      }
+
+      if (sepIdx !== -1) {
+        const key = line.substring(0, sepIdx).trim();
+        let val = line.substring(sepIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.substring(1, val.length - 1);
+        }
+        pairs.push({ key, value: val });
+      }
+    }
+
+    if (pairs.length > 0) {
+      e.preventDefault();
+      const updatedConfigs = { ...docConfigs };
+      const envList = [...updatedConfigs[activeDocType].environmentVariables];
+
+      // Overwrite current row with the first pair
+      envList[index] = {
+        ...envList[index],
+        key: pairs[0].key,
+        exampleValue: pairs[0].value,
+        description: envList[index]?.description || 'Configuration detail',
+      };
+
+      // Insert remaining pairs after the current index
+      const newRows = pairs.slice(1).map((p) => ({
+        key: p.key,
+        exampleValue: p.value,
+        description: 'Configuration detail',
+      }));
+
+      envList.splice(index + 1, 0, ...newRows);
+
+      updatedConfigs[activeDocType].environmentVariables = envList;
+      setDocConfigs(updatedConfigs);
+      toast.success(`Auto-populated ${pairs.length} environment variables.`);
+    }
   };
 
   const handleArrayStringFieldChange = (listName: string, index: number, value: string) => {
@@ -1488,6 +1544,7 @@ export default function DocumentsPage() {
                             placeholder="Key Name"
                             value={env.key}
                             onChange={(e) => handleListFieldChange('environmentVariables', idx, 'key', e.target.value)}
+                            onPaste={(e) => handleEnvPaste(e, idx)}
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none font-mono text-slate-300 text-xs"
                           />
                           <input
@@ -1520,33 +1577,16 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Real-time sync Raw JSON & History panel (Right) */}
+        {/* Real-time sync History panel (Right) */}
         <div className="flex flex-col bg-slate-950 border-slate-800 border-l w-96 h-full overflow-hidden no-print">
-          {/* Tab Selection Header */}
-          <div className="flex bg-slate-900 border-slate-800 border-b">
-            <button
-              onClick={() => setRightPanelTab('payload')}
-              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider text-center border-b-2 transition-all ${
-                rightPanelTab === 'payload'
-                  ? 'border-indigo-500 text-white bg-slate-950/40'
-                  : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              JSON Payload
-            </button>
-            <button
-              onClick={() => {
-                setRightPanelTab('history');
-                fetchHistory();
-              }}
-              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider text-center border-b-2 transition-all ${
-                rightPanelTab === 'history'
-                  ? 'border-indigo-500 text-white bg-slate-950/40'
-                  : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              History Logs ({historyItems.length})
-            </button>
+          {/* Static Title Header */}
+          <div className="bg-slate-900 border-slate-800 border-b px-4 py-3.5 flex justify-between items-center">
+            <span className="text-xs font-black uppercase tracking-widest text-slate-200">
+              History Logs
+            </span>
+            <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              {historyItems.length}
+            </span>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0">

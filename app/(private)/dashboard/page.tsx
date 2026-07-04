@@ -540,7 +540,7 @@ export default function DashboardPage() {
                               <i className="fa-solid fa-copy"></i>
                             </button>
                             <button
-                              onClick={() => router.push(`/invoices/${invoice.id}/edit`)}
+                              onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
                               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                               title="Edit"
                             >
@@ -640,7 +640,7 @@ export default function DashboardPage() {
                                                   <i className="fa-solid fa-gears"></i>
                                                 </button>
                                                 <button
-                                                  onClick={() => router.push(`/invoices/${child.id}/edit`)}
+                                                  onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
                                                   className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                                   title="Edit"
                                                 >
@@ -742,7 +742,7 @@ export default function DashboardPage() {
                             <i className="fa-solid fa-copy"></i>
                           </button>
                           <button
-                            onClick={() => router.push(`/invoices/${invoice.id}/edit`)}
+                            onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                             title="Edit"
                           >

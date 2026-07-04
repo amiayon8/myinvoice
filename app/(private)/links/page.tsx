@@ -40,7 +40,7 @@ export default function ShareLinksPage() {
         listAllInvoiceTokens(),
         supabase
           .from('invoices')
-          .select('*, client:clients(name), company:companies(name)')
+          .select('*, items:invoice_items(*), client:clients(name), company:companies(name)')
           .order('created_at', { ascending: false }),
       ]);
       setTokens(tokensRes || []);
@@ -73,11 +73,11 @@ export default function ShareLinksPage() {
       const origin = window.location.origin;
       const fullUrl = `${origin}/invoices/token/${tokenData.token}`;
       setGeneratedLink(fullUrl);
-      
+
       // Refresh token list
       const updatedTokens = await listAllInvoiceTokens();
       setTokens(updatedTokens);
-      
+
       // Reset inputs
       setSelectedInvoiceId('');
       setShareLabel('');
@@ -110,7 +110,7 @@ export default function ShareLinksPage() {
   const filteredTokens = tokens.filter((t) => {
     const isRevoked = !!t.revoked_at;
     const isExpired = !t.never_expires && t.expires_at && new Date(t.expires_at) < new Date();
-    
+
     // Status filter
     if (linkFilter === 'active' && (isRevoked || isExpired)) return false;
     if (linkFilter === 'revoked_expired' && !isRevoked && !isExpired) return false;
@@ -120,7 +120,7 @@ export default function ShareLinksPage() {
     const invoiceNum = t.invoice?.invoice_number?.toLowerCase() || '';
     const clientName = t.invoice?.client?.name?.toLowerCase() || '';
     const label = t.label?.toLowerCase() || '';
-    
+
     return invoiceNum.includes(query) || clientName.includes(query) || label.includes(query);
   });
 
@@ -140,7 +140,7 @@ export default function ShareLinksPage() {
 
   return (
     <div className="space-y-8 mx-auto p-4 lg:p-12 max-w-7xl h-full font-sans">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -155,7 +155,7 @@ export default function ShareLinksPage() {
 
       {/* Stats Cards (3 Columns) */}
       <div className="gap-5 grid grid-cols-1 md:grid-cols-3">
-        
+
         {/* Card 1 */}
         <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-5 rounded-2xl animate-fade-in">
           <div className="flex justify-between items-start">
@@ -205,14 +205,14 @@ export default function ShareLinksPage() {
 
       {/* Grid Layout for Creator & Table */}
       <div className="gap-8 grid grid-cols-1 lg:grid-cols-3">
-        
+
         {/* Creator Panel (Left Side - 1 Column) */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-6 rounded-2xl">
             <h3 className="mb-4 font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider">
               Quick Share Creator
             </h3>
-            
+
             <form onSubmit={handleCreateShareLink} className="space-y-4">
               {/* Select Invoice */}
               <div>
@@ -226,11 +226,16 @@ export default function ShareLinksPage() {
                   className="bg-slate-50 dark:bg-slate-950 px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                 >
                   <option value="">-- Choose an Invoice --</option>
-                  {invoices.map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.invoice_number} ({inv.client?.name || 'No Client'} · {inv.company?.name || 'No Entity'})
-                    </option>
-                  ))}
+                  {invoices.map((inv) => {
+                    const subtotal = inv.items?.reduce((sum, item) => sum + (item.quantity * item.rate), 0) || 0;
+                    const taxAmount = subtotal * ((inv.tax_rate || 0) / 100);
+                    const total = subtotal + taxAmount;
+                    return (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.invoice_number} ({inv.client?.name || 'No Client'} · {inv.company?.name || 'No Entity'}) - {total.toFixed(2)}{inv.currency}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -260,8 +265,8 @@ export default function ShareLinksPage() {
                       type="button"
                       onClick={() => { setShareNeverExpires(false); setShareDays(d); }}
                       className={`flex-1 min-w-[50px] py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all ${!shareNeverExpires && shareDays === d
-                          ? 'bg-indigo-600 text-white shadow-md'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                         }`}
                     >
                       {d}d
@@ -271,8 +276,8 @@ export default function ShareLinksPage() {
                     type="button"
                     onClick={() => setShareNeverExpires(true)}
                     className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all ${shareNeverExpires
-                        ? 'bg-emerald-600 text-white shadow-md'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                   >
                     Never
@@ -318,7 +323,7 @@ export default function ShareLinksPage() {
         {/* Content Table (Right Side - 2 Columns) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 rounded-2xl overflow-hidden">
-            
+
             {/* Header & Filtering Toolbar */}
             <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 p-6 border-slate-100 dark:border-slate-800 border-b">
               <div>
@@ -372,9 +377,8 @@ export default function ShareLinksPage() {
                     return (
                       <tr
                         key={t.id}
-                        className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors ${
-                          isRevoked || isExpired ? 'opacity-60 bg-slate-50/20 dark:bg-slate-950/10' : ''
-                        }`}
+                        className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors ${isRevoked || isExpired ? 'opacity-60 bg-slate-50/20 dark:bg-slate-950/10' : ''
+                          }`}
                       >
                         <td className="px-6 py-4.5">
                           <div className="flex flex-col">

@@ -45,7 +45,7 @@ export interface Invoice {
   next_generation_date?: string;
   created_at?: string;
   paid_amount: number;
-  // Joined data
+  total_amount?: number;
   items?: InvoiceItem[];
   client?: Client;
   company?: CompanyProfile;
