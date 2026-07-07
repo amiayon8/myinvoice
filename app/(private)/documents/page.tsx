@@ -560,6 +560,97 @@ export default function DocumentsPage() {
     }
   };
 
+  const prefillWizardFromHistory = (item: any) => {
+    const payload = item.payload;
+    if (!payload) return;
+
+    // 1. Determine Industry / Business Type
+    let industryVal = '';
+    if (item.document_type === 'nda') {
+      industryVal = payload.disclosingParty?.company || payload.disclosingParty?.name || '';
+    } else {
+      industryVal = payload.client?.company || payload.client?.name || '';
+    }
+    setWizardIndustry(industryVal || '🎉 Event Management');
+
+    // 2. Budget
+    let budgetVal = '25,000';
+    if (payload.pricing?.total) {
+      budgetVal = payload.pricing.total;
+    } else if (payload.pricing?.amount) {
+      budgetVal = payload.pricing.amount;
+    } else if (payload.monthlyFee) {
+      budgetVal = payload.monthlyFee;
+    }
+    setWizardBudget(budgetVal);
+
+    // 3. Timeline
+    let timelineVal = '3 Weeks';
+    if (payload.milestones && payload.milestones.length > 0) {
+      const lastMilestone = payload.milestones[payload.milestones.length - 1];
+      timelineVal = `Ends by ${lastMilestone.dueDate || 'Milestones schedule'}`;
+    } else if (payload.termMonths) {
+      timelineVal = `${payload.termMonths} Months Term`;
+    }
+    setWizardTimeline(timelineVal);
+
+    // 4. Features & Integrations
+    const extractedFeatures: string[] = [];
+    const extractedIntegrations: string[] = [];
+
+    if (payload.features && Array.isArray(payload.features)) {
+      payload.features.forEach((feat: any) => {
+        if (feat.title) extractedFeatures.push(feat.title);
+      });
+    }
+
+    if (payload.techStack) {
+      const ts = payload.techStack;
+      if (ts.frontend) extractedFeatures.push(ts.frontend);
+      if (ts.backend) extractedFeatures.push(ts.backend);
+      if (ts.database) extractedFeatures.push(ts.database);
+      if (ts.thirdPartyApis) {
+        extractedIntegrations.push(ts.thirdPartyApis);
+      }
+    }
+
+    if (payload.environmentVariables && Array.isArray(payload.environmentVariables)) {
+      payload.environmentVariables.forEach((env: any) => {
+        if (env.key) extractedIntegrations.push(env.key);
+      });
+    }
+
+    if (extractedFeatures.length > 0) {
+      setAvailableFeatures((prev) => {
+        const next = [...prev];
+        extractedFeatures.forEach((f) => {
+          if (!next.includes(f)) next.push(f);
+        });
+        return next;
+      });
+      setSelectedFeatures(extractedFeatures);
+    } else {
+      setSelectedFeatures(['User Authentication & Roles', 'Dashboard & Analytics']);
+    }
+
+    if (extractedIntegrations.length > 0) {
+      setAvailableIntegrations((prev) => {
+        const next = [...prev];
+        extractedIntegrations.forEach((i) => {
+          if (!next.includes(i)) next.push(i);
+        });
+        return next;
+      });
+      setSelectedIntegrations(extractedIntegrations);
+    } else {
+      setSelectedIntegrations(['bKash / Nagad Mobile Payments']);
+    }
+
+    setActiveDocType(item.document_type);
+    setActiveMode('wizard');
+    toast.success(`Prefilled AI Wizard parameters from history item.`);
+  };
+
   const restoreHistoryItem = (item: any) => {
     const updatedConfigs = { ...docConfigs };
     updatedConfigs[item.document_type] = item.payload;
@@ -2006,18 +2097,27 @@ export default function DocumentsPage() {
                       <p className="text-[10px] text-slate-400 truncate font-semibold">
                         Project: {item.project_name}
                       </p>
-                      <div className="flex gap-2 mt-1 border-t border-slate-800/60 pt-2">
+                      <div className="flex flex-col gap-1.5 mt-1 border-t border-slate-800/60 pt-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => restoreHistoryItem(item)}
+                            className="flex-1 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => downloadHistoryItem(item)}
+                            className="flex-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            Download
+                          </button>
+                        </div>
                         <button
-                          onClick={() => restoreHistoryItem(item)}
-                          className="flex-1 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
+                          onClick={() => prefillWizardFromHistory(item)}
+                          className="w-full bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
                         >
-                          Restore
-                        </button>
-                        <button
-                          onClick={() => downloadHistoryItem(item)}
-                          className="flex-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-1 rounded text-center text-[10px] font-bold uppercase tracking-wider transition-all"
-                        >
-                          Download
+                          <i className="fa-solid fa-wand-magic-sparkles text-[9px]"></i>
+                          Prefill AI Wizard
                         </button>
                       </div>
                     </div>
