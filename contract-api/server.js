@@ -1,7 +1,8 @@
 require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const ejs = require('ejs');
 const puppeteer = require('puppeteer');
 const { createClient } = require('@supabase/supabase-js');
@@ -11,11 +12,26 @@ app.use(express.json());
 
 // Initialize Supabase Client dynamically to prevent crash if env variables are not set yet
 let supabase = null;
+let supabaseAdmin = null;
+
 if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
     supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     console.log("Supabase Client initialized successfully.");
 } else {
     console.warn("WARNING: SUPABASE_URL and SUPABASE_ANON_KEY are not configured. Supabase operations will be bypassed.");
+}
+
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+if (process.env.SUPABASE_URL && supabaseServiceKey) {
+    supabaseAdmin = createClient(process.env.SUPABASE_URL, supabaseServiceKey, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false
+        }
+    });
+    console.log("Supabase Admin Client (Service Role) initialized successfully.");
+} else {
+    console.warn("WARNING: SUPABASE_SERVICE_ROLE_KEY is not configured. Admin database operations will use anon client.");
 }
 
 // ----------------------------------------------------
@@ -97,13 +113,14 @@ async function requireAuth(req, res, next) {
 // DATABASE GENERATION LOGGING HELPER
 // ----------------------------------------------------
 async function logGeneration(userId, userEmail, documentType, reqBody, reqIp) {
-    if (!supabase) return;
+    const client = supabaseAdmin || supabase;
+    if (!client) return;
 
     try {
         const clientName = reqBody.client?.name || reqBody.disclosingParty?.name || 'Unknown Client';
         const projectName = reqBody.project?.name || 'Unknown Project';
 
-        const { error } = await supabase
+        const { error } = await client
             .from('document_generations')
             .insert([
                 {
@@ -155,24 +172,24 @@ function deepMerge(target, source) {
 // ----------------------------------------------------
 
 const defaultDeveloper = {
-    name: "Acme Web Solutions",
+    name: "The Nice Developer",
     representative: "Sarker Ayon",
-    email: "john@acmeweb.com",
-    address: "123 Tech Hub Suite A, San Francisco, CA 94107",
-    website: "https://acmeweb.com"
+    email: "hello@thenicedev.xyz",
+    address: "House 12, Road 5, Dhanmondi, Dhaka-1209, Bangladesh",
+    website: "https://thenicedev.xyz"
 };
 
 const defaultClient = {
-    name: "Stellar Startups Inc.",
-    company: "Stellar Startups Inc.",
-    representative: "Jane Smith",
-    email: "jane@stellar.io",
-    address: "456 Launchpad Way, Austin, TX 78701"
+    name: "Event Management",
+    company: "Event Management",
+    representative: "Sajjadul Islam Ontor",
+    email: "event@management.com",
+    address: "House 45, Road 2, Gulshan-1, Dhaka-1212, Bangladesh"
 };
 
 const defaultProject = {
-    name: "Enterprise Dashboard Portal",
-    summary: "A secure web portal for managing enterprise resource planning and reporting data."
+    name: "Event Management Portfolio Website",
+    summary: "A premium portfolio website for showcasing event management projects, booking services, and client communications."
 };
 
 // Generic PDF Response engine
@@ -234,14 +251,14 @@ app.post('/api/documents/contract', requireAuth, async (req, res) => {
         client: defaultClient,
         project: defaultProject,
         pricing: {
-            total: "15,000",
-            advance: "5,000",
-            hourlyRate: "150",
+            total: "25,000",
+            advance: "10,000",
+            hourlyRate: "1,500",
             paymentTermsDays: 15
         },
         milestones: [
-            { name: "Phase 1: Architecture & UI Designs", dueDate: "July 15, 2026", paymentAmount: "5,000" },
-            { name: "Phase 2: Core Development & APIs", dueDate: "August 30, 2026", paymentAmount: "5,000" }
+            { name: "Phase 1: Architecture & UI Designs", dueDate: "July 15, 2026", paymentAmount: "10,000" },
+            { name: "Phase 2: Core Development & APIs", dueDate: "August 30, 2026", paymentAmount: "15,000" }
         ],
         revisions: {
             limit: 3
@@ -250,8 +267,8 @@ app.post('/api/documents/contract', requireAuth, async (req, res) => {
             noticeDays: 14
         },
         legal: {
-            governingLaw: "the State of California",
-            jurisdiction: "San Francisco County, California"
+            governingLaw: "the laws of the People's Republic of Bangladesh",
+            jurisdiction: "Dhaka, Bangladesh"
         }
     };
 
@@ -321,12 +338,12 @@ app.post('/api/documents/proposal', requireAuth, async (req, res) => {
         developer: defaultDeveloper,
         client: defaultClient,
         project: defaultProject,
-        problem: "The Client currently manages operational data and reports using fragmented spreadsheets and manual input. This setup creates administrative backlogs, increases reporting inaccuracies, and slows down executive decisions.",
-        solution: "We propose developing a unified, web-based Enterprise Dashboard Portal. This application will automate database reports, secure client authorization, and integrate payment collections, reducing admin efforts by up to 40%.",
+        problem: "The Client currently has no central web platform to showcase their event management projects, handle customer bookings, and collect initial event deposits. This leads to inefficient communication and lost booking opportunities.",
+        solution: "We propose building a premium Event Management Portfolio Website. This platform will showcase past events, allow prospective clients to submit booking inquiries, and pay booking deposits online, driving engagement and streamlining reservations.",
         currency: "৳ ",
         pricing: {
-            total: "15,000",
-            advance: "5,000"
+            total: "25,000",
+            advance: "10,000"
         },
         phases: [
             { name: "Phase 1: Discovery & Interface Prototypes", duration: "1-2 Weeks", description: "Interactive wireframes design, database architecture mapping, and API routing designs." },
@@ -334,9 +351,9 @@ app.post('/api/documents/proposal', requireAuth, async (req, res) => {
             { name: "Phase 3: QA, Tuning & Launch Support", duration: "1-2 Weeks", description: "Cross-device browser verification, server configuration, domain mapping, and staff onboarding." }
         ],
         pricingOptions: [
-            { name: "MVP Core Package", description: "Includes core dashboard components, standard database, 30 days post-launch support, and hosting config.", amount: "10,000" },
-            { name: "Standard Complete Package", description: "Includes SOW specs, full Stripe payment suite, custom notifications, and 90 days support.", amount: "15,000" },
-            { name: "Enterprise Premium Package", description: "Includes complete dashboard, multi-tenant databases, SMS alerts, and 6 months dedicated maintenance support.", amount: "22,000" }
+            { name: "MVP Core Package", description: "Includes core portfolio components, standard booking forms, 30 days post-launch support, and hosting config.", amount: "15,000" },
+            { name: "Standard Complete Package", description: "Includes SOW specs, full online deposit checkout, client inquiry system, and 90 days support.", amount: "25,000" },
+            { name: "Enterprise Premium Package", description: "Includes complete website, multi-page layout, custom SMS/Email alerts, and 6 months dedicated maintenance support.", amount: "40,000" }
         ],
         whyUs: [
             "Over 8 years of specialized experience engineering secure, scale-ready SaaS platforms.",
@@ -361,7 +378,7 @@ app.post('/api/documents/maintenance', requireAuth, async (req, res) => {
     const defaultData = {
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
         termMonths: "6",
-        monthlyFee: "1,200",
+        monthlyFee: "5,000",
         currency: "৳ ",
         developer: defaultDeveloper,
         client: defaultClient,
@@ -378,7 +395,7 @@ app.post('/api/documents/maintenance', requireAuth, async (req, res) => {
             critical: "4",
             normal: "24"
         },
-        extraHourlyRate: "150",
+        extraHourlyRate: "1,500",
         terminationNoticeDays: "30"
     };
 
@@ -399,11 +416,11 @@ app.post('/api/documents/nda', requireAuth, async (req, res) => {
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
         disclosingParty: defaultClient,
         receivingParty: defaultDeveloper,
-        purpose: "Evaluating, designing, building, and delivering software services and enterprise integrations for the Enterprise Dashboard Portal project.",
+        purpose: "Evaluating, designing, building, and delivering software services and portfolio integrations for the Event Management Portfolio Website project.",
         activeTermYears: "2",
         survivalYears: "3",
-        governingState: "the State of California",
-        jurisdiction: "San Francisco County, California"
+        governingState: "the People's Republic of Bangladesh",
+        jurisdiction: "Dhaka, Bangladesh"
     };
 
     const merged = deepMerge(defaultData, req.body);
@@ -427,15 +444,15 @@ app.post('/api/documents/handover', requireAuth, async (req, res) => {
         client: defaultClient,
         project: defaultProject,
         git: {
-            url: "https://github.com/stellar-startups-inc/enterprise-dashboard-portal.git",
+            url: "https://github.com/thenicedev/event-management-portfolio.git",
             mainBranch: "main",
             stagingBranch: "develop"
         },
         deployment: {
-            productionHost: "Vercel Enterprise & AWS RDS Database Engine",
-            productionUrl: "https://dashboard.stellarstartups.io",
-            stagingUrl: "https://staging-dashboard.stellarstartups.io",
-            adminUrl: "https://dashboard.stellarstartups.io/admin-console"
+            productionHost: "Vercel & Supabase Cloud",
+            productionUrl: "https://eventmanagement.com.bd",
+            stagingUrl: "https://staging.eventmanagement.com.bd",
+            adminUrl: "https://eventmanagement.com.bd/admin"
         },
         credentials: [
             { service: "GitHub Organization", url: "https://github.com", username: "stellar-admin@stellar.io", actionRequired: "Transfer primary ownership and remove developer rights." },
@@ -464,6 +481,176 @@ app.post('/api/documents/handover', requireAuth, async (req, res) => {
     logGeneration(req.user.id, req.user.email, 'handover', merged, req.ip);
 
     await generatePDFResponse(res, 'handover', merged, `Handover_${clientName}`);
+});
+
+// ----------------------------------------------------
+// GEMINI AI DOCUMENT GENERATION
+// ----------------------------------------------------
+
+function getSchemaForType(documentType) {
+    switch (documentType) {
+        case 'contract':
+            return {
+                date: "Current Date (e.g. October 12, 2026)",
+                currency: "৳ ",
+                developer: { name: "Developer Company Name", representative: "Representative Name", email: "developer@email.com", address: "Full Address, Bangladesh", website: "https://developerwebsite.com" },
+                client: { name: "Client Company Name", company: "Company Name", representative: "Representative Name", email: "client@email.com", address: "Full Address, Bangladesh" },
+                project: { name: "Project Title", summary: "Brief Project Summary details" },
+                pricing: { total: "Total Price (e.g. 25,000)", advance: "Advance Deposit (e.g. 10,000)", hourlyRate: "Hourly Rate (e.g. 1,500)", paymentTermsDays: 15 },
+                milestones: [ { name: "Milestone name", dueDate: "DueDate", paymentAmount: "Amount" } ],
+                revisions: { limit: 3 },
+                termination: { noticeDays: 14 },
+                legal: { governingLaw: "the laws of the People's Republic of Bangladesh", jurisdiction: "Dhaka, Bangladesh" }
+            };
+        case 'sow':
+            return {
+                date: "Current Date",
+                developer: { name: "Developer Company Name", representative: "Representative Name", email: "developer@email.com", address: "Full Address, Bangladesh", website: "https://developerwebsite.com" },
+                client: { name: "Client Company Name", company: "Company Name", representative: "Representative Name", email: "client@email.com", address: "Full Address, Bangladesh" },
+                project: { name: "Project Title", summary: "Brief Project Summary details" },
+                features: [ { title: "Feature Title", description: "Detailed Feature description" } ],
+                pages: [ { name: "Page Name", description: "Detailed Page Description" } ],
+                techStack: { frontend: "Frontend Stack details", backend: "Backend Stack details", database: "Database details", other: "Other setup details", thirdPartyApis: "APIs used" },
+                exclusions: [ "Exclusion 1 details", "Exclusion 2 details" ],
+                clientDependencies: [ "Dependency 1 details", "Dependency 2 details" ]
+            };
+        case 'proposal':
+            return {
+                date: "Current Date",
+                validUntil: "Valid until Date",
+                developer: { name: "Developer Company Name", representative: "Representative Name", email: "developer@email.com", address: "Full Address, Bangladesh", website: "https://developerwebsite.com" },
+                client: { name: "Client Company Name", company: "Company Name", representative: "Representative Name", email: "client@email.com", address: "Full Address, Bangladesh" },
+                project: { name: "Project Title", summary: "Brief Project Summary details" },
+                problem: "Detailed Problem Statement",
+                solution: "Proposed Solution Statement",
+                currency: "৳ ",
+                pricing: { total: "Total Amount", advance: "Advance Deposit" },
+                phases: [ { name: "Phase Name", duration: "Duration details", description: "Phase description details" } ],
+                pricingOptions: [ { name: "Package Name", description: "Package details", amount: "Amount" } ],
+                whyUs: [ "Reason 1", "Reason 2" ]
+            };
+        case 'maintenance':
+            return {
+                date: "Current Date",
+                termMonths: "6",
+                monthlyFee: "5,000",
+                currency: "৳ ",
+                developer: { name: "Developer Company Name", representative: "Representative Name", email: "developer@email.com", address: "Full Address, Bangladesh", website: "https://developerwebsite.com" },
+                client: { name: "Client Company Name", company: "Company Name", representative: "Representative Name", email: "client@email.com", address: "Full Address, Bangladesh" },
+                project: { name: "Project Title", summary: "Brief Project Summary details" },
+                supportHoursAllowance: "5",
+                maintenanceScope: [ "Scope item 1 details", "Scope item 2 details" ],
+                responseTimeSLA: { critical: "4", normal: "24" },
+                extraHourlyRate: "1,500",
+                terminationNoticeDays: "30"
+            };
+        case 'nda':
+            return {
+                date: "Current Date",
+                disclosingParty: { name: "Disclosing Company Name", company: "Disclosing Company Name", representative: "Representative Name", email: "disclosing@email.com", address: "Full Address, Bangladesh" },
+                receivingParty: { name: "Receiving Company Name", representative: "Representative Name", email: "receiving@email.com", address: "Full Address, Bangladesh", website: "https://receivingwebsite.com" },
+                purpose: "Purpose of disclosing confidential info",
+                activeTermYears: "2",
+                survivalYears: "3",
+                governingState: "the People's Republic of Bangladesh",
+                jurisdiction: "Dhaka, Bangladesh"
+            };
+        case 'handover':
+            return {
+                date: "Current Date",
+                developer: { name: "Developer Company Name", representative: "Representative Name", email: "developer@email.com", address: "Full Address, Bangladesh", website: "https://developerwebsite.com" },
+                client: { name: "Client Company Name", company: "Company Name", representative: "Representative Name", email: "client@email.com", address: "Full Address, Bangladesh" },
+                project: { name: "Project Title", summary: "Brief Project Summary details" },
+                git: { url: "Git repository URL", mainBranch: "main", stagingBranch: "develop" },
+                deployment: { productionHost: "Prod Host details", productionUrl: "Prod URL", stagingUrl: "Staging URL", adminUrl: "Admin URL" },
+                credentials: [ { service: "Service Name", url: "Login URL", username: "Username", actionRequired: "Action required on handover" } ],
+                environmentVariables: [ { key: "ENV_KEY_NAME", description: "What it is", exampleValue: "Example format value" } ],
+                localSetup: { nodeVersion: "18.x", installCommand: "npm install", dbCommand: "npx prisma db push", runCommand: "npm run dev" }
+            };
+        default:
+            return {};
+    }
+}
+
+app.post('/api/documents/ai/generate', requireAuth, async (req, res) => {
+    const { documentType, industry, prompt: userPrompt } = req.body;
+    
+    if (!documentType) {
+        return res.status(400).json({ error: "Missing required parameter: documentType" });
+    }
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        return res.status(500).json({ 
+            error: "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to the .env file in the root workspace or contract-api directory." 
+        });
+    }
+    
+    try {
+        const schema = getSchemaForType(documentType);
+        
+        const systemPrompt = `You are an AI assistant specialized in generating professional legal and technical project documents for freelancers, developers, and clients.
+Your task is to generate a highly realistic JSON payload for a document of type "${documentType}".
+The user's business industry: "${industry || 'General Web Development'}"
+The user's custom details/prompt: "${userPrompt || 'Create a standard project document'}"
+
+You must return a JSON object that adheres strictly to the structure of the following schema:
+${JSON.stringify(schema, null, 2)}
+
+Instructions:
+1. Populate all fields of the schema.
+2. Analyze the requested business type/industry and prompt. Generate realistic, highly tailored details. For example, if the industry is "Doctor Clinic", make the features, project name, scope, milestones, or exclusions related to healthcare, online booking, EHR, prescriptions, etc. If the industry is "Event Management", milestones/features should be about venue bookings, event listings, galleries, ticket sales, etc.
+3. Make default addresses, names (e.g. using common Bangladeshi names like Sajjadul Islam Ontor, Sarker Ayon), laws (e.g. the People's Republic of Bangladesh, courts of Dhaka), and currency (৳) match a realistic local context, especially if the user mentions Bangladesh.
+4. Ensure the JSON is valid and complete. Do not truncate the JSON.
+5. Return ONLY the raw JSON object matching the schema. Your response must be parseable directly. Do not wrap it in markdown code blocks.`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: systemPrompt
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Gemini API returned error status ${response.status}: ${errText}`);
+        }
+        
+        const resData = await response.json();
+        const generatedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!generatedText) {
+            throw new Error("No content returned from Gemini AI model.");
+        }
+        
+        let parsedJSON;
+        try {
+            parsedJSON = JSON.parse(generatedText);
+        } catch (parseErr) {
+            console.error("Failed to parse Gemini output as JSON:", generatedText);
+            throw new Error("Gemini AI did not return a valid JSON object. Please try again with more specific prompts.");
+        }
+        
+        return res.json(parsedJSON);
+        
+    } catch (err) {
+        console.error("Gemini Generation Error: ", err);
+        return res.status(500).json({ error: err.message || "Failed to generate document using Gemini AI." });
+    }
 });
 
 // Start server

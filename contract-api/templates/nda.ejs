@@ -167,7 +167,7 @@
             <td class="label">Disclosing Party:</td>
             <td class="value">
                 <strong><%= disclosingParty.company || disclosingParty.name %></strong><br>
-                <%= disclosingParty.representative ? 'Rep: ' + disclosingParty.representative + '<br>' : '' %>
+                <%- disclosingParty.representative ? 'Rep: ' + disclosingParty.representative + '<br>' : '' %>
                 Email: <%= disclosingParty.email %><br>
                 <%= disclosingParty.address ? 'Address: ' + disclosingParty.address : '' %>
             </td>
@@ -176,7 +176,7 @@
             <td class="label">Receiving Party:</td>
             <td class="value">
                 <strong><%= receivingParty.company || receivingParty.name %></strong><br>
-                <%= receivingParty.representative ? 'Rep: ' + receivingParty.representative + '<br>' : '' %>
+                <%- receivingParty.representative ? 'Rep: ' + receivingParty.representative + '<br>' : '' %>
                 Email: <%= receivingParty.email %><br>
                 <%= receivingParty.address ? 'Address: ' + receivingParty.address : '' %>
             </td>
@@ -220,7 +220,7 @@
     <p class="legal-clause">The Receiving Party acknowledges that any breach of this Agreement may cause irreparable harm to the Disclosing Party for which monetary damages alone would be inadequate. Consequently, the Disclosing Party shall be entitled to seek injunctive relief to prevent breaches, in addition to any other remedies available at law.</p>
 
     <h2>7. Governing Law & Jurisdiction</h2>
-    <p class="legal-clause">This Agreement shall be governed by and construed in accordance with the laws of <strong><%= governingState || 'the State of California' %></strong>. Any legal action arising from this Agreement shall be brought exclusively in courts located in <strong><%= governingState || 'San Francisco County, California' %></strong>.</p>
+    <p class="legal-clause">This Agreement shall be governed by and construed in accordance with the laws of <strong><%= governingState || "the People's Republic of Bangladesh" %></strong>. Any legal action arising from this Agreement shall be brought exclusively in courts located in <strong><%= jurisdiction || 'Dhaka, Bangladesh' %></strong>.</p>
 
     <div class="signatures">
         <div class="sig-box">

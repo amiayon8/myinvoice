@@ -41,27 +41,33 @@ export default function DocumentsPage() {
   const [rightPanelTab, setRightPanelTab] = useState<'payload' | 'history'>('history');
   const [historyItems, setHistoryItems] = useState<any[]>([]);
 
+  // Gemini AI wizard states
+  const [activeMode, setActiveMode] = useState<'wizard' | 'manual'>('wizard');
+  const [wizardIndustry, setWizardIndustry] = useState<string>('🎉 Event Management');
+  const [wizardPrompt, setWizardPrompt] = useState<string>('');
+  const [generatingAI, setGeneratingAI] = useState<boolean>(false);
+
   // Default configurations
   const defaultCommonData = {
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     currency: '৳ ',
     developer: {
-      name: 'Acme Web Solutions',
+      name: 'The Nice Developer',
       representative: 'Sarker Ayon',
-      email: 'john@acmeweb.com',
-      address: '123 Tech Hub Suite A, San Francisco, CA 94107',
-      website: 'https://acmeweb.com',
+      email: 'hello@thenicedev.xyz',
+      address: 'House 12, Road 5, Dhanmondi, Dhaka-1209, Bangladesh',
+      website: 'https://thenicedev.xyz',
     },
     client: {
-      name: 'Stellar Startups Inc.',
-      company: 'Stellar Startups Inc.',
-      representative: 'Jane Smith',
-      email: 'jane@stellar.io',
-      address: '456 Launchpad Way, Austin, TX 78701',
+      name: 'Event Management',
+      company: 'Event Management',
+      representative: 'Sajjadul Islam Ontor',
+      email: 'event@management.com',
+      address: 'House 45, Road 2, Gulshan-1, Dhaka-1212, Bangladesh',
     },
     project: {
-      name: 'Enterprise Dashboard Portal',
-      summary: 'A secure web portal for managing enterprise resource planning and reporting data.',
+      name: 'Event Management Portfolio Website',
+      summary: 'A premium portfolio website for showcasing event management projects, booking services, and client communications.',
     },
   };
 
@@ -73,14 +79,14 @@ export default function DocumentsPage() {
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
       pricing: {
-        total: '15,000',
-        advance: '5,000',
-        hourlyRate: '150',
+        total: '25,000',
+        advance: '10,000',
+        hourlyRate: '1,500',
         paymentTermsDays: 15,
       },
       milestones: [
-        { name: 'Phase 1: Architecture & UI Designs', dueDate: 'July 15, 2026', paymentAmount: '5,000' },
-        { name: 'Phase 2: Core Development & APIs', dueDate: 'August 30, 2026', paymentAmount: '5,000' },
+        { name: 'Phase 1: Architecture & UI Designs', dueDate: 'July 15, 2026', paymentAmount: '10,000' },
+        { name: 'Phase 2: Core Development & APIs', dueDate: 'August 30, 2026', paymentAmount: '15,000' },
       ],
       revisions: {
         limit: 3,
@@ -89,8 +95,8 @@ export default function DocumentsPage() {
         noticeDays: 14,
       },
       legal: {
-        governingLaw: 'the State of California',
-        jurisdiction: 'San Francisco County, California',
+        governingLaw: "the laws of the People's Republic of Bangladesh",
+        jurisdiction: 'Dhaka, Bangladesh',
       },
     },
     sow: {
@@ -132,12 +138,12 @@ export default function DocumentsPage() {
       developer: { ...defaultCommonData.developer },
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
-      problem: 'The Client currently manages operational data and reports using fragmented spreadsheets and manual input. This setup creates administrative backlogs, increases reporting inaccuracies, and slows down executive decisions.',
-      solution: 'We propose developing a unified, web-based Enterprise Dashboard Portal. This application will automate database reports, secure client authorization, and integrate payment collections, reducing admin efforts by up to 40%.',
+      problem: 'The Client currently has no central web platform to showcase their event management projects, handle customer bookings, and collect initial event deposits. This leads to inefficient communication and lost booking opportunities.',
+      solution: 'We propose building a premium Event Management Portfolio Website. This platform will showcase past events, allow prospective clients to submit booking inquiries, and pay booking deposits online, driving engagement and streamlining reservations.',
       currency: '৳ ',
       pricing: {
-        total: '15,000',
-        advance: '5,000',
+        total: '25,000',
+        advance: '10,000',
       },
       phases: [
         { name: 'Phase 1: Discovery & Interface Prototypes', duration: '1-2 Weeks', description: 'Interactive wireframes design, database architecture mapping, and API routing designs.' },
@@ -145,9 +151,9 @@ export default function DocumentsPage() {
         { name: 'Phase 3: QA, Tuning & Launch Support', duration: '1-2 Weeks', description: 'Cross-device browser verification, server configuration, domain mapping, and staff onboarding.' },
       ],
       pricingOptions: [
-        { name: 'MVP Core Package', description: 'Includes core dashboard components, standard database, 30 days post-launch support, and hosting config.', amount: '10,000' },
-        { name: 'Standard Complete Package', description: 'Includes SOW specs, full Stripe payment suite, custom notifications, and 90 days support.', amount: '15,000' },
-        { name: 'Enterprise Premium Package', description: 'Includes complete dashboard, multi-tenant databases, SMS alerts, and 6 months dedicated maintenance support.', amount: '22,000' },
+        { name: 'MVP Core Package', description: 'Includes core portfolio components, standard booking forms, 30 days post-launch support, and hosting config.', amount: '15,000' },
+        { name: 'Standard Complete Package', description: 'Includes SOW specs, full online deposit checkout, client inquiry system, and 90 days support.', amount: '25,000' },
+        { name: 'Enterprise Premium Package', description: 'Includes complete website, multi-page layout, custom SMS/Email alerts, and 6 months dedicated maintenance support.', amount: '40,000' },
       ],
       whyUs: [
         'Over 8 years of specialized experience engineering secure, scale-ready SaaS platforms.',
@@ -158,7 +164,7 @@ export default function DocumentsPage() {
     maintenance: {
       date: defaultCommonData.date,
       termMonths: '6',
-      monthlyFee: '1,200',
+      monthlyFee: '5,000',
       currency: '৳ ',
       developer: { ...defaultCommonData.developer },
       client: { ...defaultCommonData.client },
@@ -175,18 +181,18 @@ export default function DocumentsPage() {
         critical: '4',
         normal: '24',
       },
-      extraHourlyRate: '150',
+      extraHourlyRate: '1,500',
       terminationNoticeDays: '30',
     },
     nda: {
       date: defaultCommonData.date,
       disclosingParty: { ...defaultCommonData.client },
       receivingParty: { ...defaultCommonData.developer },
-      purpose: 'Evaluating, designing, building, and delivering software services and enterprise integrations for the Enterprise Dashboard Portal project.',
+      purpose: 'Evaluating, designing, building, and delivering software services and portfolio integrations for the Event Management Portfolio Website project.',
       activeTermYears: '2',
       survivalYears: '3',
-      governingState: 'the State of California',
-      jurisdiction: 'San Francisco County, California',
+      governingState: "the People's Republic of Bangladesh",
+      jurisdiction: 'Dhaka, Bangladesh',
     },
     handover: {
       date: defaultCommonData.date,
@@ -194,15 +200,15 @@ export default function DocumentsPage() {
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
       git: {
-        url: 'https://github.com/stellar-startups-inc/enterprise-dashboard-portal.git',
+        url: 'https://github.com/thenicedev/event-management-portfolio.git',
         mainBranch: 'main',
         stagingBranch: 'develop',
       },
       deployment: {
-        productionHost: 'Vercel Enterprise & AWS RDS Database Engine',
-        productionUrl: 'https://dashboard.stellarstartups.io',
-        stagingUrl: 'https://staging-dashboard.stellarstartups.io',
-        adminUrl: 'https://dashboard.stellarstartups.io/admin-console',
+        productionHost: 'Vercel & Supabase Cloud',
+        productionUrl: 'https://eventmanagement.com.bd',
+        stagingUrl: 'https://staging.eventmanagement.com.bd',
+        adminUrl: 'https://eventmanagement.com.bd/admin',
       },
       credentials: [
         { service: 'GitHub Organization', url: 'https://github.com', username: 'stellar-admin@stellar.io', actionRequired: 'Transfer primary ownership and remove developer rights.' },
@@ -418,6 +424,46 @@ export default function DocumentsPage() {
     }
     setDocConfigs(updatedConfigs);
     toast.success('Loaded Client profile.');
+  };
+
+  const handleGenerateAI = async () => {
+    setGeneratingAI(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/ai/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentType: activeDocType,
+          industry: wizardIndustry,
+          prompt: wizardPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP error ${response.status}`);
+      }
+
+      const generatedPayload = await response.json();
+      
+      const updatedConfigs = { ...docConfigs };
+      updatedConfigs[activeDocType] = generatedPayload;
+      setDocConfigs(updatedConfigs);
+      
+      toast.success(`Gemini AI successfully generated your ${activeDocType === 'sow' ? 'SOW' : activeDocType}!`);
+      setActiveMode('manual');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error generating AI document');
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
   const handleGeneratePDF = async () => {
@@ -642,16 +688,135 @@ export default function DocumentsPage() {
 
         {/* Dynamic Form Area (Middle) */}
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-          <div className="mb-8 pb-4 border-slate-800/60 border-b">
-            <h2 className="font-bold text-slate-800 dark:text-white text-xl">
-              {docIntroductions[activeDocType].title}
-            </h2>
-            <p className="mt-1 text-slate-400 text-sm">
-              {docIntroductions[activeDocType].desc}
-            </p>
+          <div className="mb-8 pb-4 border-slate-800/60 border-b flex justify-between items-end">
+            <div>
+              <h2 className="font-bold text-slate-800 dark:text-white text-xl">
+                {docIntroductions[activeDocType].title}
+              </h2>
+              <p className="mt-1 text-slate-400 text-sm">
+                {docIntroductions[activeDocType].desc}
+              </p>
+            </div>
+            {/* Mode Toggle Button */}
+            <div className="flex gap-1.5 p-1 bg-slate-950/30 border border-slate-800/80 rounded-xl max-w-xs no-print">
+              <button
+                onClick={() => setActiveMode('wizard')}
+                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeMode === 'wizard'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                <i className="fa-solid fa-robot"></i>
+                AI Wizard
+              </button>
+              <button
+                onClick={() => setActiveMode('manual')}
+                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeMode === 'manual'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                <i className="fa-solid fa-pen-to-square"></i>
+                Manual Forms
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-6">
+          {activeMode === 'wizard' && (
+            <div className="bg-slate-900/40 backdrop-blur-md p-8 border border-slate-800/80 rounded-2xl space-y-6 no-print">
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-white text-md uppercase tracking-wide flex items-center gap-2">
+                  <i className="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                  Step-by-Step AI Generation
+                </h3>
+                <p className="text-slate-400 text-xs mt-1">
+                  Describe your client and project in simple terms, and Gemini AI will populate the complex variables for you.
+                </p>
+              </div>
+
+              {/* Step 1: Industry / Business Type */}
+              <div className="space-y-3">
+                <label className="font-semibold text-slate-400 text-xs uppercase tracking-wider block">
+                  1. Select Company / Business Type
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    '🎉 Event Management',
+                    '🩺 Medical/Doctor',
+                    '💻 Software Dev',
+                    '🎨 Creative Agency',
+                    '🛒 E-Commerce',
+                    '✏️ Content Creator',
+                  ].map((ind) => (
+                    <button
+                      key={ind}
+                      onClick={() => setWizardIndustry(ind)}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all border ${wizardIndustry === ind
+                        ? 'bg-indigo-600/15 border-indigo-500 text-indigo-400 shadow-md'
+                        : 'bg-slate-950/20 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                    >
+                      {ind}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-1.5 pt-1.5">
+                  <span className="text-[10px] text-slate-500">Or type custom business:</span>
+                  <input
+                    type="text"
+                    value={wizardIndustry}
+                    onChange={(e) => setWizardIndustry(e.target.value)}
+                    placeholder="e.g. Legal Consulting, Real Estate, Dental Clinic..."
+                    className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm max-w-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Step 2: Custom details prompt */}
+              <div className="space-y-2">
+                <label className="font-semibold text-slate-400 text-xs uppercase tracking-wider block">
+                  2. Describe Project Parameters (Prices, Timeline, Specific Details)
+                </label>
+                <textarea
+                  value={wizardPrompt}
+                  onChange={(e) => setWizardPrompt(e.target.value)}
+                  placeholder={`e.g. Web portal for a dental clinic. 30,000 BDT budget, 2 weeks delivery. Client rep: Sajjadul Islam Ontor from Event Management...`}
+                  rows={4}
+                  className="w-full bg-slate-950/20 p-4 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm placeholder:text-slate-600 custom-scrollbar resize-none"
+                />
+                <span className="text-[10px] text-slate-500">
+                  Tip: Mentioning budget (in BDT/Taka), milestones, or specific requirements helps the AI output highly accurate terms.
+                </span>
+              </div>
+
+              {/* Step 3: Action Button */}
+              <div className="pt-4 border-t border-slate-800/50 flex justify-between items-center">
+                <div className="text-slate-500 text-[10px] flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-info"></i>
+                  Generating will update variables in the Manual Editor.
+                </div>
+                <button
+                  onClick={handleGenerateAI}
+                  disabled={generatingAI}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800/50 shadow-indigo-600/20 shadow-xl px-5 py-3 rounded-lg font-black text-white text-xs uppercase tracking-widest transition-all"
+                >
+                  {generatingAI ? (
+                    <>
+                      <div className="border-2 border-white/20 border-t-white rounded-full w-4 h-4 animate-spin"></div>
+                      <span>Gemini is compiling payload...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-wand-magic-sparkles"></i>
+                      <span>Generate with Gemini AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className={activeMode === 'wizard' ? 'hidden' : 'space-y-6'}>
             {/* Database Selection Feed */}
             <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
               <h3 className="mb-4 font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">

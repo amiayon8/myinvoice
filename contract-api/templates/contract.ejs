@@ -191,14 +191,14 @@
             <td class="label">Developer:</td>
             <td class="value">
                 <strong><%= developer.name %></strong><br>
-                <%= developer.representative ? 'Rep: ' + developer.representative + '<br>' : '' %>
+                <%- developer.representative ? 'Rep: ' + developer.representative + '<br>' : '' %>
                 Email: <%= developer.email %><br>
                 <%= developer.address ? 'Address: ' + developer.address : '' %>
             </td>
             <td class="label">Client:</td>
             <td class="value">
                 <strong><%= client.name %></strong><br>
-                <%= client.representative ? 'Rep: ' + client.representative + '<br>' : '' %>
+                <%- client.representative ? 'Rep: ' + client.representative + '<br>' : '' %>
                 Email: <%= client.email %><br>
                 <%= client.address ? 'Address: ' + client.address : '' %>
             </td>
@@ -242,9 +242,6 @@
 
     <h2>4. Revisions & Out of Scope Work</h2>
     <p>The agreed-upon project fee includes up to <strong><%= revisions.limit %> rounds of revisions</strong> for each milestone, provided that such revision requests do not deviate from the specifications defined in the SOW. Any additional revisions, or requests for features/pages outside the initial SOW, will be billed separately at an hourly rate of <strong><%= currency %> <%= pricing.hourlyRate %>/hour</strong>, or agreed upon in writing as a separate Scope of Work change order.</p>
-
-    <div class="page-break"></div>
-
     <h2>5. Intellectual Property (IP) Ownership</h2>
     <p class="legal-clause">5.1 <strong>Transfer of Rights:</strong> Subject to full, final, and unconditional payment of all outstanding fees due under this Agreement, all rights, title, and interest in the custom source code and assets created specifically for this project (the "Deliverables") shall transfer to the Client. Until full payment is received, all materials and code remain the exclusive property of the Developer.</p>
     <p class="legal-clause">5.2 <strong>Developer Tools:</strong> The Developer retains all ownership rights in any pre-existing code, libraries, frameworks, templates, or general developer utilities used in creating the Deliverables ("Developer Tools"). Developer grants Client a non-exclusive, perpetual, royalty-free license to use such Developer Tools solely as embedded within the Deliverables.</p>
@@ -262,7 +259,7 @@
 
     <h2>8. General Terms</h2>
     <p class="legal-clause">8.1 <strong>Independent Contractor:</strong> The Developer is an independent contractor. Nothing in this Agreement shall construct a partnership, joint venture, or employer-employee relationship.</p>
-    <p class="legal-clause">8.2 <strong>Dispute Resolution & Governing Law:</strong> This Agreement shall be governed by and construed in accordance with the laws of <strong><%= legal.governingLaw || 'the State of California' %></strong>. Any dispute arising out of this Agreement shall be resolved through binding arbitration or in courts located in <strong><%= legal.jurisdiction || 'San Francisco County, California' %></strong>.</p>
+    <p class="legal-clause">8.2 <strong>Dispute Resolution & Governing Law:</strong> This Agreement shall be governed by and construed in accordance with the laws of <strong><%= legal.governingLaw || "the People's Republic of Bangladesh" %></strong>. Any dispute arising out of this Agreement shall be resolved through binding arbitration or in courts located in <strong><%= legal.jurisdiction || 'Dhaka, Bangladesh' %></strong>.</p>
     <p class="legal-clause">8.3 <strong>Severability:</strong> If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.</p>
 
     <div class="signatures">
