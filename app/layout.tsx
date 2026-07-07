@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Inter, Outfit } from 'next/font/google';
+import { Suspense } from 'react';
 import ProgressLoader from './fucking-client';
 
 const inter = Inter({
@@ -49,7 +50,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${outfit.variable} bg-slate-50 dark:bg-[#020617] font-sans antialiased custom-scrollbar`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <ProgressLoader color="#ffffff" showSpinner={false} />
+          <Suspense fallback={null}>
+            <ProgressLoader color="#ffffff" showSpinner={false} />
+          </Suspense>
           <ToastProvider>
             {children}
           </ToastProvider>
