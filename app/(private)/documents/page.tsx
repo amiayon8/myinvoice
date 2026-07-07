@@ -46,6 +46,35 @@ export default function DocumentsPage() {
   const [wizardIndustry, setWizardIndustry] = useState<string>('🎉 Event Management');
   const [wizardPrompt, setWizardPrompt] = useState<string>('');
   const [generatingAI, setGeneratingAI] = useState<boolean>(false);
+  const [wizardBudget, setWizardBudget] = useState<string>('25,000');
+  const [wizardTimeline, setWizardTimeline] = useState<string>('3 Weeks');
+
+  const [availableFeatures, setAvailableFeatures] = useState<string[]>([
+    'User Authentication & Roles',
+    'Dashboard & Analytics',
+    'Product Catalog & Cart',
+    'Advanced Search & Filtering',
+    'Admin Control Panel',
+    'Booking & Scheduling System',
+    'Real-time Chat / Support',
+    'Review & Rating System',
+    'Blog / Content Management',
+  ]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(['User Authentication & Roles', 'Dashboard & Analytics']);
+  const [customFeatureInput, setCustomFeatureInput] = useState<string>('');
+
+  const [availableIntegrations, setAvailableIntegrations] = useState<string[]>([
+    'Stripe Payment Gateway',
+    'SSLCommerz Gateway (Bangladesh)',
+    'bKash / Nagad Mobile Payments',
+    'Pathao / Steadfast Courier API',
+    'Gemini / OpenAI Assistant',
+    'Twilio SMS Notifications',
+    'SendGrid Email Delivery',
+    'Google Maps Store Locator',
+  ]);
+  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(['bKash / Nagad Mobile Payments']);
+  const [customIntegrationInput, setCustomIntegrationInput] = useState<string>('');
 
   // Default configurations
   const defaultCommonData = {
@@ -249,6 +278,20 @@ export default function DocumentsPage() {
       console.error('Error fetching generation history:', err);
     }
   };
+
+  useEffect(() => {
+    const parts: string[] = [];
+    if (wizardIndustry) parts.push(`Company Type/Industry: ${wizardIndustry}`);
+    if (wizardBudget) parts.push(`Budget: ${wizardBudget} BDT`);
+    if (wizardTimeline) parts.push(`Timeline: ${wizardTimeline}`);
+    if (selectedFeatures.length > 0) {
+      parts.push(`Features: ${selectedFeatures.join(', ')}`);
+    }
+    if (selectedIntegrations.length > 0) {
+      parts.push(`Integrations: ${selectedIntegrations.join(', ')}`);
+    }
+    setWizardPrompt(parts.join('\n'));
+  }, [wizardIndustry, wizardBudget, wizardTimeline, selectedFeatures, selectedIntegrations]);
 
   useEffect(() => {
     const fetchDBData = async () => {
@@ -772,24 +815,193 @@ export default function DocumentsPage() {
                 </div>
               </div>
 
-              {/* Step 2: Custom details prompt */}
-              <div className="space-y-2">
+              {/* Step 2: Semiautomatic Parameters */}
+              <div className="space-y-4 pt-4 border-t border-slate-800/50">
                 <label className="font-semibold text-slate-400 text-xs uppercase tracking-wider block">
-                  2. Describe Project Parameters (Prices, Timeline, Specific Details)
+                  2. Project Parameters (Prices, Timeline, Features & Integrations)
+                </label>
+                
+                {/* Budget & Timeline Inputs */}
+                <div className="gap-4 grid grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-slate-400 text-xs font-semibold">Total Project Budget (BDT)</label>
+                    <input
+                      type="text"
+                      value={wizardBudget}
+                      onChange={(e) => setWizardBudget(e.target.value)}
+                      placeholder="e.g. 25,000"
+                      className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-slate-400 text-xs font-semibold">Estimated Timeline</label>
+                    <input
+                      type="text"
+                      value={wizardTimeline}
+                      onChange={(e) => setWizardTimeline(e.target.value)}
+                      placeholder="e.g. 3 Weeks, 1 Month"
+                      className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Features Selection */}
+                <div className="space-y-2 pt-2">
+                  <label className="text-slate-400 text-xs font-semibold block">Select Core Features:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableFeatures.map((feat) => {
+                      const isSelected = selectedFeatures.includes(feat);
+                      return (
+                        <button
+                          key={feat}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedFeatures(selectedFeatures.filter(f => f !== feat));
+                            } else {
+                              setSelectedFeatures([...selectedFeatures, feat]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${isSelected
+                            ? 'bg-emerald-600/15 border-emerald-500 text-emerald-400 font-bold'
+                            : 'bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300'
+                            }`}
+                        >
+                          {isSelected && <i className="fa-solid fa-check mr-1 text-[10px]"></i>}
+                          {feat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 max-w-sm pt-1">
+                    <input
+                      type="text"
+                      placeholder="Add custom feature..."
+                      value={customFeatureInput}
+                      onChange={(e) => setCustomFeatureInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && customFeatureInput.trim()) {
+                          e.preventDefault();
+                          const val = customFeatureInput.trim();
+                          if (!availableFeatures.includes(val)) {
+                            setAvailableFeatures([...availableFeatures, val]);
+                          }
+                          if (!selectedFeatures.includes(val)) {
+                            setSelectedFeatures([...selectedFeatures, val]);
+                          }
+                          setCustomFeatureInput('');
+                        }
+                      }}
+                      className="flex-1 bg-slate-950/30 p-2 border border-slate-800/60 rounded outline-none text-slate-300 text-xs"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const val = customFeatureInput.trim();
+                        if (val) {
+                          if (!availableFeatures.includes(val)) {
+                            setAvailableFeatures([...availableFeatures, val]);
+                          }
+                          if (!selectedFeatures.includes(val)) {
+                            setSelectedFeatures([...selectedFeatures, val]);
+                          }
+                          setCustomFeatureInput('');
+                        }
+                      }}
+                      className="bg-slate-850 hover:bg-slate-700 px-3 py-1.5 rounded text-slate-300 text-xs font-bold transition-all"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Integrations Selection */}
+                <div className="space-y-2 pt-2">
+                  <label className="text-slate-400 text-xs font-semibold block">Select Integrations:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableIntegrations.map((integ) => {
+                      const isSelected = selectedIntegrations.includes(integ);
+                      return (
+                        <button
+                          key={integ}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedIntegrations(selectedIntegrations.filter(i => i !== integ));
+                            } else {
+                              setSelectedIntegrations([...selectedIntegrations, integ]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${isSelected
+                            ? 'bg-blue-600/15 border-blue-500 text-blue-400 font-bold'
+                            : 'bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300'
+                            }`}
+                        >
+                          {isSelected && <i className="fa-solid fa-check mr-1 text-[10px]"></i>}
+                          {integ}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 max-w-sm pt-1">
+                    <input
+                      type="text"
+                      placeholder="Add custom integration..."
+                      value={customIntegrationInput}
+                      onChange={(e) => setCustomIntegrationInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && customIntegrationInput.trim()) {
+                          e.preventDefault();
+                          const val = customIntegrationInput.trim();
+                          if (!availableIntegrations.includes(val)) {
+                            setAvailableIntegrations([...availableIntegrations, val]);
+                          }
+                          if (!selectedIntegrations.includes(val)) {
+                            setSelectedIntegrations([...selectedIntegrations, val]);
+                          }
+                          setCustomIntegrationInput('');
+                        }
+                      }}
+                      className="flex-1 bg-slate-950/30 p-2 border border-slate-800/60 rounded outline-none text-slate-300 text-xs"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const val = customIntegrationInput.trim();
+                        if (val) {
+                          if (!availableIntegrations.includes(val)) {
+                            setAvailableIntegrations([...availableIntegrations, val]);
+                          }
+                          if (!selectedIntegrations.includes(val)) {
+                            setSelectedIntegrations([...selectedIntegrations, val]);
+                          }
+                          setCustomIntegrationInput('');
+                        }
+                      }}
+                      className="bg-slate-850 hover:bg-slate-700 px-3 py-1.5 rounded text-slate-300 text-xs font-bold transition-all"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Prompt Textarea Preview */}
+              <div className="space-y-2 pt-4 border-t border-slate-800/50">
+                <label className="font-semibold text-slate-400 text-xs uppercase tracking-wider block">
+                  3. Generated Prompt Preview (Editable)
                 </label>
                 <textarea
                   value={wizardPrompt}
                   onChange={(e) => setWizardPrompt(e.target.value)}
-                  placeholder={`e.g. Web portal for a dental clinic. 30,000 BDT budget, 2 weeks delivery. Client rep: Sajjadul Islam Ontor from Event Management...`}
-                  rows={4}
-                  className="w-full bg-slate-950/20 p-4 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm placeholder:text-slate-600 custom-scrollbar resize-none"
+                  placeholder="The prompt will be auto-generated here..."
+                  rows={5}
+                  className="w-full bg-slate-950/20 p-4 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm placeholder:text-slate-600 custom-scrollbar resize-none font-mono text-xs"
                 />
                 <span className="text-[10px] text-slate-500">
-                  Tip: Mentioning budget (in BDT/Taka), milestones, or specific requirements helps the AI output highly accurate terms.
+                  You can edit the prompt preview above directly to fine-tune the AI instructions before compiling.
                 </span>
               </div>
 
-              {/* Step 3: Action Button */}
+              {/* Action Buttons Footer */}
               <div className="pt-4 border-t border-slate-800/50 flex justify-between items-center">
                 <div className="text-slate-500 text-[10px] flex items-center gap-1.5">
                   <i className="fa-solid fa-circle-info"></i>
