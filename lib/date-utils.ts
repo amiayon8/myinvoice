@@ -108,3 +108,37 @@ export function appendBillingTiming(notes: string | null | undefined, timing: 'a
   const marker = `<!-- billing_timing: ${timing} -->`;
   return cleaned ? `${cleaned}\n\n${marker}` : marker;
 }
+
+export function getCalendarMonthsElapsed(startDateStr: string, endDateStr: string): number {
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
+  const yearsDiff = end.getFullYear() - start.getFullYear();
+  const monthsDiff = end.getMonth() - start.getMonth();
+
+  // June -> July is 2 months (June & July)
+  return Math.max(1, yearsDiff * 12 + monthsDiff + 1);
+}
+
+export function getPaidUpToMonthDate(startDateStr: string, monthsPaid: number): Date {
+  const date = new Date(startDateStr);
+  if (isNaN(date.getTime())) return new Date();
+
+  const startMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const monthsToAdd = Math.max(0, Math.round(monthsPaid) - 1);
+  startMonth.setMonth(startMonth.getMonth() + monthsToAdd);
+  return startMonth;
+}
+
+export function getPaidUpToMonthStr(startDateStr: string, monthsPaid: number): string {
+  if (monthsPaid <= 0) return 'Not Paid';
+  const paidUp = getPaidUpToMonthDate(startDateStr, monthsPaid);
+  return paidUp.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
+export function getStartMonthStr(startDateStr: string): string {
+  const date = new Date(startDateStr);
+  if (isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}

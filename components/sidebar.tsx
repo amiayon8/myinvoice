@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
     { id: 'invoices', label: 'Invoices', icon: 'fa-file-invoice-dollar' },
     { id: 'loans', label: 'Loans', icon: 'fa-hand-holding-dollar' },
+    { id: 'subscriptions', label: 'Subscriptions', icon: 'fa-ticket' },
     { id: 'documents', label: 'Documents', icon: 'fa-file-signature' },
   ];
 

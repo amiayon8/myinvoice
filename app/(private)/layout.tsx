@@ -49,6 +49,8 @@ export default function PrivateLayout({
     currentView = 'links';
   } else if (pathname.startsWith('/documents')) {
     currentView = 'documents';
+  } else if (pathname.startsWith('/subscriptions')) {
+    currentView = 'subscriptions';
   }
 
   const handleViewChange = (view: string) => {
@@ -61,6 +63,7 @@ export default function PrivateLayout({
     else if (view === 'links') router.push('/links');
     else if (view === 'logs') router.push('/links/logs');
     else if (view === 'documents') router.push('/documents');
+    else if (view === 'subscriptions') router.push('/subscriptions');
   };
 
   return (
