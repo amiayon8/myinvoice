@@ -218,6 +218,60 @@ export default function PublicSharedSubscriptionPage({
           </div>
         </div>
 
+        {/* Payment & Instructions Info Card */}
+        <div className="bg-gradient-to-br from-indigo-50/50 via-pink-50/20 to-pink-50/30 dark:from-slate-900/60 dark:via-pink-950/5 dark:to-pink-950/10 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-md p-6 relative overflow-hidden transition-all duration-300 hover:shadow-lg">
+          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-pink-500/5 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -left-10 -top-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative flex flex-col md:flex-row justify-between gap-6">
+            {/* Left Section: bKash Payment Details */}
+            <div className="flex-1 flex items-start gap-4">
+              <div className="bg-gradient-to-br from-pink-500 to-rose-500 text-white p-3 rounded-xl shadow-sm flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-mobile-screen-button text-lg"></i>
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-pink-600 dark:text-pink-400 bg-pink-100/50 dark:bg-pink-950/30 px-2 py-0.5 rounded-md">
+                    bKash Personal
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-950/30 px-2 py-0.5 rounded-md">
+                    Send Money Only
+                  </span>
+                </div>
+                <h4 className="font-extrabold text-slate-800 dark:text-white text-base">
+                  Account Number: <span className="font-black text-pink-600 dark:text-pink-400 select-all cursor-pointer">01870828373</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Please use the <span className="font-bold text-slate-700 dark:text-slate-200">Send Money</span> feature in your bKash app. Include your subscription name or invoice reference in the transaction note.
+                </p>
+              </div>
+            </div>
+
+            {/* Vertical Divider line */}
+            <div className="hidden md:block w-px bg-slate-200 dark:bg-slate-800 self-stretch"></div>
+
+            {/* Right Section: Cancellation Policy */}
+            <div className="flex-1 flex items-start gap-4">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-3 rounded-xl shadow-sm flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-calendar-xmark text-lg"></i>
+              </div>
+              <div className="space-y-1">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100/50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md">
+                    Cancellation Policy
+                  </span>
+                </div>
+                <h4 className="font-extrabold text-slate-800 dark:text-white text-base">
+                  1-Month Notification
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  To cancel or request subscription modifications, please notify us at least <span className="font-black text-indigo-600 dark:text-indigo-400">1 month in advance</span> to avoid the next billing cycle.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Tab Selection */}
         <div className="border-b border-slate-200 dark:border-slate-800 flex items-center gap-1 overflow-x-auto pb-px scrollbar-none">
           <button
