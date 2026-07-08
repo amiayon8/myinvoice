@@ -577,14 +577,24 @@ export default function PublicSharedSubscriptionPage({
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs border-t border-slate-200 dark:border-slate-850 mt-12 bg-white dark:bg-slate-950/20">
+      <footer className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs border-t border-slate-200 dark:border-slate-850 mt-12 bg-white dark:bg-slate-950/20 space-y-2">
         <p className="font-bold">
-          © {new Date().getFullYear()} My Invoice Portal · Real-time Secured
-          Tracker
+          © {new Date().getFullYear()} My Invoice Portal · Real-time Secured Tracker
         </p>
-        <p className="mt-1 font-semibold text-[10px] text-slate-500">
-          Created secure tracking token links verify access and prevent
-          alterations.
+        <p className="font-semibold text-[10px] text-slate-500">
+          This secure tracking link verifies access and ensures that the details remain tamper-proof.
+        </p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">
+          Developed by{" "}
+          <a
+            href="https://www.thenicedev.xyz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+          >
+            The Nice Developer
+          </a>{" "}
+          · Platform for subscription: <span className="font-semibold text-slate-500 dark:text-slate-400">Subscription Baba</span>
         </p>
       </footer>
     </div>
