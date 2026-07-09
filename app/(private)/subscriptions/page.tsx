@@ -557,7 +557,7 @@ export default function SubscriptionsDashboardPage() {
   const handleDeletePaymentClick = async (paymentId: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly."
+        "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly.",
       )
     )
       return;
@@ -825,7 +825,7 @@ export default function SubscriptionsDashboardPage() {
         {activeTab === "subscriptions" && (
           <div>
             {/* Toolbar */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col justify-start gap-4">
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col justify-start gap-4">
               <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider flex items-center gap-2">
                 User Allocations ({filteredSubscriptions.length})
               </h2>
@@ -853,7 +853,7 @@ export default function SubscriptionsDashboardPage() {
                 </div>
               </div>
               {/* Grouped by Plan Member Cards */}
-              <div className="p-6 space-y-8">
+              <div className="space-y-8">
                 {plans.map((plan) => {
                   const planSubs = filteredSubscriptions.filter(
                     (sub) => sub.plan_id === plan.id,
@@ -868,13 +868,16 @@ export default function SubscriptionsDashboardPage() {
                     0,
                   );
 
-                  const freeSlots = Math.max(0, plan.number_of_slots - activeSlots);
+                  const freeSlots = Math.max(
+                    0,
+                    plan.number_of_slots - activeSlots,
+                  );
                   const showFreeSlotCard = freeSlots > 0 && subSearch === "";
 
                   return (
                     <div
                       key={plan.id}
-                      className="space-y-4 border border-slate-100 dark:border-slate-800/80 p-6 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20"
+                      className="space-y-4 border border-slate-100 dark:border-slate-800/80 p-4 sm:p-6 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20"
                     >
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
                         <div>
@@ -967,7 +970,7 @@ export default function SubscriptionsDashboardPage() {
                               >
                                 {/* Card Header */}
                                 <div>
-                                  <div className="flex justify-between items-start gap-2">
+                                  <div className="flex justify-between flex-wrap items-start gap-2">
                                     <div className="flex items-center gap-3">
                                       <div
                                         className={`w-10 h-10 rounded-full flex justify-center items-center font-black text-sm text-white ${
@@ -1082,14 +1085,32 @@ export default function SubscriptionsDashboardPage() {
                                         {isKicked
                                           ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
                                           : (() => {
-                                              const nextMonthIndex = Math.floor(Number(sub.months_paid)) + 1;
-                                              const nextMonthName = getPaidUpToMonthStr(sub.start_date, nextMonthIndex);
+                                              const nextMonthIndex =
+                                                Math.floor(
+                                                  Number(sub.months_paid),
+                                                ) + 1;
+                                              const nextMonthName =
+                                                getPaidUpToMonthStr(
+                                                  sub.start_date,
+                                                  nextMonthIndex,
+                                                );
                                               let remainsVal = 0;
                                               if (monthsRemaining < -0.01) {
                                                 remainsVal = balanceAmount;
-                                              } else if (monthsRemaining > 0.01) {
-                                                const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
-                                                remainsVal = partialPaid === 0 ? totalCostPerMonth : Math.round(totalCostPerMonth - partialPaid);
+                                              } else if (
+                                                monthsRemaining > 0.01
+                                              ) {
+                                                const partialPaid =
+                                                  Number(
+                                                    sub.total_amount_paid || 0,
+                                                  ) % totalCostPerMonth;
+                                                remainsVal =
+                                                  partialPaid === 0
+                                                    ? totalCostPerMonth
+                                                    : Math.round(
+                                                        totalCostPerMonth -
+                                                          partialPaid,
+                                                      );
                                               } else {
                                                 remainsVal = 0;
                                               }
@@ -1101,11 +1122,11 @@ export default function SubscriptionsDashboardPage() {
                                 </div>
 
                                 {/* Card Actions */}
-                                <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80 pt-3 flex justify-between items-center">
+                                <div className="mt-5 border-t border-slate-100 dark:border-slate-800/80 pt-3 flex flex-wrap justify-between items-center">
                                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                     Actions
                                   </span>
-                                  <div className="flex gap-1">
+                                  <div className="flex gap-1 flex-wrap">
                                     <button
                                       onClick={() => handleOpenPayModal(sub)}
                                       className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-550 hover:text-indigo-600 transition-colors cursor-pointer"
@@ -1167,7 +1188,9 @@ export default function SubscriptionsDashboardPage() {
                                   plan_id: plan.id,
                                   slots_count: Math.min(freeSlots, 1),
                                   price_per_slot: plan.selling_price || 0,
-                                  start_date: new Date().toISOString().split("T")[0],
+                                  start_date: new Date()
+                                    .toISOString()
+                                    .split("T")[0],
                                   status: "active",
                                 });
                                 setIsSubModalOpen(true);
@@ -1178,10 +1201,12 @@ export default function SubscriptionsDashboardPage() {
                                 <i className="fa-solid fa-plus text-sm"></i>
                               </div>
                               <h4 className="font-black text-slate-700 dark:text-slate-200 text-sm transition-colors group-hover:text-indigo-650 dark:group-hover:text-indigo-400">
-                                {freeSlots} Free Slot{freeSlots > 1 ? "s" : ""} Available
+                                {freeSlots} Free Slot{freeSlots > 1 ? "s" : ""}{" "}
+                                Available
                               </h4>
                               <p className="text-[10px] text-slate-450 dark:text-slate-500 max-w-[200px] mt-1 font-semibold">
-                                Click here to quickly allocate a free slot and add a member.
+                                Click here to quickly allocate a free slot and
+                                add a member.
                               </p>
                             </div>
                           )}
@@ -2008,7 +2033,8 @@ export default function SubscriptionsDashboardPage() {
                   paySub.start_date,
                   endStr,
                 );
-                const monthsRemaining = Number(paySub.months_paid) - monthsConsumed;
+                const monthsRemaining =
+                  Number(paySub.months_paid) - monthsConsumed;
                 const isDue = monthsRemaining < -0.01;
 
                 if (payAmount && payAmount > 0 && !isDue) {
@@ -2427,7 +2453,9 @@ export default function SubscriptionsDashboardPage() {
                                 value={editAmount}
                                 onChange={(e) =>
                                   setEditAmount(
-                                    e.target.value ? Number(e.target.value) : "",
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : "",
                                   )
                                 }
                                 className="bg-white dark:bg-slate-950 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 w-full text-xs font-semibold dark:text-white"
@@ -2443,7 +2471,9 @@ export default function SubscriptionsDashboardPage() {
                                 value={editMonths}
                                 onChange={(e) =>
                                   setEditMonths(
-                                    e.target.value ? Number(e.target.value) : "",
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : "",
                                   )
                                 }
                                 className="bg-white dark:bg-slate-950 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 w-full text-xs font-semibold dark:text-white"
@@ -2541,7 +2571,7 @@ export default function SubscriptionsDashboardPage() {
                               {Math.abs(Number(p.months)) === 1 ? "" : "s"}
                             </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-1.5 border-l border-slate-100 dark:border-slate-800/80 pl-3">
                             <button
                               onClick={() => handleEditPaymentClick(p)}

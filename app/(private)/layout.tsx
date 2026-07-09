@@ -17,10 +17,13 @@ export default function PrivateLayout({
 
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   }, []);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -79,8 +82,19 @@ export default function PrivateLayout({
         setIsOpen={setIsSidebarOpen}
       />
       <main className="relative flex flex-col flex-1 h-screen overflow-hidden">
+        {/* Floating toggle button for desktop/tablet when sidebar is closed */}
+        {mounted && !isSidebarOpen && (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="hidden md:flex absolute left-6 top-6 z-40 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800/80 shadow-lg hover:shadow-xl rounded-full w-10 h-10 items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 cursor-pointer active:scale-95 group"
+            title="Open Sidebar"
+          >
+            <i className="text-base fa-solid fa-bars transition-transform group-hover:scale-110"></i>
+          </button>
+        )}
+
         {/* Toggle button for mobile sidebar */}
-        <div className="lg:hidden flex justify-between items-center bg-white dark:bg-slate-900 p-4 border-slate-200 dark:border-slate-800 border-b no-print">
+        <div className="md:hidden flex justify-between items-center bg-white dark:bg-slate-900 p-4 border-slate-200 dark:border-slate-800 border-b no-print">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg text-slate-500 transition-colors"
@@ -99,7 +113,7 @@ export default function PrivateLayout({
         </div>
 
         <div className="flex-1 h-full overflow-y-auto custom-scrollbar">
-          <div className='pb-8'>{children}</div>
+          <div className={`pb-8 transition-all duration-300 ${mounted && !isSidebarOpen ? 'md:pl-12' : ''}`}>{children}</div>
         </div>
       </main>
     </div>

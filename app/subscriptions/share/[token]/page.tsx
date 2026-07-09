@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { getSharedSubscriptionData } from "@/services/subscriptions";
 import {
   getCalendarMonthsElapsed,
@@ -16,12 +17,20 @@ interface SharedPageProps {
 export default function PublicSharedSubscriptionPage({
   params: paramsPromise,
 }: SharedPageProps) {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"subscriptions" | "payments">(
     "subscriptions",
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   // Resolved data states
   const [scope, setScope] = useState<any>(null);
@@ -138,13 +147,24 @@ export default function PublicSharedSubscriptionPage({
               </span>
             </div>
           </div>
-          <div className="text-left md:text-right bg-slate-800/50 px-4 py-2 border border-slate-700/40 rounded-xl max-w-sm">
-            <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest">
-              Shared Portal
-            </span>
-            <span className="block text-xs font-bold text-slate-200 mt-0.5 truncate">
-              {scope.label || "Subscriptions Overview"}
-            </span>
+          <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
+            <button
+              onClick={toggleTheme}
+              className="flex justify-center items-center bg-slate-800 hover:bg-slate-700 rounded-full w-9 h-9 text-slate-300 transition-colors cursor-pointer animate-fade-in"
+              title="Toggle Theme"
+            >
+              <i
+                className={`fa-solid ${mounted && theme === "dark" ? "fa-sun" : "fa-moon"}`}
+              ></i>
+            </button>
+            <div className="text-left md:text-right bg-slate-800/50 px-4 py-2 border border-slate-700/40 rounded-xl max-w-sm flex-1 md:flex-none">
+              <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest">
+                Shared Portal
+              </span>
+              <span className="block text-xs font-bold text-slate-200 mt-0.5 truncate">
+                {scope.label || "Subscriptions Overview"}
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -239,10 +259,18 @@ export default function PublicSharedSubscriptionPage({
                   </span>
                 </div>
                 <h4 className="font-extrabold text-slate-800 dark:text-white text-base">
-                  Account Number: <span className="font-black text-pink-600 dark:text-pink-400 select-all cursor-pointer">01870828373</span>
+                  Account Number:{" "}
+                  <span className="font-black text-pink-600 dark:text-pink-400 select-all cursor-pointer">
+                    01870828373
+                  </span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Please use the <span className="font-bold text-slate-700 dark:text-slate-200">Send Money</span> feature in your bKash app. Include your subscription name or invoice reference in the transaction note.
+                  Please use the{" "}
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    Send Money
+                  </span>{" "}
+                  feature in your bKash app. Include your subscription name or
+                  invoice reference in the transaction note.
                 </p>
               </div>
             </div>
@@ -265,7 +293,12 @@ export default function PublicSharedSubscriptionPage({
                   1-Month Notification
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  To cancel or request subscription modifications, please notify us at least <span className="font-black text-indigo-600 dark:text-indigo-400">1 month in advance</span> to avoid the next billing cycle.
+                  To cancel or request subscription modifications, please notify
+                  us at least{" "}
+                  <span className="font-black text-indigo-600 dark:text-indigo-400">
+                    1 month in advance
+                  </span>{" "}
+                  to avoid the next billing cycle.
                 </p>
               </div>
             </div>
@@ -293,8 +326,8 @@ export default function PublicSharedSubscriptionPage({
                 : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350"
             }`}
           >
-            <i className="fa-solid fa-clock-rotate-left"></i> Payment Log
-            History ({payments.length})
+            <i className="fa-solid fa-clock-rotate-left"></i>
+            Payment History ({payments.length})
           </button>
         </div>
 
@@ -391,7 +424,7 @@ export default function PublicSharedSubscriptionPage({
                               <div className="flex justify-between items-start gap-2">
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className={`w-10 h-10 rounded-full flex justify-center items-center font-black text-sm text-white ${
+                                    className={`w-10 h-10 rounded-full flex justify-center items-center font-black text-sm ${
                                       isKicked
                                         ? "bg-slate-400"
                                         : isDue
@@ -404,7 +437,7 @@ export default function PublicSharedSubscriptionPage({
                                     {initials}
                                   </div>
                                   <div>
-                                    <h4 className="font-black text-slate-855 dark:text-white text-sm tracking-tight leading-tight">
+                                    <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-tight">
                                       {sub.user?.name}
                                     </h4>
                                     <span className="text-[10px] text-slate-400 block mt-0.5 font-semibold">
@@ -477,7 +510,7 @@ export default function PublicSharedSubscriptionPage({
                                       ? "bg-rose-50/30 dark:bg-rose-950/10 border-rose-100/50 dark:border-rose-900/20 text-rose-600 dark:text-rose-455"
                                       : isAdvance
                                         ? "bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100/50 dark:border-emerald-900/20 text-emerald-650 dark:text-emerald-400"
-                                        : "bg-slate-55 dark:bg-slate-950/30 border-slate-205 dark:border-slate-805 text-slate-705 dark:text-slate-350"
+                                        : "bg-slate-55 dark:bg-slate-950/30  text-slate-705 dark:text-slate-350"
                                 }`}
                               >
                                 <i
@@ -516,8 +549,17 @@ export default function PublicSharedSubscriptionPage({
                                           if (monthsRemaining < -0.01) {
                                             remainsVal = balanceAmount;
                                           } else if (monthsRemaining > 0.01) {
-                                            const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
-                                            remainsVal = partialPaid === 0 ? totalCostPerMonth : Math.round(totalCostPerMonth - partialPaid);
+                                            const partialPaid =
+                                              Number(
+                                                sub.total_amount_paid || 0,
+                                              ) % totalCostPerMonth;
+                                            remainsVal =
+                                              partialPaid === 0
+                                                ? totalCostPerMonth
+                                                : Math.round(
+                                                    totalCostPerMonth -
+                                                      partialPaid,
+                                                  );
                                           } else {
                                             remainsVal = 0;
                                           }
@@ -631,24 +673,20 @@ export default function PublicSharedSubscriptionPage({
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs border-t border-slate-200 dark:border-slate-850 mt-12 bg-white dark:bg-slate-950/20 space-y-2">
-        <p className="font-bold">
-          © {new Date().getFullYear()} My Invoice Portal · Real-time Secured Tracker
-        </p>
-        <p className="font-semibold text-[10px] text-slate-500">
-          This secure tracking link verifies access and ensures that the details remain tamper-proof.
-        </p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">
+      <footer className="text-center py-8  border-t bg-foreground text-background  mt-12 space-y-2">
+        <p className="text-sm mt-1">
           Developed by{" "}
           <a
             href="https://www.thenicedev.xyz/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            className="text-primary font-bold hover:underline"
           >
             The Nice Developer
-          </a>{" "}
-          · Platform for subscription: <span className="font-semibold text-slate-500 dark:text-slate-400">Subscription Baba</span>
+          </a>
+        </p>
+        <p className="font-bold text-sm ">
+          © {new Date().getFullYear()} Subscription Baba. All Rights Reserved
         </p>
       </footer>
     </div>
