@@ -1,10 +1,10 @@
-import { headers } from 'next/headers';
-import { notFound } from 'next/navigation';
-import { InvoicePreview } from '@/components/invoice-preview';
-import { ResponsiveInvoiceWrapper } from '@/components/responsive-invoice-wrapper';
-import { PublicHeader } from '@/components/public-header';
-import { CompanyProfile } from '@/types';
-import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { InvoicePreview } from "@/components/invoice-preview";
+import { ResponsiveInvoiceWrapper } from "@/components/responsive-invoice-wrapper";
+import { PublicHeader } from "@/components/public-header";
+import { CompanyProfile } from "@/types";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 interface PublicInvoicePageProps {
   params: Promise<{ token: string }>;
@@ -12,33 +12,53 @@ interface PublicInvoicePageProps {
 }
 
 function parseUserAgent(ua: string) {
-  const browser =
-    /Edg\//.test(ua) ? 'Edge' :
-      /OPR\/|Opera\//.test(ua) ? 'Opera' :
-        /Chrome\//.test(ua) && !/Chromium\//.test(ua) ? 'Chrome' :
-          /Chromium\//.test(ua) ? 'Chromium' :
-            /Firefox\//.test(ua) ? 'Firefox' :
-              /Safari\//.test(ua) && !/Chrome\//.test(ua) ? 'Safari' :
-                /MSIE |Trident\//.test(ua) ? 'IE' : 'Unknown';
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\/|Opera\//.test(ua)
+      ? "Opera"
+      : /Chrome\//.test(ua) && !/Chromium\//.test(ua)
+        ? "Chrome"
+        : /Chromium\//.test(ua)
+          ? "Chromium"
+          : /Firefox\//.test(ua)
+            ? "Firefox"
+            : /Safari\//.test(ua) && !/Chrome\//.test(ua)
+              ? "Safari"
+              : /MSIE |Trident\//.test(ua)
+                ? "IE"
+                : "Unknown";
 
-  const os =
-    /Windows NT 10/.test(ua) ? 'Windows 10/11' :
-      /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' :
-        /Windows NT 6\.1/.test(ua) ? 'Windows 7' :
-          /Windows/.test(ua) ? 'Windows' :
-            /Mac OS X/.test(ua) ? 'macOS' :
-              /Android/.test(ua) ? 'Android' :
-                /iPhone|iPad/.test(ua) ? 'iOS' :
-                  /Linux/.test(ua) ? 'Linux' : 'Unknown';
+  const os = /Windows NT 10/.test(ua)
+    ? "Windows 10/11"
+    : /Windows NT 6\.3/.test(ua)
+      ? "Windows 8.1"
+      : /Windows NT 6\.1/.test(ua)
+        ? "Windows 7"
+        : /Windows/.test(ua)
+          ? "Windows"
+          : /Mac OS X/.test(ua)
+            ? "macOS"
+            : /Android/.test(ua)
+              ? "Android"
+              : /iPhone|iPad/.test(ua)
+                ? "iOS"
+                : /Linux/.test(ua)
+                  ? "Linux"
+                  : "Unknown";
 
-  const device =
-    /Mobile|Android|iPhone/.test(ua) ? 'Mobile' :
-      /iPad|Tablet/.test(ua) ? 'Tablet' : 'Desktop';
+  const device = /Mobile|Android|iPhone/.test(ua)
+    ? "Mobile"
+    : /iPad|Tablet/.test(ua)
+      ? "Tablet"
+      : "Desktop";
 
   return { browser, os, device };
 }
 
-export default async function PublicInvoicePage({ params, searchParams }: PublicInvoicePageProps) {
+export default async function PublicInvoicePage({
+  params,
+  searchParams,
+}: PublicInvoicePageProps) {
   const { token } = await params;
   const { bill: selectedBillId } = await searchParams;
 
@@ -47,9 +67,9 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
 
   // Validate token directly (no internal HTTP call — works reliably on Vercel serverless)
   const { data: tokenRecord, error: tokenError } = await supabase
-    .from('invoice_access_tokens')
-    .select('id, invoice_id, expires_at, never_expires, is_public, revoked_at')
-    .eq('token', token)
+    .from("invoice_access_tokens")
+    .select("id, invoice_id, expires_at, never_expires, is_public, revoked_at")
+    .eq("token", token)
     .single();
 
   if (tokenError || !tokenRecord) return notFound();
@@ -72,32 +92,37 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
   }
 
   // Log the view asynchronously (don't await — don't block render)
-  const userAgent = reqHeaders.get('user-agent') || '';
+  const userAgent = reqHeaders.get("user-agent") || "";
   const ip =
-    reqHeaders.get('x-forwarded-for')?.split(',')[0].trim() ||
-    reqHeaders.get('x-real-ip') ||
-    reqHeaders.get('cf-connecting-ip') ||
-    'unknown';
-  const referrer = reqHeaders.get('referer') || null;
+    reqHeaders.get("x-forwarded-for")?.split(",")[0].trim() ||
+    reqHeaders.get("x-real-ip") ||
+    reqHeaders.get("cf-connecting-ip") ||
+    "unknown";
+  const referrer = reqHeaders.get("referer") || null;
   const { browser, os, device } = parseUserAgent(userAgent);
 
   // Fire-and-forget view log insertion
-  supabase.from('invoice_view_logs').insert({
-    token_id: tokenRecord.id,
-    invoice_id: tokenRecord.invoice_id,
-    ip_address: ip,
-    user_agent: userAgent,
-    browser,
-    os,
-    device,
-    referrer,
-  }).then(() => { });
+  supabase
+    .from("invoice_view_logs")
+    .insert({
+      token_id: tokenRecord.id,
+      invoice_id: tokenRecord.invoice_id,
+      ip_address: ip,
+      user_agent: userAgent,
+      browser,
+      os,
+      device,
+      referrer,
+    })
+    .then(() => {});
 
   // Fetch parent template invoice
   const { data: parentInvoice, error: invError } = await supabase
-    .from('invoices')
-    .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
-    .eq('id', tokenRecord.invoice_id)
+    .from("invoices")
+    .select(
+      "*, items:invoice_items(*), client:clients(*), company:companies(*)",
+    )
+    .eq("id", tokenRecord.invoice_id)
     .single();
 
   if (invError || !parentInvoice) return notFound();
@@ -106,17 +131,17 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
   let childBills: any[] = [];
   if (parentInvoice.is_recurring) {
     const { data: mappingLogs } = await supabase
-      .from('recurring_invoices')
-      .select('child_invoice_id')
-      .eq('parent_invoice_id', parentInvoice.id);
+      .from("recurring_invoices")
+      .select("child_invoice_id")
+      .eq("parent_invoice_id", parentInvoice.id);
 
     if (mappingLogs && mappingLogs.length > 0) {
       const childIds = mappingLogs.map((m: any) => m.child_invoice_id);
       const { data: childInvoices } = await supabase
-        .from('invoices')
-        .select('*, items:invoice_items(*)')
-        .in('id', childIds)
-        .order('date', { ascending: false });
+        .from("invoices")
+        .select("*, items:invoice_items(*)")
+        .in("id", childIds)
+        .order("date", { ascending: false });
 
       childBills = childInvoices || [];
     }
@@ -137,13 +162,20 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
 
   // Fetch payments for active invoice
   const { data: payments } = await supabase
-    .from('invoice_payments')
-    .select('id, amount, payment_date, payment_method, notes')
-    .eq('invoice_id', activeInvoice.id)
-    .order('payment_date', { ascending: false });
+    .from("invoice_payments")
+    .select("id, amount, payment_date, payment_method, notes")
+    .eq("invoice_id", activeInvoice.id)
+    .order("payment_date", { ascending: false });
 
-  const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
-  const subtotal = activeInvoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+  const totalPaid = (payments || []).reduce(
+    (sum: number, p: any) => sum + p.amount,
+    0,
+  );
+  const subtotal =
+    activeInvoice.items?.reduce(
+      (sum: number, item: any) => sum + item.quantity * item.rate,
+      0,
+    ) || 0;
   const taxAmount = subtotal * ((activeInvoice.tax_rate || 0) / 100);
   const totalAmount = subtotal + taxAmount;
 
@@ -151,7 +183,11 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
     invoiceNumber: activeInvoice.invoice_number,
     date: activeInvoice.date,
     companyId: activeInvoice.company_id,
-    client: activeInvoice.client || { name: 'Recipient', email: '', address: '' },
+    client: activeInvoice.client || {
+      name: "Recipient",
+      email: "",
+      address: "",
+    },
     items: activeInvoice.items || [],
     notes: activeInvoice.notes,
     currency: activeInvoice.currency,
@@ -159,17 +195,23 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
     isRecurring: activeInvoice.is_recurring,
     recurringFrequency: activeInvoice.recurring_frequency,
     paid_amount: totalPaid,
-    status: totalPaid >= totalAmount ? 'paid' : totalPaid > 0 ? 'partially_paid' : activeInvoice.status,
+    status:
+      totalPaid >= totalAmount
+        ? "paid"
+        : totalPaid > 0
+          ? "partially_paid"
+          : activeInvoice.status,
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center py-12 p-4 print:p-0 print:bg-white">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center pt-12 p-4 pb-0 print:p-0 print:bg-white">
       <PublicHeader token={token} />
       {/* Generated child bills section */}
       {parentInvoice.is_recurring && childBills.length > 0 && (
         <div className="mt-12 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print">
           <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i> Generated Invoices
+            <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>{" "}
+            Generated Invoices
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
@@ -182,7 +224,12 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                 {childBills.map((bill) => {
-                  const billSubtotal = bill.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+                  const billSubtotal =
+                    bill.items?.reduce(
+                      (sum: number, item: any) =>
+                        sum + item.quantity * item.rate,
+                      0,
+                    ) || 0;
                   const billTax = billSubtotal * ((bill.tax_rate || 0) / 100);
                   const billTotal = billSubtotal + billTax;
                   const isCurrent = activeInvoice.id === bill.id;
@@ -190,10 +237,11 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
                   return (
                     <tr
                       key={bill.id}
-                      className={`transition-colors ${isCurrent
-                        ? 'bg-indigo-50/50 dark:bg-indigo-950/15 font-bold text-slate-900 dark:text-white'
-                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/20'
-                        }`}
+                      className={`transition-colors ${
+                        isCurrent
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/15 font-bold text-slate-900 dark:text-white"
+                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/20"
+                      }`}
                     >
                       <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-300">
                         #{bill.invoice_number}
@@ -204,9 +252,9 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
                           className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline font-bold"
                         >
                           {new Date(bill.date).toLocaleDateString(undefined, {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
                           })}
                         </a>
                       </td>
@@ -230,7 +278,8 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
       {activeInvoice.id !== parentInvoice.id && (
         <div className="mb-6 w-full max-w-[800px] bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/50 rounded-xl p-4 flex justify-between items-center text-xs font-semibold text-indigo-700 dark:text-indigo-400 no-print animate-slide-in">
           <span>
-            <i className="fa-solid fa-circle-info mr-2"></i> Viewing recurring invoice #{activeInvoice.invoice_number}
+            <i className="fa-solid fa-circle-info mr-2"></i> Viewing recurring
+            invoice #{activeInvoice.invoice_number}
           </span>
           <a
             href={`/invoices/token/${token}`}
@@ -245,7 +294,8 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
       {payments && payments.length > 0 && (
         <div className="mb-6 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print animate-slide-in">
           <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-receipt text-emerald-500"></i> Payment History
+            <i className="fa-solid fa-receipt text-emerald-500"></i> Payment
+            History
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
@@ -259,21 +309,34 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                 {payments.map((pay: any) => (
-                  <tr key={pay.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors">
+                  <tr
+                    key={pay.id}
+                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors"
+                  >
                     <td className="px-4 py-3 text-slate-900 dark:text-slate-300 font-semibold">
-                      {new Date(pay.payment_date).toLocaleDateString(undefined, {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {new Date(pay.payment_date).toLocaleDateString(
+                        undefined,
+                        {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        },
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                        {pay.payment_method ? pay.payment_method.replace('_', ' ') : 'N/A'}
+                        {pay.payment_method
+                          ? pay.payment_method.replace("_", " ")
+                          : "N/A"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-[200px] truncate" title={pay.notes || undefined}>
-                      {pay.notes || <span className="italic text-slate-400">No notes</span>}
+                    <td
+                      className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-[200px] truncate"
+                      title={pay.notes || undefined}
+                    >
+                      {pay.notes || (
+                        <span className="italic text-slate-400">No notes</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">
                       {activeInvoice.currency}
@@ -292,30 +355,50 @@ export default async function PublicInvoicePage({ params, searchParams }: Public
 
       <ResponsiveInvoiceWrapper>
         <div className="shadow-2xl rounded-lg overflow-hidden print:shadow-none print:rounded-none">
-          <InvoicePreview data={previewData} company={parentInvoice.company as CompanyProfile} />
+          <InvoicePreview
+            data={previewData}
+            company={parentInvoice.company as CompanyProfile}
+          />
         </div>
       </ResponsiveInvoiceWrapper>
 
-
+      <footer className="text-center py-8 w-full border-t bg-foreground text-background  mt-12 space-y-2">
+        <p className="text-sm mt-1">
+          Developed by{" "}
+          <a
+            href="https://www.thenicedev.xyz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary font-bold hover:underline"
+          >
+            The Nice Developer
+          </a>
+        </p>
+        <p className="font-bold text-sm ">
+          © {new Date().getFullYear()} My Invoice. All Rights Reserved
+        </p>
+      </footer>
     </div>
   );
 }
 
-function InvalidPage({ reason }: { reason: 'revoked' | 'expired' }) {
-  const isRevoked = reason === 'revoked';
+function InvalidPage({ reason }: { reason: "revoked" | "expired" }) {
+  const isRevoked = reason === "revoked";
   return (
     <div className="flex flex-col justify-center items-center bg-slate-50 dark:bg-[#020617] min-h-screen text-center p-6 font-sans">
       <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full space-y-4">
-        <div className={isRevoked ? 'text-orange-500' : 'text-red-500'}>
-          <i className={`fa-solid ${isRevoked ? 'fa-ban' : 'fa-circle-exclamation'} text-5xl`}></i>
+        <div className={isRevoked ? "text-orange-500" : "text-red-500"}>
+          <i
+            className={`fa-solid ${isRevoked ? "fa-ban" : "fa-circle-exclamation"} text-5xl`}
+          ></i>
         </div>
         <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-          {isRevoked ? 'Link Revoked' : 'Access Expired'}
+          {isRevoked ? "Link Revoked" : "Access Expired"}
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
           {isRevoked
-            ? 'This invoice sharing link has been revoked by the issuer.'
-            : 'This invoice sharing link has expired or is no longer active. Please contact the issuer to request a new link.'}
+            ? "This invoice sharing link has been revoked by the issuer."
+            : "This invoice sharing link has expired or is no longer active. Please contact the issuer to request a new link."}
         </p>
       </div>
     </div>
