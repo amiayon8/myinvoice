@@ -25,6 +25,7 @@ export default function PublicSharedSubscriptionPage({
   const [activeTab, setActiveTab] = useState<"subscriptions" | "payments">(
     "subscriptions",
   );
+  const [showRemoved, setShowRemoved] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -335,9 +336,25 @@ export default function PublicSharedSubscriptionPage({
           {/* TAB 1: SUBSCRIPTIONS VIEW */}
           {activeTab === "subscriptions" && (
             <div className="p-6 space-y-8 bg-slate-50/10 dark:bg-slate-950/5">
+              <div className="flex justify-between items-center">
+                <h2 className="font-black text-slate-800 dark:text-white text-xs uppercase tracking-wider">
+                  Allocations Overview
+                </h2>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={showRemoved}
+                    onChange={(e) => setShowRemoved(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  Show Removed
+                </label>
+              </div>
               {sharedPlans.map((plan) => {
                 const planSubs = subscriptions.filter(
-                  (sub) => sub.plan_id === plan.id,
+                  (sub) =>
+                    sub.plan_id === plan.id &&
+                    (showRemoved || sub.status !== "kicked"),
                 );
                 const activeSlots = planSubs.reduce(
                   (sum, sub) =>
@@ -499,6 +516,16 @@ export default function PublicSharedSubscriptionPage({
                                     ).toLocaleString()}
                                   </span>
                                 </div>
+                                {isDue && (
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-rose-500 dark:text-rose-400 font-bold">
+                                      Due Amount:
+                                    </span>
+                                    <span className="font-black text-rose-600 dark:text-rose-400">
+                                      ৳{balanceAmount.toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Paid Upto Indicator */}

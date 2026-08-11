@@ -36,8 +36,7 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
-  // Public secure access bypass
-  if (url.pathname.startsWith('/invoices/token/')) {
+  if (url.pathname.startsWith('/invoices/token/') || url.pathname.startsWith('/subscriptions/share/')) {
     return supabaseResponse;
   }
 

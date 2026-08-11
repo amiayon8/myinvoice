@@ -50,6 +50,7 @@ export default function SubscriptionsDashboardPage() {
   const [subFilter, setSubFilter] = useState<
     "all" | "active" | "kicked" | "due" | "advance"
   >("all");
+  const [showRemoved, setShowRemoved] = useState(false);
   const [planSearch, setPlanSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
 
@@ -593,7 +594,9 @@ export default function SubscriptionsDashboardPage() {
 
   // Filter subscriptions list
   const filteredSubscriptions = subscriptions.filter((sub) => {
-    // Search query filter
+    if (!showRemoved && subFilter !== "kicked" && sub.status === "kicked") {
+      return false;
+    }
     const query = subSearch.toLowerCase();
     const userName = sub.user?.name?.toLowerCase() || "";
     const userContact = sub.user?.contact?.toLowerCase() || "";
@@ -829,7 +832,7 @@ export default function SubscriptionsDashboardPage() {
               <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider flex items-center gap-2">
                 User Allocations ({filteredSubscriptions.length})
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <select
                   value={subFilter}
                   onChange={(e: any) => setSubFilter(e.target.value)}
@@ -851,6 +854,15 @@ export default function SubscriptionsDashboardPage() {
                   />
                   <i className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400 text-[10px] fa-solid fa-search"></i>
                 </div>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={showRemoved}
+                    onChange={(e) => setShowRemoved(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  Show Removed
+                </label>
               </div>
               {/* Grouped by Plan Member Cards */}
               <div className="space-y-8">
@@ -1048,6 +1060,16 @@ export default function SubscriptionsDashboardPage() {
                                         ).toLocaleString()}
                                       </span>
                                     </div>
+                                    {isDue && (
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-rose-500 dark:text-rose-400 font-bold">
+                                          Due Amount:
+                                        </span>
+                                        <span className="font-black text-rose-600 dark:text-rose-400">
+                                          ৳{balanceAmount.toLocaleString()}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
 
                                   {/* Paid Upto Indicator */}
@@ -1383,6 +1405,28 @@ export default function SubscriptionsDashboardPage() {
                       (sum, s) => sum + (s.slots_count || 0),
                       0,
                     );
+                    const totalDueByUser = userSubs.reduce((sum, s) => {
+                      if (s.status === "kicked") return sum;
+                      const todayStr = new Date().toISOString().split("T")[0];
+                      const endStr = s.kicked_at
+                        ? new Date(s.kicked_at).toISOString().split("T")[0]
+                        : todayStr;
+                      const monthsConsumed = getCalendarMonthsElapsed(
+                        s.start_date,
+                        endStr,
+                      );
+                      const monthsRemaining =
+                        Number(s.months_paid) - monthsConsumed;
+                      if (monthsRemaining < -0.01) {
+                        const totalCostPerMonth =
+                          Number(s.price_per_slot) * Number(s.slots_count);
+                        const balanceAmount = Math.round(
+                          Math.abs(monthsRemaining) * totalCostPerMonth,
+                        );
+                        return sum + balanceAmount;
+                      }
+                      return sum;
+                    }, 0);
 
                     const initials = user.name
                       ? user.name
@@ -1443,6 +1487,20 @@ export default function SubscriptionsDashboardPage() {
                               </span>
                               <span className="font-black text-emerald-605 dark:text-emerald-400">
                                 ৳{totalPaidByUser.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-400 font-bold">
+                                Due Amount:
+                              </span>
+                              <span
+                                className={`font-black ${
+                                  totalDueByUser > 0
+                                    ? "text-rose-600 dark:text-rose-400"
+                                    : "text-emerald-600 dark:text-emerald-400"
+                                }`}
+                              >
+                                ৳{totalDueByUser.toLocaleString()}
                               </span>
                             </div>
                           </div>
