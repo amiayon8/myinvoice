@@ -1,0 +1,29 @@
+[
+  {
+    "id": "11071a69-2303-45e4-9d65-4d0358646fb2",
+    "org_id": "academix_dreamers",
+    "org_name": "Dreamers' Alt. Learning",
+    "client_id": "academix_dreamers",
+    "client_web_base": "https://academix.thenicedev.xyz",
+    "contact_person": null,
+    "contact_email": null,
+    "contact_phone": null,
+    "status": "active",
+    "warning_start": "2026-10-12T00:00:00+00:00",
+    "subscription_ends": "2026-10-17T00:00:00+00:00",
+    "billing_cycle": "monthly",
+    "plan_price": 15000,
+    "currency": "৳",
+    "hardware_sales": [],
+    "linked_client_id": null,
+    "last_webhook_status": {
+      "message": "Client returned HTTP 401",
+      "success": false,
+      "timestamp": "2026-08-18T09:02:33.300Z",
+      "status_code": 401
+    },
+    "notes": null,
+    "created_at": "2026-08-18T09:00:14.466+00:00",
+    "updated_at": "2026-08-18T09:02:33.301+00:00"
+  }
+]

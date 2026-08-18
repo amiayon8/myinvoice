@@ -1,0 +1,87 @@
+[
+  {
+    "id": "note-welcome",
+    "title": "Welcome to My Invoice Internal Notes",
+    "content": "<p>This is your personal Notes-style workspace integrated directly with your invoicing, client CRM, and social media entities.</p><h2>Key Features:</h2><ul><li><strong>Rich Block Editor</strong> with Slash (/) commands</li><li><strong>Dynamic Mentions</strong> for Invoices (<span style=\"color:#6366f1\">@INV-2026-5246-08-26</span>), Clients, and Entities</li><li><strong>Social Quick Links</strong>: WhatsApp (<a href=\"https://wa.me/8801870828373\" target=\"_blank\">wa.me/8801870828373</a>), Instagram (<a href=\"https://instagram.com/thenicedev\" target=\"_blank\">@thenicedev</a>)</li><li><strong>Media Gallery</strong>: Insert snapshots and receipts directly into your notes</li></ul>",
+    "plain_text": "This is your personal Notes-style workspace integrated directly with your invoicing, client CRM, and social media entities.",
+    "folder_id": "all",
+    "is_pinned": true,
+    "is_archived": false,
+    "tags": [
+      "welcome",
+      "guide"
+    ],
+    "mentions": [
+      {
+        "type": "entity",
+        "label": "WhatsApp",
+        "url": "https://wa.me/8801870828373",
+        "icon": "fa-whatsapp"
+      },
+      {
+        "type": "entity",
+        "label": "Instagram",
+        "url": "https://instagram.com/thenicedev",
+        "icon": "fa-instagram"
+      }
+    ],
+    "created_at": "2026-08-16T08:46:24.995Z",
+    "updated_at": "2026-08-18T08:46:24.995Z"
+  },
+  {
+    "id": "note-academix-setup",
+    "title": "Academix University ERP - Deployment Checklist",
+    "content": "<p>Meeting notes regarding <span style=\"color:#8b5cf6\">@org:academix_main</span> deployment and hardware installations:</p><ul><li>Configured Base Webhook: <code>https://managementsite.academix.xyz/api/refreshSubscription</code></li><li>Biometric devices shipped: 2x AttendX NFC Hardware Kits</li><li>Next Billing renewal: End of Month (automated invoice sync)</li><li>Support Contact: <a href=\"https://wa.me/8801711223344\">WhatsApp Contact</a></li></ul>",
+    "plain_text": "Meeting notes regarding Academix deployment and hardware installations...",
+    "folder_id": "attendx",
+    "is_pinned": true,
+    "is_archived": false,
+    "tags": [
+      "academix",
+      "erp",
+      "hardware"
+    ],
+    "mentions": [
+      {
+        "type": "subscription",
+        "id": "academix_main",
+        "label": "Academix University ERP",
+        "icon": "fa-graduation-cap"
+      },
+      {
+        "type": "entity",
+        "label": "WhatsApp Support",
+        "url": "https://wa.me/8801711223344",
+        "icon": "fa-whatsapp"
+      }
+    ],
+    "created_at": "2026-08-17T08:46:24.995Z",
+    "updated_at": "2026-08-18T08:46:24.995Z"
+  },
+  {
+    "id": "note-1787042811229-yuj8",
+    "title": "New Note",
+    "content": "<div class=\"bn-block-group\" data-node-type=\"blockGroup\"><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"7bf48d20-4c4e-4b0e-b98e-be11a379968d\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"7bf48d20-4c4e-4b0e-b98e-be11a379968d\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\">This is your personal Apple Notes-style workspace integrated directly with your invoicing, client CRM, and social media entities.</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"1adea8c5-d556-4433-9860-8b6f40bd32fd\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"1adea8c5-d556-4433-9860-8b6f40bd32fd\"><div class=\"bn-block-content\" data-content-type=\"heading\" data-level=\"2\"><h2 class=\"bn-inline-content\">Key Features:</h2></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"5b00e533-b97d-443b-9ca3-95e337ab8863\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"5b00e533-b97d-443b-9ca3-95e337ab8863\"><div class=\"bn-block-content\" data-content-type=\"bulletListItem\"><p class=\"bn-inline-content\"><strong>Rich Block Editor</strong> with Slash (/) commands</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"0cf4110a-dc74-4c69-912f-98f008b8f228\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"0cf4110a-dc74-4c69-912f-98f008b8f228\"><div class=\"bn-block-content\" data-content-type=\"bulletListItem\"><p class=\"bn-inline-content\"><strong>Dynamic Mentions</strong> for Invoices (<span data-style-type=\"textColor\" data-value=\"rgb(99, 102, 241)\" data-editable=\"\">@INV-2026-5246-08-26</span>), Clients, and Entities</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"87d46703-334c-40d8-b881-481887698957\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"87d46703-334c-40d8-b881-481887698957\"><div class=\"bn-block-content\" data-content-type=\"bulletListItem\"><p class=\"bn-inline-content\"><strong>Social Quick Links</strong>: WhatsApp (<a href=\"https://wa.me/8801870828373\" target=\"_blank\" rel=\"noopener noreferrer nofollow\" classname=\"bn-inline-content-section\" data-inline-content-type=\"link\">wa.me/8801870828373</a>), Instagram (<a href=\"https://instagram.com/thenicedev\" target=\"_blank\" rel=\"noopener noreferrer nofollow\" classname=\"bn-inline-content-section\" data-inline-content-type=\"link\">@thenicedev</a>)</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"4bbee35a-425b-48a2-8132-4923769f8ca5\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"4bbee35a-425b-48a2-8132-4923769f8ca5\"><div class=\"bn-block-content\" data-content-type=\"bulletListItem\"><p class=\"bn-inline-content\"><strong>Media Gallery</strong>: Insert snapshots and receipts directly into your notes</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"0cd3adac-f727-44ef-a7c2-742e3b354c3e\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"0cd3adac-f727-44ef-a7c2-742e3b354c3e\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\">@</p></div></div></div></div><p>📄 <strong>Invoice Reference:</strong> <span style=\"background-color: rgba(99,102,241,0.15); color: #818cf8; padding: 2px 8px; border-radius: 6px; font-weight: bold;\">@INV-2026-5246-08-26</span></p>",
+    "plain_text": "This is your personal Apple Notes-style workspace integrated directly with your invoicing, client CRM, and social media entities. Key Features: Rich Block Editor with Slash (/) commands Dynamic Mentions for Invoices ( @INV-2026-5246-08-26 ), Clients, and Entities Social Quick Links : WhatsApp ( wa.me/8801870828373 ), Instagram ( @thenicedev ) Media Gallery : Insert snapshots and receipts directly into your notes @ 📄 Invoice Reference: @INV-2026-5246-08-26",
+    "folder_id": "invoices",
+    "is_pinned": false,
+    "is_archived": false,
+    "tags": [],
+    "mentions": [
+      {
+        "type": "entity",
+        "label": "@thenicedev",
+        "url": "https://instagram.com/thenicedev",
+        "icon": "fa-instagram"
+      },
+      {
+        "type": "entity",
+        "label": "WA: 8801870828373",
+        "url": "https://wa.me/8801870828373",
+        "icon": "fa-whatsapp"
+      }
+    ],
+    "created_at": "2026-08-18T08:46:51.229Z",
+    "updated_at": "2026-08-18T08:47:00.087Z"
+  }
+]

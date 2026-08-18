@@ -38,8 +38,14 @@ export default function PrivateLayout({
   let currentView = 'dashboard';
   if (pathname.startsWith('/invoices')) {
     currentView = 'invoices';
+  } else if (pathname.startsWith('/notes')) {
+    currentView = 'notes';
   } else if (pathname.startsWith('/loans')) {
     currentView = 'loans';
+  } else if (pathname.startsWith('/attendx')) {
+    currentView = 'attendx';
+  } else if (pathname.startsWith('/payment-methods')) {
+    currentView = 'payment-methods';
   } else if (pathname.startsWith('/clients')) {
     currentView = 'clients';
   } else if (pathname.startsWith('/companies')) {
@@ -59,7 +65,10 @@ export default function PrivateLayout({
   const handleViewChange = (view: string) => {
     if (view === 'dashboard') router.push('/dashboard');
     else if (view === 'invoices') router.push('/invoices');
+    else if (view === 'notes') router.push('/notes');
     else if (view === 'loans') router.push('/loans');
+    else if (view === 'attendx') router.push('/attendx');
+    else if (view === 'payment-methods') router.push('/payment-methods');
     else if (view === 'clients') router.push('/clients');
     else if (view === 'companies') router.push('/companies');
     else if (view === 'sources') router.push('/sources');

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { InvoicePreview } from "@/components/invoice-preview";
 import { ResponsiveInvoiceWrapper } from "@/components/responsive-invoice-wrapper";
 import { PublicHeader } from "@/components/public-header";
+import { DynamicPaymentCards } from "@/components/dynamic-payment-cards";
+import { getPaymentMethodsForClient } from "@/lib/payment-methods-service";
 import { CompanyProfile } from "@/types";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -203,6 +205,10 @@ export default async function PublicInvoicePage({
           : activeInvoice.status,
   };
 
+  const isPaid = previewData.status === "paid";
+  const dueAmount = Math.max(0, totalAmount - totalPaid);
+  const paymentMethods = await getPaymentMethodsForClient(parentInvoice.client_id);
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center pt-12 p-4 pb-0 print:p-0 print:bg-white">
       <PublicHeader token={token} />
@@ -352,6 +358,18 @@ export default async function PublicInvoicePage({
           </div>
         </div>
       )}
+
+      {/* Dynamic Payment Information & Verification Request */}
+      <DynamicPaymentCards
+        clientId={activeInvoice.client_id}
+        clientName={activeInvoice.client?.name}
+        invoiceId={activeInvoice.id}
+        invoiceNumber={activeInvoice.invoice_number}
+        isPaid={isPaid}
+        currency={activeInvoice.currency || "৳"}
+        totalDue={dueAmount}
+        initialMethods={paymentMethods}
+      />
 
       <ResponsiveInvoiceWrapper>
         <div className="shadow-2xl rounded-lg overflow-hidden print:shadow-none print:rounded-none">
