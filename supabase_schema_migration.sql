@@ -1,14 +1,15 @@
 -- =========================================================================
--- COMPLETE SUPABASE MIGRATION: AttendX/Academix, Notes, and Payment Methods
+-- COMPLETE SUPABASE MIGRATION: AttendX/AcademiX, Notes, and Payment Methods
 -- Run this in your Supabase SQL Editor to enable full DB persistence.
 -- =========================================================================
 
--- 1. AttendX / Academix Organizations Table
+-- 1. AttendX / AcademiX Organizations Table
 CREATE TABLE IF NOT EXISTS public.attendx_organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id TEXT NOT NULL UNIQUE,
     org_name TEXT NOT NULL,
-    client_id TEXT NOT NULL, -- Webhook Bearer token / Secret
+    client_id TEXT NOT NULL, -- Webhook Bearer token / Client ID
+    webhook_secret TEXT, -- Secret key for requesting SaaS refreshSubscription
     client_web_base TEXT NOT NULL, -- e.g. https://clientapp.academix.xyz
     contact_person TEXT,
     contact_email TEXT,

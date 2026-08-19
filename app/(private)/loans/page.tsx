@@ -7,6 +7,8 @@ import { deleteLoan } from '@/services/loans';
 import { useToast } from '@/components/ui/toast';
 import { TableSkeleton } from '@/components/skeleton';
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
 export default function LoansDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -15,6 +17,7 @@ export default function LoansDashboardPage() {
   const [loans, setLoans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<'all' | 'given' | 'taken'>('all');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -59,16 +62,9 @@ export default function LoansDashboardPage() {
     fetchData();
   }, []);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this loan record? All history will be lost.')) return;
-    try {
-      await deleteLoan(id);
-      toast.success('Loan record deleted successfully.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error deleting loan');
-    }
+    setDeleteConfirmId(id);
   };
 
   const getStatusColor = (status: string) => {
@@ -293,6 +289,25 @@ export default function LoansDashboardPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={async () => {
+          if (!deleteConfirmId) return;
+          try {
+            await deleteLoan(deleteConfirmId);
+            toast.success('Loan record deleted successfully.');
+            await fetchData();
+          } catch (err: any) {
+            toast.error(err.message || 'Error deleting loan');
+          }
+        }}
+        title="Delete Loan Record"
+        description="Are you sure you want to delete this loan record? All repayment history for this loan will be lost."
+        confirmText="Delete Loan"
+        variant="danger"
+      />
     </div>
   );
 }

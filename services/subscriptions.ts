@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { revalidatePath } from 'next/cache';
 import { getCalendarMonthsElapsed } from '@/lib/date-utils';
+import { getPaymentMethodsForClient } from '@/lib/payment-methods-service';
 
 // ----------------------------------------------------
 // PLANS SERVICES
@@ -471,15 +472,20 @@ export async function getSharedSubscriptionData(token: string) {
     payments = payData || [];
   }
 
+  const clientId = params.client_id || (filteredSubs.length > 0 ? (filteredSubs[0].user_id || filteredSubs[0].client_id) : null);
+  const paymentMethods = await getPaymentMethodsForClient(clientId);
+
   return {
     success: true,
     scope: {
       type: linkRecord.type,
       label: linkRecord.label,
+      clientId,
       createdAt: linkRecord.created_at
     },
     subscriptions: filteredSubs,
-    payments
+    payments,
+    paymentMethods
   };
 }
 

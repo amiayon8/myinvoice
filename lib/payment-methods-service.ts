@@ -1,7 +1,7 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS } from '@/types/payment-methods';
 export type { PaymentMethod, PaymentField, PaymentUpdateRequest, PaymentMethodVisibility } from '@/types/payment-methods';
-export { PRESET_PAYMENT_SVGS } from '@/types/payment-methods';
+export { PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from '@/types/payment-methods';
 import fs from 'fs';
 import path from 'path';
 
@@ -57,7 +57,7 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
 
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       const mapped: PaymentMethod[] = data.map((m: any) => ({
         id: m.id,
         name: m.name,
@@ -90,18 +90,20 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
  */
 export async function getPaymentMethodsForClient(clientId?: string | null): Promise<PaymentMethod[]> {
   const all = await getPaymentMethods();
-  return all
-    .filter(m => m.is_active)
+  const activeMethods = all.filter(m => m.is_active);
+
+  return activeMethods
     .filter(m => {
       if (!m.visibility || m.visibility.mode === 'all') return true;
-      if (!clientId) {
+      const strClientId = clientId ? String(clientId) : null;
+      if (!strClientId) {
         return m.visibility.mode !== 'include';
       }
       if (m.visibility.mode === 'include') {
-        return m.visibility.client_ids.includes(clientId);
+        return (m.visibility.client_ids || []).map(String).includes(strClientId);
       }
       if (m.visibility.mode === 'exclude') {
-        return !m.visibility.client_ids.includes(clientId);
+        return !(m.visibility.client_ids || []).map(String).includes(strClientId);
       }
       return true;
     })
@@ -114,8 +116,10 @@ export async function getPaymentMethodsForClient(clientId?: string | null): Prom
 export async function savePaymentMethod(method: Partial<PaymentMethod> & { name: string; type: any }): Promise<PaymentMethod> {
   const supabase = createServiceRoleClient();
   const now = new Date().toISOString();
+  const targetId = method.id || `pm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
   const payload: any = {
+    id: targetId,
     name: method.name,
     type: method.type,
     badge: method.badge || null,
@@ -128,38 +132,31 @@ export async function savePaymentMethod(method: Partial<PaymentMethod> & { name:
     instructions: method.instructions || null,
     fields: method.fields || [],
     visibility: method.visibility || { mode: 'all', client_ids: [] },
+    created_at: method.created_at || now,
     updated_at: now
   };
 
-  let savedId = method.id;
+  let savedId = targetId;
 
   try {
-    if (method.id) {
-      const { data, error } = await supabase
-        .from('payment_methods')
-        .update(payload)
-        .eq('id', method.id)
-        .select()
-        .single();
-      if (!error && data) savedId = data.id;
-    } else {
-      payload.created_at = now;
-      const { data, error } = await supabase
-        .from('payment_methods')
-        .insert(payload)
-        .select()
-        .single();
-      if (!error && data) savedId = data.id;
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .upsert(payload)
+      .select()
+      .single();
+
+    if (!error && data) {
+      savedId = data.id;
+    } else if (error) {
+      console.warn('Supabase savePaymentMethod upsert error:', error.message);
     }
   } catch (err) {
     console.warn('Supabase savePaymentMethod fallback:', err);
   }
 
   const finalMethod: PaymentMethod = {
-    id: savedId || method.id || `pm-${Date.now()}`,
     ...payload,
-    created_at: method.created_at || now,
-    updated_at: now
+    id: savedId
   };
 
   const all = readLocalMethods();
@@ -192,6 +189,8 @@ export async function deletePaymentMethod(id: string): Promise<boolean> {
 // ----------------------------------------------------
 export async function getPaymentUpdateRequests(filter?: { status?: string; type?: string }): Promise<PaymentUpdateRequest[]> {
   const supabase = createServiceRoleClient();
+  let supabaseReqs: PaymentUpdateRequest[] = [];
+
   try {
     let query = supabase
       .from('payment_update_requests')
@@ -203,50 +202,85 @@ export async function getPaymentUpdateRequests(filter?: { status?: string; type?
 
     const { data, error } = await query;
     if (!error && data) {
-      saveLocalRequests(data as PaymentUpdateRequest[]);
-      return data as PaymentUpdateRequest[];
+      supabaseReqs = data as PaymentUpdateRequest[];
+    } else if (error) {
+      console.error('Supabase getPaymentUpdateRequests error:', error);
     }
   } catch (err) {
     console.warn('Supabase getPaymentUpdateRequests fallback:', err);
   }
 
-  let reqs = readLocalRequests();
-  if (filter?.status && filter.status !== 'all') reqs = reqs.filter(r => r.status === filter.status);
-  if (filter?.type && filter.type !== 'all') reqs = reqs.filter(r => r.type === filter.type);
-  return reqs;
+  const localReqs = readLocalRequests();
+  const mergedMap = new Map<string, PaymentUpdateRequest>();
+  localReqs.forEach(r => mergedMap.set(r.id, r));
+  supabaseReqs.forEach(r => mergedMap.set(r.id, r));
+
+  let mergedList = Array.from(mergedMap.values()).sort(
+    (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+  );
+
+  saveLocalRequests(mergedList);
+
+  if (filter?.status && filter.status !== 'all') mergedList = mergedList.filter(r => r.status === filter.status);
+  if (filter?.type && filter.type !== 'all') mergedList = mergedList.filter(r => r.type === filter.type);
+  return mergedList;
 }
 
 export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest, 'id' | 'status' | 'submitted_at'>): Promise<PaymentUpdateRequest> {
   const supabase = createServiceRoleClient();
   const now = new Date().toISOString();
+  const targetId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  const payload: any = {
-    ...data,
+  const dbPayload: any = {
+    id: targetId,
+    type: data.type || 'invoice',
+    invoice_id: data.invoice_id || null,
+    invoice_number: data.invoice_number || null,
+    subscription_id: data.subscription_id || null,
+    client_id: data.client_id || null,
+    client_name: data.client_name || null,
+    client_contact: data.client_contact || null,
+    transaction_id: data.transaction_id,
+    account_number: data.account_number,
+    payment_method_id: data.payment_method_id || null,
+    payment_method_name: data.payment_method_name || null,
+    amount: data.amount ? Number(data.amount) : null,
+    currency: data.currency || '৳',
+    notes: data.notes || null,
+    screenshot_url: data.screenshot_url || null,
     status: 'pending',
     submitted_at: now
   };
 
-  let savedId: string | undefined;
+  let savedId = targetId;
 
   try {
     const { data: inserted, error } = await supabase
       .from('payment_update_requests')
-      .insert(payload)
+      .upsert(dbPayload)
       .select()
       .single();
 
+    if (error) {
+      console.error('Supabase submitPaymentUpdateRequest error:', error);
+    }
     if (!error && inserted) savedId = inserted.id;
   } catch (err) {
-    console.warn('Supabase submitPaymentUpdateRequest fallback:', err);
+    console.warn('Supabase submitPaymentUpdateRequest fallback error:', err);
   }
 
   const newReq: PaymentUpdateRequest = {
-    id: savedId || `req-${Date.now()}`,
-    ...payload
+    ...dbPayload,
+    id: savedId
   };
 
   const reqs = readLocalRequests();
-  reqs.unshift(newReq);
+  const existingIdx = reqs.findIndex(r => r.id === savedId);
+  if (existingIdx >= 0) {
+    reqs[existingIdx] = newReq;
+  } else {
+    reqs.unshift(newReq);
+  }
   saveLocalRequests(reqs);
 
   return newReq;

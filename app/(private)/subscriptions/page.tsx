@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { TableSkeleton } from "@/components/skeleton";
 import {
   getPlans,
@@ -29,10 +29,10 @@ import {
   getPaidUpToMonthStr,
   getStartMonthStr,
 } from "@/lib/date-utils";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SubscriptionsDashboardPage() {
   const router = useRouter();
-  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<
     "subscriptions" | "plans" | "users" | "links"
@@ -44,6 +44,20 @@ export default function SubscriptionsDashboardPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [shareLinks, setShareLinks] = useState<any[]>([]);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    variant?: "danger" | "info" | "warning";
+    action: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    action: async () => {},
+  });
 
   // Search & Filter states
   const [subSearch, setSubSearch] = useState("");
@@ -103,24 +117,47 @@ export default function SubscriptionsDashboardPage() {
   const [editNotes, setEditNotes] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [plansRes, usersRes, subsRes, linksRes] = await Promise.all([
+      const [plansRes, usersRes, subsRes, linksRes, reqsRes] = await Promise.all([
         getPlans(),
         getSubscriptionUsers(),
         getSubscriptions(),
         getShareLinks(),
+        fetch('/api/payment-requests?status=pending').then(r => r.ok ? r.json() : { requests: [] })
       ]);
       setPlans(plansRes);
       setUsers(usersRes);
       setSubscriptions(subsRes);
       setShareLinks(linksRes);
+      setPendingRequests((reqsRes.requests || []).filter((r: any) => r.type === 'subscription' && r.status === 'pending'));
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to load subscriptions data.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/payment-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        toast.success(`Verification request ${action === 'approved' ? 'approved' : 'rejected'}`);
+        await fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to review request');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating request');
     }
   };
 
@@ -162,20 +199,23 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleDeletePlan = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this plan? This will also remove associated subscriptions.",
-      )
-    )
-      return;
-    try {
-      await deletePlan(id);
-      toast.success("Plan deleted successfully");
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete plan");
-    }
+  const handleDeletePlan = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Plan",
+      description: "Are you sure you want to delete this plan? This will also remove associated subscriptions.",
+      confirmText: "Delete Plan",
+      variant: "danger",
+      action: async () => {
+        try {
+          await deletePlan(id);
+          toast.success("Plan deleted successfully");
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to delete plan");
+        }
+      },
+    });
   };
 
   // ----------------------------------------------------
@@ -202,20 +242,23 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this user profile? All associated subscriptions will be removed.",
-      )
-    )
-      return;
-    try {
-      await deleteSubscriptionUser(id);
-      toast.success("User profile deleted successfully");
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete user");
-    }
+  const handleDeleteUser = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete User Profile",
+      description: "Are you sure you want to delete this user profile? All associated subscriptions will be removed.",
+      confirmText: "Delete Profile",
+      variant: "danger",
+      action: async () => {
+        try {
+          await deleteSubscriptionUser(id);
+          toast.success("User profile deleted successfully");
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to delete user");
+        }
+      },
+    });
   };
 
   // ----------------------------------------------------
@@ -264,20 +307,23 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleKickUser = async (id: string, name: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to kick ${name}? Their history and past payments will remain, but their subscription status will be set to Kicked.`,
-      )
-    )
-      return;
-    try {
-      await kickSubscription(id);
-      toast.success(`${name} kicked successfully. Status updated.`);
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to kick user");
-    }
+  const handleKickUser = (id: string, name: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Kick Subscriber",
+      description: `Are you sure you want to kick ${name}? Their history and past payments will remain, but their subscription status will be set to Kicked.`,
+      confirmText: "Kick Subscriber",
+      variant: "warning",
+      action: async () => {
+        try {
+          await kickSubscription(id);
+          toast.success(`${name} kicked successfully. Status updated.`);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to kick user");
+        }
+      },
+    });
   };
 
   const handleQuickPay = async (sub: any) => {
@@ -296,20 +342,23 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleDeductPay = async (sub: any) => {
-    if (
-      !confirm(
-        "Deduct 1 month payment from this subscription? This will subtract 1 month from paid duration and subtract cash value from total paid.",
-      )
-    )
-      return;
-    try {
-      await deductSubscriptionPayment(sub.id, "Deducted 1 month payment");
-      toast.success("Deducted 1 month payment successfully");
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to deduct payment");
-    }
+  const handleDeductPay = (sub: any) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Deduct 1 Month Payment",
+      description: "Deduct 1 month payment from this subscription? This will subtract 1 month from paid duration and subtract cash value from total paid.",
+      confirmText: "Deduct Month",
+      variant: "warning",
+      action: async () => {
+        try {
+          await deductSubscriptionPayment(sub.id, "Deducted 1 month payment");
+          toast.success("Deducted 1 month payment successfully");
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to deduct payment");
+        }
+      },
+    });
   };
 
   // ----------------------------------------------------
@@ -479,22 +528,44 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleRevokeShareLink = async (id: string) => {
-    if (
-      !confirm(
-        "Revoke this share link? Anyone using it will instantly lose access.",
-      )
-    )
-      return;
+  const handleTriggerWebhook = async (sub: any) => {
+    const orgId = sub.org_id || sub.client_id || sub.name;
+    const toastId = toast.loading(`Triggering refreshSubscription webhook for ${sub.name}...`);
     try {
-      await revokeShareLink(id);
-      toast.success("Share link revoked successfully");
-      // Refresh share links list
-      const links = await getShareLinks();
-      setShareLinks(links);
+      const res = await fetch("/api/attendx/purge-cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ org_id: orgId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Subscription cache refreshed successfully for ${sub.name}!`, { id: toastId });
+      } else {
+        toast.error(`Webhook returned: ${data.message || "Failed"}`, { id: toastId });
+      }
     } catch (err: any) {
-      toast.error(err.message || "Failed to revoke link");
+      toast.error("Webhook network failure: " + err.message, { id: toastId });
     }
+  };
+
+  const handleRevokeShareLink = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Revoke Share Link",
+      description: "Revoke this share link? Anyone using it will instantly lose access.",
+      confirmText: "Revoke Link",
+      variant: "danger",
+      action: async () => {
+        try {
+          await revokeShareLink(id);
+          toast.success("Share link revoked successfully");
+          const links = await getShareLinks();
+          setShareLinks(links);
+        } catch (err: any) {
+          toast.error(err.message || "Failed to revoke link");
+        }
+      },
+    });
   };
 
   // ----------------------------------------------------
@@ -555,25 +626,27 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleDeletePaymentClick = async (paymentId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly.",
-      )
-    )
-      return;
-    try {
-      await deleteSubscriptionPayment(paymentId);
-      toast.success("Payment record deleted successfully.");
-      // Reload history and dashboard data
-      if (historySub) {
-        const history = await getPaymentHistory(historySub.id);
-        setHistoryPayments(history);
-      }
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete payment record.");
-    }
+  const handleDeletePaymentClick = (paymentId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Payment Record",
+      description: "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly.",
+      confirmText: "Delete Record",
+      variant: "danger",
+      action: async () => {
+        try {
+          await deleteSubscriptionPayment(paymentId);
+          toast.success("Payment record deleted successfully.");
+          if (historySub) {
+            const history = await getPaymentHistory(historySub.id);
+            setHistoryPayments(history);
+          }
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to delete payment record.");
+        }
+      },
+    });
   };
 
   // Calculate stats for top analytics cards
@@ -704,6 +777,66 @@ export default function SubscriptionsDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Pending Client Verification Requests Banner */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-5 mb-6 space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-black">
+                <i className="fa-solid fa-shield-halved text-base animate-pulse"></i>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                  {pendingRequests.length} Pending Subscription Verification Request{pendingRequests.length > 1 ? "s" : ""}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Clients have submitted payment proof for subscription renewal/payment.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/payment-methods?tab=requests")}
+              className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline uppercase tracking-wider"
+            >
+              View All Requests →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            {pendingRequests.slice(0, 4).map((req) => (
+              <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                    {req.client_name || "Subscriber"} ({req.payment_method_name || "Payment Method"})
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    Trx: <span className="text-slate-700 dark:text-slate-300 font-bold">{req.transaction_id}</span> | A/C: {req.account_number}
+                  </div>
+                  <div className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                    {req.amount ? `${req.currency || "৳"}${req.amount.toLocaleString()}` : "Payment Proof"}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                  <button
+                    onClick={() => handleReviewVerificationRequest(req.id, "approved")}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReviewVerificationRequest(req.id, "rejected")}
+                    className="bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -1107,35 +1240,28 @@ export default function SubscriptionsDashboardPage() {
                                         {isKicked
                                           ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
                                           : (() => {
-                                              const nextMonthIndex =
-                                                Math.floor(
-                                                  Number(sub.months_paid),
-                                                ) + 1;
-                                              const nextMonthName =
-                                                getPaidUpToMonthStr(
-                                                  sub.start_date,
-                                                  nextMonthIndex,
-                                                );
+                                              const monthsPaidNum = Number(sub.months_paid || 0);
+                                              const fullMonthsPaid = Math.floor(monthsPaidNum);
+                                              const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
+
                                               let remainsVal = 0;
                                               if (monthsRemaining < -0.01) {
                                                 remainsVal = balanceAmount;
-                                              } else if (
-                                                monthsRemaining > 0.01
-                                              ) {
-                                                const partialPaid =
-                                                  Number(
-                                                    sub.total_amount_paid || 0,
-                                                  ) % totalCostPerMonth;
-                                                remainsVal =
-                                                  partialPaid === 0
-                                                    ? totalCostPerMonth
-                                                    : Math.round(
-                                                        totalCostPerMonth -
-                                                          partialPaid,
-                                                      );
+                                              } else if (monthsRemaining > 0.01) {
+                                                if (partialPaid > 0.01) {
+                                                  remainsVal = Math.round(totalCostPerMonth - partialPaid);
+                                                } else {
+                                                  remainsVal = 0;
+                                                }
                                               } else {
                                                 remainsVal = 0;
                                               }
+
+                                              const nextMonthIndex = fullMonthsPaid + 1;
+                                              const nextMonthName = getPaidUpToMonthStr(
+                                                sub.start_date,
+                                                nextMonthIndex
+                                              );
                                               return `${remainsVal} remains. Next for ${nextMonthName}`;
                                             })()}
                                       </span>
@@ -1176,6 +1302,13 @@ export default function SubscriptionsDashboardPage() {
                                       title="Change Price"
                                     >
                                       <i className="fa-solid fa-tags text-sm"></i>
+                                    </button>
+                                    <button
+                                      onClick={() => handleTriggerWebhook(sub)}
+                                      className="p-1.5 hover:bg-purple-100 dark:hover:bg-purple-950/40 rounded-lg text-slate-555 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                                      title="Refresh Client Subscription Cache (Trigger Webhook)"
+                                    >
+                                      <i className="fa-solid fa-rotate text-sm"></i>
                                     </button>
                                     <button
                                       onClick={() =>
@@ -2656,6 +2789,16 @@ export default function SubscriptionsDashboardPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

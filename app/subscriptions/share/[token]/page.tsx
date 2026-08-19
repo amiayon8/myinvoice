@@ -38,6 +38,7 @@ export default function PublicSharedSubscriptionPage({
   const [scope, setScope] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
 
   useEffect(() => {
     // Resolve params promise
@@ -57,6 +58,7 @@ export default function PublicSharedSubscriptionPage({
           setScope(result.scope);
           setSubscriptions(result.subscriptions || []);
           setPayments(result.payments || []);
+          setPaymentMethods(result.paymentMethods || []);
         } else {
           setError(result.error || "Failed to load subscription details.");
         }
@@ -242,11 +244,12 @@ export default function PublicSharedSubscriptionPage({
 
         {/* Dynamic Payment Information & Verification Request */}
         <DynamicPaymentCards
-          clientId={scope?.type === "client" ? scope.clientId : null}
+          clientId={scope?.clientId || (scope?.type === "client" ? scope?.clientId : null)}
           clientName={scope?.label}
           subscriptionId={subscriptions[0]?.id}
           currency="৳"
           isPaid={false}
+          initialMethods={paymentMethods}
         />
 
         {/* Cancellation Policy Banner */}
@@ -528,33 +531,28 @@ export default function PublicSharedSubscriptionPage({
                                     {isKicked
                                       ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
                                       : (() => {
-                                          const nextMonthIndex =
-                                            Math.floor(
-                                              Number(sub.months_paid),
-                                            ) + 1;
-                                          const nextMonthName =
-                                            getPaidUpToMonthStr(
-                                              sub.start_date,
-                                              nextMonthIndex,
-                                            );
+                                          const monthsPaidNum = Number(sub.months_paid || 0);
+                                          const fullMonthsPaid = Math.floor(monthsPaidNum);
+                                          const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
+
                                           let remainsVal = 0;
                                           if (monthsRemaining < -0.01) {
                                             remainsVal = balanceAmount;
                                           } else if (monthsRemaining > 0.01) {
-                                            const partialPaid =
-                                              Number(
-                                                sub.total_amount_paid || 0,
-                                              ) % totalCostPerMonth;
-                                            remainsVal =
-                                              partialPaid === 0
-                                                ? totalCostPerMonth
-                                                : Math.round(
-                                                    totalCostPerMonth -
-                                                      partialPaid,
-                                                  );
+                                            if (partialPaid > 0.01) {
+                                              remainsVal = Math.round(totalCostPerMonth - partialPaid);
+                                            } else {
+                                              remainsVal = 0;
+                                            }
                                           } else {
                                             remainsVal = 0;
                                           }
+
+                                          const nextMonthIndex = fullMonthsPaid + 1;
+                                          const nextMonthName = getPaidUpToMonthStr(
+                                            sub.start_date,
+                                            nextMonthIndex
+                                          );
                                           return `${remainsVal} remains. Next for ${nextMonthName}`;
                                         })()}
                                   </span>

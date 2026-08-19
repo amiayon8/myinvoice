@@ -7,6 +7,8 @@ import { LoanSource } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { TableSkeleton } from '@/components/skeleton';
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
 export default function LoanSourcesPage() {
   const supabase = createClient();
   const toast = useToast();
@@ -18,6 +20,7 @@ export default function LoanSourcesPage() {
   const [editingSource, setEditingSource] = useState<Partial<LoanSource> | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -60,16 +63,9 @@ export default function LoanSourcesPage() {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this loan source?')) return;
-    try {
-      await deleteLoanSource(id);
-      toast.success('Loan source deleted successfully.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error deleting loan source');
-    }
+    setDeleteConfirmId(id);
   };
 
   if (loading) {
@@ -254,6 +250,25 @@ export default function LoanSourcesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={async () => {
+          if (!deleteConfirmId) return;
+          try {
+            await deleteLoanSource(deleteConfirmId);
+            toast.success('Loan source deleted successfully.');
+            await fetchData();
+          } catch (err: any) {
+            toast.error(err.message || 'Error deleting loan source');
+          }
+        }}
+        title="Delete Loan Source"
+        description="Are you sure you want to delete this loan source? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { Invoice } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { TableSkeleton } from '@/components/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function ShareLinksPage() {
   const supabase = createClient();
@@ -18,6 +19,7 @@ export default function ShareLinksPage() {
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
 
   // Data states
   const [tokens, setTokens] = useState<any[]>([]);
@@ -134,16 +136,8 @@ export default function ShareLinksPage() {
     }
   };
 
-  const handleRevokeToken = async (tokenId: string) => {
-    if (!confirm('Are you sure you want to revoke this link? Anyone holding it will lose access immediately.')) return;
-    try {
-      await revokeInvoiceToken(tokenId);
-      const updatedTokens = await listAllInvoiceTokens();
-      setTokens(updatedTokens);
-      toast.success('Link has been revoked.');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to revoke link.');
-    }
+  const handleRevokeToken = (tokenId: string) => {
+    setRevokeConfirmId(tokenId);
   };
 
   // Calculate statistics
@@ -588,6 +582,25 @@ export default function ShareLinksPage() {
 
       </div>
 
+      <ConfirmDialog
+        isOpen={!!revokeConfirmId}
+        onClose={() => setRevokeConfirmId(null)}
+        onConfirm={async () => {
+          if (!revokeConfirmId) return;
+          try {
+            await revokeInvoiceToken(revokeConfirmId);
+            const updatedTokens = await listAllInvoiceTokens();
+            setTokens(updatedTokens);
+            toast.success('Link has been revoked.');
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to revoke link.');
+          }
+        }}
+        title="Revoke Share Link"
+        description="Are you sure you want to revoke this link? Anyone holding it will lose access immediately."
+        confirmText="Revoke Link"
+        variant="danger"
+      />
     </div>
   );
 }

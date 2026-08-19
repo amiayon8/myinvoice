@@ -1,5 +1,5 @@
 export interface NoteMention {
-  type: 'invoice' | 'client' | 'entity' | 'link' | 'subscription' | 'loan';
+  type: "invoice" | "client" | "entity" | "link" | "subscription" | "loan";
   id?: string;
   label: string;
   url?: string;
@@ -29,11 +29,36 @@ export interface NoteItem {
 }
 
 export const DEFAULT_FOLDERS: NoteFolder[] = [
-  { id: 'all', name: 'All Notes', icon: 'fa-folder-open', color: '#6366f1' },
-  { id: 'invoices', name: 'Invoices & Billing', icon: 'fa-file-invoice-dollar', color: '#10b981' },
-  { id: 'clients', name: 'Client CRM', icon: 'fa-users', color: '#06b6d4' },
-  { id: 'entities', name: 'Entities & Socials', icon: 'fa-share-nodes', color: '#ec4899' },
-  { id: 'attendx', name: 'AttendX / Academix', icon: 'fa-graduation-cap', color: '#8b5cf6' },
-  { id: 'projects', name: 'Projects & Tasks', icon: 'fa-diagram-project', color: '#f59e0b' },
-  { id: 'personal', name: 'Personal & Scratch', icon: 'fa-feather', color: '#64748b' }
+  { id: "all", name: "All Notes", icon: "fa-folder-open", color: "#6366f1" },
+  {
+    id: "invoices",
+    name: "Invoices & Billing",
+    icon: "fa-file-invoice-dollar",
+    color: "#10b981",
+  },
+  { id: "clients", name: "Client CRM", icon: "fa-users", color: "#06b6d4" },
+  {
+    id: "entities",
+    name: "Entities & Socials",
+    icon: "fa-share-nodes",
+    color: "#ec4899",
+  },
+  {
+    id: "attendx",
+    name: "AttendX / AcademiX",
+    icon: "fa-graduation-cap",
+    color: "#8b5cf6",
+  },
+  {
+    id: "projects",
+    name: "Projects & Tasks",
+    icon: "fa-diagram-project",
+    color: "#f59e0b",
+  },
+  {
+    id: "personal",
+    name: "Personal & Scratch",
+    icon: "fa-feather",
+    color: "#64748b",
+  },
 ];

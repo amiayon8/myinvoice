@@ -17,6 +17,8 @@ import { useToast } from '@/components/ui/toast';
 import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { TableSkeleton } from '@/components/skeleton';
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
 export default function InvoicesPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -24,7 +26,20 @@ export default function InvoicesPage() {
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'recurring'>('all');
+  const [filter, setFilter] = useState<'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'recurring' | 'attendx'>('all');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    variant?: 'danger' | 'info';
+    action: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: async () => {},
+  });
 
   // Manage Invoice & Recurring Modal State
   const [selectedManageInvoice, setSelectedManageInvoice] = useState<Invoice | null>(null);
@@ -110,16 +125,24 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleRevokeToken = async (tokenId: string) => {
-    if (!confirm('Revoke this link? Anyone with it will no longer be able to view the invoice.')) return;
-    try {
-      await revokeInvoiceToken(tokenId);
-      const tokens = await listInvoiceTokens(shareInvoice!.id);
-      setShareTokens(tokens);
-      toast.success('Link revoked.');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to revoke');
-    }
+  const handleRevokeToken = (tokenId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revoke Link',
+      description: 'Revoke this link? Anyone with it will no longer be able to view the invoice.',
+      confirmText: 'Revoke',
+      variant: 'danger',
+      action: async () => {
+        try {
+          await revokeInvoiceToken(tokenId);
+          const tokens = await listInvoiceTokens(shareInvoice!.id);
+          setShareTokens(tokens);
+          toast.success('Link revoked.');
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to revoke');
+        }
+      },
+    });
   };
 
 
@@ -227,27 +250,50 @@ export default function InvoicesPage() {
     }
   };
 
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, logsRes] = await Promise.all([
+      const [invRes, logsRes, reqsRes] = await Promise.all([
         supabase
           .from('invoices')
           .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
           .order('created_at', { ascending: false }),
         supabase
           .from('recurring_invoices')
-          .select('*')
+          .select('*'),
+        fetch('/api/payment-requests?status=pending').then(r => r.ok ? r.json() : { requests: [] })
       ]);
 
       if (invRes.error) throw invRes.error;
 
       setInvoices(invRes.data || []);
       setRecurringLogs(logsRes.data || []);
+      setPendingRequests((reqsRes.requests || []).filter((r: any) => r.status === 'pending'));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/payment-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        toast.success(`Verification request ${action === 'approved' ? 'approved' : 'rejected'}`);
+        await fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to review request');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating request');
     }
   };
 
@@ -271,46 +317,72 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Permanently delete this invoice?')) return;
-    try {
-      await deleteInvoice(id);
-      toast.success('Invoice deleted successfully.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error deleting invoice');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Invoice',
+      description: 'Are you sure you want to permanently delete this invoice? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger',
+      action: async () => {
+        try {
+          await deleteInvoice(id);
+          toast.success('Invoice deleted successfully.');
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Error deleting invoice');
+        }
+      },
+    });
   };
 
-  const handleDuplicate = async (invoice: Invoice, e: React.MouseEvent) => {
+  const handleDuplicate = (invoice: Invoice, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Duplicate this invoice?')) return;
-    try {
-      const { id, items, client, company, created_at, ...cleanInvoice } = invoice;
-      const duplicatedData = {
-        ...cleanInvoice,
-        invoice_number: `${cleanInvoice.invoice_number}-COPY`,
-        status: 'draft' as const,
-        paid_amount: 0,
-      };
-      const cleanItems = items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) || [];
-      await saveInvoice(duplicatedData, cleanItems);
-      toast.success('Invoice duplicated.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error duplicating invoice');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Duplicate Invoice',
+      description: `Create a draft copy of invoice #${invoice.invoice_number}?`,
+      confirmText: 'Duplicate',
+      variant: 'info',
+      action: async () => {
+        try {
+          const { id, items, client, company, created_at, ...cleanInvoice } = invoice;
+          const duplicatedData = {
+            ...cleanInvoice,
+            invoice_number: `${cleanInvoice.invoice_number}-COPY`,
+            status: 'draft' as const,
+            paid_amount: 0,
+          };
+          const cleanItems = items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) || [];
+          await saveInvoice(duplicatedData, cleanItems);
+          toast.success('Invoice duplicated.');
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Error duplicating invoice');
+        }
+      },
+    });
   };
+
+  const isAttendxInvoice = (inv: Invoice) =>
+    Boolean(
+      inv.invoice_number?.startsWith('INV-ATX-') ||
+      inv.notes?.includes('[AttendX') ||
+      inv.notes?.includes('[Academix')
+    );
 
   const childInvoiceIds = new Set(recurringLogs.map((l) => l.child_invoice_id));
   const filteredInvoices = invoices.filter((inv) => {
+    if (filter === 'attendx') return isAttendxInvoice(inv);
+    // Hide AttendX invoices from standard CRM views by default
+    if (isAttendxInvoice(inv)) return false;
     if (filter === 'all') return true;
     if (filter === 'recurring') return inv.is_recurring;
     return inv.status === filter;
   });
 
-  const showGrouped = filter === 'all' || filter === 'recurring';
+  const showGrouped = filter === 'all' || filter === 'recurring' || filter === 'attendx';
 
   const displayInvoices = showGrouped
     ? filteredInvoices.filter((inv) => !childInvoiceIds.has(inv.id))
@@ -349,18 +421,78 @@ export default function InvoicesPage() {
         </button>
       </div>
 
+      {/* Pending Client Verification Requests Banner */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-5 mb-6 space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-black">
+                <i className="fa-solid fa-shield-halved text-base animate-pulse"></i>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                  {pendingRequests.length} Pending Payment Verification Request{pendingRequests.length > 1 ? 's' : ''}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Clients have submitted payment proof for verification.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/payment-methods?tab=requests')}
+              className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline uppercase tracking-wider"
+            >
+              View All Requests →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            {pendingRequests.slice(0, 4).map((req) => (
+              <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="font-extrabold text-slate-900 dark:text-white truncate">
+                    {req.client_name || 'Client Submission'} ({req.invoice_number ? `#${req.invoice_number}` : 'Invoice'})
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    Trx: <span className="text-slate-700 dark:text-slate-300 font-bold">{req.transaction_id}</span> | A/C: {req.account_number}
+                  </div>
+                  <div className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                    {req.amount ? `${req.currency || '৳'}${req.amount.toLocaleString()}` : 'Payment Proof'}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                  <button
+                    onClick={() => handleReviewVerificationRequest(req.id, 'approved')}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReviewVerificationRequest(req.id, 'rejected')}
+                    className="bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filters Toolbar */}
       <div className="flex flex-wrap gap-2 mb-6 pb-4 border-slate-200 dark:border-slate-800 border-b">
-        {(['all', 'draft', 'sent', 'paid', 'overdue', 'recurring'] as const).map((t) => (
+        {(['all', 'draft', 'sent', 'paid', 'overdue', 'recurring', 'attendx'] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setFilter(t)}
+            onClick={() => setFilter(t as any)}
             className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${filter === t
               ? 'bg-indigo-600 text-white shadow-md'
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
           >
-            {t}
+            {t === 'attendx' ? 'AttendX / Academix' : t}
           </button>
         ))}
       </div>
@@ -713,7 +845,6 @@ export default function InvoicesPage() {
           </table>
         </div>
       </div>
-      {/* Modal Overlay */}
       {selectedManageInvoice && (
         <div className="z-50 fixed inset-0 flex justify-center items-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800/80 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
@@ -1236,6 +1367,16 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

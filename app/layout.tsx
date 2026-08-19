@@ -1,6 +1,7 @@
 import './globals.css';
 import { Metadata } from 'next';
 import { ToastProvider } from '@/components/ui/toast';
+import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Inter, Outfit } from 'next/font/google';
 import { Suspense } from 'react';
@@ -55,6 +56,7 @@ export default function RootLayout({
           </Suspense>
           <ToastProvider>
             {children}
+            <Toaster richColors position="top-right" closeButton />
           </ToastProvider>
         </ThemeProvider>
       </body>

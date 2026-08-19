@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS } from "@/types/payment-methods";
+import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from "@/types/payment-methods";
 import { createClient } from "@/lib/supabase/client";
 import {
   CreditCard,
@@ -24,6 +24,9 @@ import {
   Users
 } from "lucide-react";
 
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 export default function PaymentMethodsPage() {
   const supabase = createClient();
 
@@ -32,6 +35,7 @@ export default function PaymentMethodsPage() {
   const [requests, setRequests] = useState<PaymentUpdateRequest[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Editor Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -143,25 +147,24 @@ export default function PaymentMethodsPage() {
         body: JSON.stringify(editingMethod)
       });
 
-      if (!res.ok) throw new Error("Failed to save payment method");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save payment method");
+      }
+
+      toast.success("Payment method saved successfully!");
       setModalOpen(false);
       setEditingMethod(null);
       fetchData();
     } catch (err: any) {
-      alert("Error: " + err.message);
+      toast.error("Error: " + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteMethod = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this payment method?")) return;
-    try {
-      const res = await fetch(`/api/payment-methods?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (res.ok) fetchData();
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    }
+  const handleDeleteMethod = (id: string) => {
+    setDeleteConfirmId(id);
   };
 
   const handleReviewRequest = async (requestId: string, action: "approved" | "rejected") => {
@@ -174,15 +177,16 @@ export default function PaymentMethodsPage() {
       });
 
       if (res.ok) {
+        toast.success(`Request ${action === "approved" ? "approved" : "rejected"} successfully`);
         setReviewingReq(null);
         setAdminNotes("");
         fetchData();
       } else {
         const err = await res.json();
-        alert("Error: " + (err.error || "Action failed"));
+        toast.error("Error: " + (err.error || "Action failed"));
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      toast.error("Error: " + err.message);
     } finally {
       setReviewActionLoading(false);
     }
@@ -625,7 +629,13 @@ export default function PaymentMethodsPage() {
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setEditingMethod({ ...editingMethod, icon_svg: svg })}
+                      onClick={() =>
+                        setEditingMethod({
+                          ...editingMethod,
+                          icon_svg: svg,
+                          color: PRESET_PAYMENT_COLORS[key] || editingMethod.color || "#000000",
+                        })
+                      }
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold capitalize"
                     >
                       <div className="w-4 h-4" dangerouslySetInnerHTML={{ __html: svg }} />
@@ -829,6 +839,29 @@ export default function PaymentMethodsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={async () => {
+          if (!deleteConfirmId) return;
+          try {
+            const res = await fetch(`/api/payment-methods?id=${encodeURIComponent(deleteConfirmId)}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success("Payment method deleted successfully");
+              fetchData();
+            } else {
+              toast.error("Failed to delete payment method");
+            }
+          } catch (err: any) {
+            toast.error("Error: " + err.message);
+          }
+        }}
+        title="Delete Payment Method"
+        description="Are you sure you want to delete this payment method? Shared links will no longer show this payment option."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

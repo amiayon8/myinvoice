@@ -14,11 +14,16 @@ import {
   Sparkles,
   Link,
   Phone,
-  Building
+  Building,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export type EntityType = "invoice" | "client" | "whatsapp" | "instagram" | "attendx";
+export type EntityType =
+  | "invoice"
+  | "client"
+  | "whatsapp"
+  | "instagram"
+  | "attendx";
 
 interface EntityMentionModalProps {
   open: boolean;
@@ -31,7 +36,7 @@ export function EntityMentionModal({
   open,
   onOpenChange,
   entityType,
-  onInsert
+  onInsert,
 }: EntityMentionModalProps) {
   const supabase = createClient();
 
@@ -67,7 +72,9 @@ export function EntityMentionModal({
           if (entityType === "invoice") {
             const { data } = await supabase
               .from("invoices")
-              .select("id, invoice_number, date, currency, status, client:clients(name), items:invoice_items(*)")
+              .select(
+                "id, invoice_number, date, currency, status, client:clients(name), items:invoice_items(*)",
+              )
               .order("date", { ascending: false })
               .limit(50);
             setInvoices(data || []);
@@ -85,7 +92,8 @@ export function EntityMentionModal({
             if (res.ok) {
               const data = await res.json();
               setOrganizations(data.organizations || []);
-              if (data.organizations?.length > 0) setSelectedId(data.organizations[0].id);
+              if (data.organizations?.length > 0)
+                setSelectedId(data.organizations[0].id);
             }
           }
         } catch (e) {
@@ -107,11 +115,19 @@ export function EntityMentionModal({
 
     if (entityType === "invoice") {
       if (mode === "select") {
-        const inv = invoices.find(i => i.id === selectedId);
+        const inv = invoices.find((i) => i.id === selectedId);
         if (!inv) return;
-        const subtotal = inv.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+        const subtotal =
+          inv.items?.reduce(
+            (sum: number, item: any) => sum + item.quantity * item.rate,
+            0,
+          ) || 0;
         snippet = `<p>📄 <strong>Invoice Reference:</strong> <span style="background-color: rgba(99,102,241,0.15); color: #818cf8; padding: 2px 8px; border-radius: 6px; font-weight: bold;">#${inv.invoice_number}</span> ${inv.client?.name ? `(${inv.client.name})` : ""} - <strong>${inv.currency || "৳"}${subtotal.toLocaleString()}</strong></p>`;
-        mentionData = { type: "invoice", id: inv.id, label: `#${inv.invoice_number}` };
+        mentionData = {
+          type: "invoice",
+          id: inv.id,
+          label: `#${inv.invoice_number}`,
+        };
       } else {
         const num = manualValue.trim() || "INV-CUSTOM";
         snippet = `<p>📄 <strong>Invoice Reference:</strong> <span style="background-color: rgba(99,102,241,0.15); color: #818cf8; padding: 2px 8px; border-radius: 6px; font-weight: bold;">#${num}</span> ${manualExtra ? `(${manualExtra})` : ""}</p>`;
@@ -119,37 +135,61 @@ export function EntityMentionModal({
       }
     } else if (entityType === "client") {
       if (mode === "select") {
-        const client = clients.find(c => c.id === selectedId);
+        const client = clients.find((c) => c.id === selectedId);
         if (!client) return;
         snippet = `<p>👤 <strong>Client CRM:</strong> <span style="background-color: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${client.name}</span> ${client.email ? `&lt;${client.email}&gt;` : ""} ${client.phone ? `(${client.phone})` : ""}</p>`;
-        mentionData = { type: "client", id: client.id, label: `@${client.name}` };
+        mentionData = {
+          type: "client",
+          id: client.id,
+          label: `@${client.name}`,
+        };
       } else {
         const name = manualValue.trim() || "Client Name";
         snippet = `<p>👤 <strong>Client CRM:</strong> <span style="background-color: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${name}</span> ${manualExtra ? `(${manualExtra})` : ""}</p>`;
         mentionData = { type: "client", label: `@${name}` };
       }
     } else if (entityType === "whatsapp") {
-      const phone = (mode === "select" ? "8801870828373" : manualValue).replace(/[^0-9]/g, "");
+      const phone = (mode === "select" ? "8801870828373" : manualValue).replace(
+        /[^0-9]/g,
+        "",
+      );
       const label = manualTitle.trim() || `WhatsApp (${phone || "Official"})`;
       const waUrl = `https://wa.me/${phone || "8801870828373"}${manualExtra ? `?text=${encodeURIComponent(manualExtra)}` : ""}`;
       snippet = `<p>💬 <strong>WhatsApp:</strong> <a href="${waUrl}" target="_blank" rel="noopener noreferrer" style="color: #4ade80; font-weight: bold; text-decoration: underline;">${label}</a></p>`;
       mentionData = { type: "entity", label, url: waUrl, icon: "fa-whatsapp" };
     } else if (entityType === "instagram") {
-      const handle = (mode === "select" ? "thenicedev" : manualValue).replace("@", "").trim();
+      const handle = (mode === "select" ? "thenicedev" : manualValue)
+        .replace("@", "")
+        .trim();
       const igUrl = `https://instagram.com/${handle}`;
       snippet = `<p>📸 <strong>Instagram:</strong> <a href="${igUrl}" target="_blank" rel="noopener noreferrer" style="color: #f472b6; font-weight: bold; text-decoration: underline;">@${handle}</a></p>`;
-      mentionData = { type: "entity", label: `@${handle}`, url: igUrl, icon: "fa-instagram" };
+      mentionData = {
+        type: "entity",
+        label: `@${handle}`,
+        url: igUrl,
+        icon: "fa-instagram",
+      };
     } else if (entityType === "attendx") {
       if (mode === "select") {
-        const org = organizations.find(o => o.id === selectedId);
+        const org = organizations.find((o) => o.id === selectedId);
         if (!org) return;
-        snippet = `<p>🎓 <strong>AttendX / Academix SaaS:</strong> <span style="background-color: rgba(168,85,247,0.15); color: #c084fc; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${org.org_name}</span> (OrgID: <code>${org.org_id}</code> - Status: <strong>${org.status}</strong>) - <a href="/attendx" style="color: #818cf8; text-decoration: underline;">Open Dashboard</a></p>`;
-        mentionData = { type: "subscription", id: org.org_id, label: org.org_name, icon: "fa-graduation-cap" };
+        snippet = `<p>🎓 <strong>AttendX / AcademiX SaaS:</strong> <span style="background-color: rgba(168,85,247,0.15); color: #c084fc; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${org.org_name}</span> (OrgID: <code>${org.org_id}</code> - Status: <strong>${org.status}</strong>) - <a href="/attendx" style="color: #818cf8; text-decoration: underline;">Open Dashboard</a></p>`;
+        mentionData = {
+          type: "subscription",
+          id: org.org_id,
+          label: org.org_name,
+          icon: "fa-graduation-cap",
+        };
       } else {
         const orgId = manualValue.trim() || "academix_main";
         const orgName = manualTitle.trim() || "AttendX Organization";
-        snippet = `<p>🎓 <strong>AttendX / Academix SaaS:</strong> <span style="background-color: rgba(168,85,247,0.15); color: #c084fc; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${orgName}</span> (OrgID: <code>${orgId}</code>) - <a href="/attendx" style="color: #818cf8; text-decoration: underline;">Open Dashboard</a></p>`;
-        mentionData = { type: "subscription", id: orgId, label: orgName, icon: "fa-graduation-cap" };
+        snippet = `<p>🎓 <strong>AttendX / AcademiX SaaS:</strong> <span style="background-color: rgba(168,85,247,0.15); color: #c084fc; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${orgName}</span> (OrgID: <code>${orgId}</code>) - <a href="/attendx" style="color: #818cf8; text-decoration: underline;">Open Dashboard</a></p>`;
+        mentionData = {
+          type: "subscription",
+          id: orgId,
+          label: orgName,
+          icon: "fa-graduation-cap",
+        };
       }
     }
 
@@ -167,7 +207,7 @@ export function EntityMentionModal({
           icon: <FileText className="w-5 h-5 text-indigo-400" />,
           badgeColor: "bg-indigo-500/20 text-indigo-400",
           selectLabel: "Select Invoice from Database",
-          manualLabel: "Enter Invoice Number"
+          manualLabel: "Enter Invoice Number",
         };
       case "client":
         return {
@@ -175,7 +215,7 @@ export function EntityMentionModal({
           icon: <User className="w-5 h-5 text-emerald-400" />,
           badgeColor: "bg-emerald-500/20 text-emerald-400",
           selectLabel: "Select Client from CRM",
-          manualLabel: "Enter Client Name"
+          manualLabel: "Enter Client Name",
         };
       case "whatsapp":
         return {
@@ -183,23 +223,25 @@ export function EntityMentionModal({
           icon: <MessageCircle className="w-5 h-5 text-green-400" />,
           badgeColor: "bg-green-500/20 text-green-400",
           selectLabel: "Quick Preset",
-          manualLabel: "Enter Custom Phone Number"
+          manualLabel: "Enter Custom Phone Number",
         };
       case "instagram":
         return {
           title: "Insert Instagram Profile (@Instagram)",
-          icon: <i className="fa-brands fa-instagram text-lg text-pink-400"></i>,
+          icon: (
+            <i className="fa-brands fa-instagram text-lg text-pink-400"></i>
+          ),
           badgeColor: "bg-pink-500/20 text-pink-400",
           selectLabel: "Quick Preset Handle",
-          manualLabel: "Enter Instagram Handle"
+          manualLabel: "Enter Instagram Handle",
         };
       case "attendx":
         return {
-          title: "Insert AttendX / Academix Org (@AttendX)",
+          title: "Insert AttendX / AcademiX Org (@AttendX)",
           icon: <Globe className="w-5 h-5 text-purple-400" />,
           badgeColor: "bg-purple-500/20 text-purple-400",
           selectLabel: "Select Organization from AttendX",
-          manualLabel: "Enter Custom Org ID"
+          manualLabel: "Enter Custom Org ID",
         };
       default:
         return {
@@ -207,7 +249,7 @@ export function EntityMentionModal({
           icon: <Sparkles className="w-5 h-5 text-indigo-400" />,
           badgeColor: "bg-indigo-500/20 text-indigo-400",
           selectLabel: "Select from System",
-          manualLabel: "Manually Enter"
+          manualLabel: "Manually Enter",
         };
     }
   };
@@ -215,19 +257,23 @@ export function EntityMentionModal({
   const config = getModalConfig();
 
   // Filtered lists for selection
-  const filteredInvoices = invoices.filter(i =>
-    i.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-    (i.client?.name && i.client.name.toLowerCase().includes(search.toLowerCase()))
+  const filteredInvoices = invoices.filter(
+    (i) =>
+      i.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+      (i.client?.name &&
+        i.client.name.toLowerCase().includes(search.toLowerCase())),
   );
 
-  const filteredClients = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
+  const filteredClients = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.email && c.email.toLowerCase().includes(search.toLowerCase())),
   );
 
-  const filteredOrgs = organizations.filter(o =>
-    o.org_name.toLowerCase().includes(search.toLowerCase()) ||
-    o.org_id.toLowerCase().includes(search.toLowerCase())
+  const filteredOrgs = organizations.filter(
+    (o) =>
+      o.org_name.toLowerCase().includes(search.toLowerCase()) ||
+      o.org_id.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -236,12 +282,16 @@ export function EntityMentionModal({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-950/60">
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${config.badgeColor}`}>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${config.badgeColor}`}
+            >
               {config.icon}
             </div>
             <div>
               <h3 className="font-bold text-sm text-white">{config.title}</h3>
-              <p className="text-xs text-zinc-400">Choose from existing database or type custom values</p>
+              <p className="text-xs text-zinc-400">
+                Choose from existing database or type custom values
+              </p>
             </div>
           </div>
           <button
@@ -298,13 +348,22 @@ export function EntityMentionModal({
               {entityType === "invoice" && (
                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                   {loading ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">Loading invoices...</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      Loading invoices...
+                    </p>
                   ) : filteredInvoices.length === 0 ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">No invoices found.</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      No invoices found.
+                    </p>
                   ) : (
                     filteredInvoices.map((inv) => {
                       const isSelected = selectedId === inv.id;
-                      const subtotal = inv.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+                      const subtotal =
+                        inv.items?.reduce(
+                          (sum: number, item: any) =>
+                            sum + item.quantity * item.rate,
+                          0,
+                        ) || 0;
                       return (
                         <div
                           key={inv.id}
@@ -318,18 +377,24 @@ export function EntityMentionModal({
                           <div className="space-y-0.5">
                             <div className="font-extrabold text-xs flex items-center gap-2">
                               <span>#{inv.invoice_number}</span>
-                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                inv.status === "paid" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
-                              }`}>
+                              <span
+                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  inv.status === "paid"
+                                    ? "bg-emerald-500/20 text-emerald-400"
+                                    : "bg-amber-500/20 text-amber-400"
+                                }`}
+                              >
                                 {inv.status}
                               </span>
                             </div>
                             <p className="text-[10px] text-zinc-400">
-                              Client: {inv.client?.name || "N/A"} · {new Date(inv.date).toLocaleDateString()}
+                              Client: {inv.client?.name || "N/A"} ·{" "}
+                              {new Date(inv.date).toLocaleDateString()}
                             </p>
                           </div>
                           <span className="font-black text-xs text-indigo-400">
-                            {inv.currency || "৳"}{subtotal.toLocaleString()}
+                            {inv.currency || "৳"}
+                            {subtotal.toLocaleString()}
                           </span>
                         </div>
                       );
@@ -342,9 +407,13 @@ export function EntityMentionModal({
               {entityType === "client" && (
                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                   {loading ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">Loading clients...</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      Loading clients...
+                    </p>
                   ) : filteredClients.length === 0 ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">No clients found.</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      No clients found.
+                    </p>
                   ) : (
                     filteredClients.map((client) => {
                       const isSelected = selectedId === client.id;
@@ -359,10 +428,18 @@ export function EntityMentionModal({
                           }`}
                         >
                           <div>
-                            <h4 className="font-extrabold text-xs text-white">@{client.name}</h4>
-                            <p className="text-[10px] text-zinc-400">{client.email || client.phone || "No contact info"}</p>
+                            <h4 className="font-extrabold text-xs text-white">
+                              @{client.name}
+                            </h4>
+                            <p className="text-[10px] text-zinc-400">
+                              {client.email ||
+                                client.phone ||
+                                "No contact info"}
+                            </p>
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-emerald-400" />}
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-emerald-400" />
+                          )}
                         </div>
                       );
                     })
@@ -374,9 +451,13 @@ export function EntityMentionModal({
               {entityType === "attendx" && (
                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                   {loading ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">Loading organizations...</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      Loading organizations...
+                    </p>
                   ) : filteredOrgs.length === 0 ? (
-                    <p className="text-center text-xs text-zinc-500 py-6">No AttendX organizations found.</p>
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      No AttendX organizations found.
+                    </p>
                   ) : (
                     filteredOrgs.map((org) => {
                       const isSelected = selectedId === org.id;
@@ -391,11 +472,16 @@ export function EntityMentionModal({
                           }`}
                         >
                           <div>
-                            <h4 className="font-extrabold text-xs text-white">@{org.org_name}</h4>
-                            <p className="text-[10px] font-mono text-zinc-400">OrgID: {org.org_id} ({org.status})</p>
+                            <h4 className="font-extrabold text-xs text-white">
+                              @{org.org_name}
+                            </h4>
+                            <p className="text-[10px] font-mono text-zinc-400">
+                              OrgID: {org.org_id} ({org.status})
+                            </p>
                           </div>
                           <span className="font-black text-xs text-purple-400">
-                            {org.currency}{org.plan_price?.toLocaleString()}
+                            {org.currency}
+                            {org.plan_price?.toLocaleString()}
                           </span>
                         </div>
                       );
@@ -409,10 +495,16 @@ export function EntityMentionModal({
                 <div className="space-y-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
                   <div className="flex items-center gap-2">
                     <MessageCircle className="w-4 h-4 text-green-400" />
-                    <span className="font-bold text-xs text-white">Default Business WhatsApp</span>
+                    <span className="font-bold text-xs text-white">
+                      Default Business WhatsApp
+                    </span>
                   </div>
-                  <p className="text-xs text-zinc-400 font-mono">Phone: +8801870828373 (Official Support)</p>
-                  <p className="text-[11px] text-zinc-500">Generates direct chat link: <code>wa.me/8801870828373</code></p>
+                  <p className="text-xs text-zinc-400 font-mono">
+                    Phone: +8801870828373 (Official Support)
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    Generates direct chat link: <code>wa.me/8801870828373</code>
+                  </p>
                 </div>
               )}
 
@@ -421,10 +513,15 @@ export function EntityMentionModal({
                 <div className="space-y-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
                   <div className="flex items-center gap-2">
                     <i className="fa-brands fa-instagram text-pink-400 text-base"></i>
-                    <span className="font-bold text-xs text-white">Default Instagram Profile</span>
+                    <span className="font-bold text-xs text-white">
+                      Default Instagram Profile
+                    </span>
                   </div>
                   <p className="text-xs text-pink-400 font-mono">@thenicedev</p>
-                  <p className="text-[11px] text-zinc-500">Generates profile link: <code>https://instagram.com/thenicedev</code></p>
+                  <p className="text-[11px] text-zinc-500">
+                    Generates profile link:{" "}
+                    <code>https://instagram.com/thenicedev</code>
+                  </p>
                 </div>
               )}
             </div>
@@ -477,12 +574,16 @@ export function EntityMentionModal({
                       Instagram Username / Handle *
                     </label>
                     <div className="flex items-center gap-2">
-                      <span className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-pink-400">@</span>
+                      <span className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-pink-400">
+                        @
+                      </span>
                       <input
                         type="text"
                         placeholder="e.g. thenicedev, brandname"
                         value={manualValue}
-                        onChange={(e) => setManualValue(e.target.value.replace("@", ""))}
+                        onChange={(e) =>
+                          setManualValue(e.target.value.replace("@", ""))
+                        }
                         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs font-mono font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
@@ -523,7 +624,7 @@ export function EntityMentionModal({
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Academix University ERP"
+                      placeholder="e.g. AcademiX University ERP"
                       value={manualValue}
                       onChange={(e) => setManualValue(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"

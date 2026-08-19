@@ -2,7 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { PaymentMethod } from "@/types/payment-methods";
-import { Copy, Check, Send, AlertCircle, ShieldCheck, CreditCard, ChevronDown } from "lucide-react";
+import {
+  Copy,
+  Check,
+  Send,
+  AlertCircle,
+  ShieldCheck,
+  CreditCard,
+  ChevronDown,
+} from "lucide-react";
 
 interface DynamicPaymentCardsProps {
   clientId?: string | null;
@@ -25,7 +33,7 @@ export function DynamicPaymentCards({
   isPaid = false,
   currency = "৳",
   totalDue = 0,
-  initialMethods
+  initialMethods,
 }: DynamicPaymentCardsProps) {
   const [methods, setMethods] = useState<PaymentMethod[]>(initialMethods || []);
   const [loading, setLoading] = useState(!initialMethods);
@@ -36,14 +44,22 @@ export function DynamicPaymentCards({
   const [trxId, setTrxId] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [selectedMethodId, setSelectedMethodId] = useState("");
-  const [paidAmount, setPaidAmount] = useState(totalDue > 0 ? totalDue.toString() : "");
+  const [paidAmount, setPaidAmount] = useState(
+    totalDue > 0 ? totalDue.toString() : "",
+  );
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!initialMethods) {
+    if (initialMethods) {
+      setMethods(initialMethods);
+      if (initialMethods.length > 0) {
+        setSelectedMethodId(initialMethods[0].id);
+      }
+      setLoading(false);
+    } else {
       const fetchMethods = async () => {
         try {
           const url = clientId
@@ -64,8 +80,6 @@ export function DynamicPaymentCards({
         }
       };
       fetchMethods();
-    } else if (initialMethods.length > 0) {
-      setSelectedMethodId(initialMethods[0].id);
     }
   }, [clientId, initialMethods]);
 
@@ -86,14 +100,16 @@ export function DynamicPaymentCards({
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trxId.trim() || !accountNumber.trim()) {
-      setSubmitError("Please fill in both the Transaction ID and Sender Account Number.");
+      setSubmitError(
+        "Please fill in both the Transaction ID and Sender Account Number.",
+      );
       return;
     }
 
     setSubmitting(true);
     setSubmitError(null);
 
-    const selectedMethod = methods.find(m => m.id === selectedMethodId);
+    const selectedMethod = methods.find((m) => m.id === selectedMethodId);
 
     try {
       const res = await fetch("/api/payment-requests", {
@@ -112,8 +128,8 @@ export function DynamicPaymentCards({
           payment_method_name: selectedMethod?.name,
           amount: paidAmount ? parseFloat(paidAmount) : undefined,
           currency,
-          notes: notes.trim()
-        })
+          notes: notes.trim(),
+        }),
       });
 
       const data = await res.json();
@@ -159,7 +175,9 @@ export function DynamicPaymentCards({
               Payment Information
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {isPaid ? "Payment received. Keep for your records." : "Choose your preferred payment method below."}
+              {isPaid
+                ? "Payment received. Keep for your records."
+                : "Choose your preferred payment method below."}
             </p>
           </div>
         </div>
@@ -206,7 +224,9 @@ export function DynamicPaymentCards({
                         className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
                         style={{ backgroundColor: accentColor }}
                       >
-                        <i className={`fa-solid ${method.icon_name || "fa-credit-card"} text-base`}></i>
+                        <i
+                          className={`fa-solid ${method.icon_name || "fa-credit-card"} text-base`}
+                        ></i>
                       </div>
                     )}
                     <div>
@@ -224,7 +244,7 @@ export function DynamicPaymentCards({
                       className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
                       style={{
                         backgroundColor: `${accentColor}18`,
-                        color: accentColor
+                        color: accentColor,
                       }}
                     >
                       {method.badge}
@@ -258,7 +278,12 @@ export function DynamicPaymentCards({
                             </span>
                             {field.is_copyable !== false && (
                               <button
-                                onClick={() => handleCopy(field.value, `${method.id}-${field.id}`)}
+                                onClick={() =>
+                                  handleCopy(
+                                    field.value,
+                                    `${method.id}-${field.id}`,
+                                  )
+                                }
                                 className={`p-1 rounded-md transition-colors cursor-pointer ${
                                   isCopied
                                     ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
@@ -320,7 +345,9 @@ export function DynamicPaymentCards({
                     Submit Payment Details
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {invoiceNumber ? `For Invoice #${invoiceNumber}` : "For Subscription Billing"}
+                    {invoiceNumber
+                      ? `For Invoice #${invoiceNumber}`
+                      : "For Subscription Billing"}
                   </p>
                 </div>
               </div>
@@ -343,7 +370,9 @@ export function DynamicPaymentCards({
                     Verification Request Received!
                   </h4>
                   <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                    Thank you! Our accounting team has received your transaction ID (<strong>{trxId || "submitted"}</strong>). We will verify and update the invoice status shortly.
+                    Thank you! We have received your transaction ID (
+                    <strong>{trxId || "submitted"}</strong>). We will verify and
+                    update the invoice status shortly.
                   </p>
                   <button
                     onClick={() => setModalOpen(false)}

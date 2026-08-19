@@ -158,12 +158,14 @@ export interface AttendxOrganization {
   org_id: string;
   org_name: string;
   client_id: string;
+  webhook_secret?: string;
   client_web_base: string;
   contact_person?: string;
   contact_email?: string;
   contact_phone?: string;
   status: AttendxSubscriptionStatus;
   plan_tier?: 'bronze' | 'silver' | 'gold' | 'diamond' | 'platinum' | 'custom';
+  plan_name?: string;
   warning_start: string;
   subscription_ends: string;
   billing_cycle: 'monthly' | 'quarterly' | 'biannual' | 'yearly' | 'custom';

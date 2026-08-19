@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useTransition } from 'react';
+import { toast } from 'sonner';
 import { 
   Folder, 
   File, 
@@ -265,7 +266,7 @@ export default function ICMRIExplorer() {
       // Success! Update fileContent in state, exit edit mode
       setFileContent(editContent);
       setIsEditing(false);
-      alert('File saved successfully!');
+      toast.success('File saved successfully!');
     } catch (err: any) {
       console.error(err);
       setSaveError(err.message || 'An error occurred while saving.');

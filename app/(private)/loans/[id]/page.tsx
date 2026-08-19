@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { recordLoanRepayment, deleteLoanPayment } from '@/services/loans';
 import { useToast } from '@/components/ui/toast';
 import { DetailSkeleton } from '@/components/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function LoanDetailsPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function LoanDetailsPage() {
   const [loan, setLoan] = useState<any | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmPaymentId, setDeleteConfirmPaymentId] = useState<string | null>(null);
 
   // Form State
   const [amount, setAmount] = useState('');
@@ -24,11 +26,12 @@ export default function LoanDetailsPage() {
   const [isLoggingPayment, setIsLoggingPayment] = useState(false);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [loanRes, paymentsRes] = await Promise.all([
         supabase
           .from('loans')
-          .select('*, client:clients(*)')
+          .select('*, client:clients(*), source:loan_sources(*)')
           .eq('id', loanId)
           .single(),
         supabase
@@ -39,8 +42,20 @@ export default function LoanDetailsPage() {
       ]);
 
       if (loanRes.error) throw loanRes.error;
-      setLoan(loanRes.data);
-      setPayments(paymentsRes.data || []);
+
+      const loanData = loanRes.data;
+      const paymentsData = paymentsRes.data || [];
+
+      const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
+      const remainingBalance = Math.max(0, loanData.principal_amount - totalPaid);
+
+      setLoan({
+        ...loanData,
+        total_paid: totalPaid,
+        remaining_balance: remainingBalance,
+      });
+
+      setPayments(paymentsData);
     } catch (err) {
       console.error('Error fetching loan details:', err);
     } finally {
@@ -49,18 +64,21 @@ export default function LoanDetailsPage() {
   };
 
   useEffect(() => {
-    if (loanId) {
-      fetchData();
-    }
+    fetchData();
   }, [loanId]);
 
-  const handleLogPayment = async (e: React.FormEvent) => {
+  const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) {
+      toast.error('Valid repayment amount is required.');
+      return;
+    }
+
     setIsLoggingPayment(true);
     try {
-      await recordLoanRepayment(loanId, Number(amount), method, notes);
-      toast.success('Repayment recorded successfully.');
+      await recordLoanRepayment(loanId, parseFloat(amount), method, notes.trim() || undefined);
+
+      toast.success('Loan repayment recorded successfully.');
       setAmount('');
       setNotes('');
       await fetchData();
@@ -71,14 +89,20 @@ export default function LoanDetailsPage() {
     }
   };
 
-  const handleDeletePayment = async (id: string) => {
-    if (!confirm('Delete this repayment entry?')) return;
+  const handleDeletePayment = (id: string) => {
+    setDeleteConfirmPaymentId(id);
+  };
+
+  const confirmDeletePayment = async () => {
+    if (!deleteConfirmPaymentId) return;
     try {
-      await deleteLoanPayment(id, loanId);
+      await deleteLoanPayment(deleteConfirmPaymentId, loanId);
       toast.success('Repayment deleted successfully.');
       await fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Error deleting payment');
+    } finally {
+      setDeleteConfirmPaymentId(null);
     }
   };
 
@@ -245,7 +269,7 @@ export default function LoanDetailsPage() {
               <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
                 Log Repayment Installment
               </h3>
-              <form onSubmit={handleLogPayment} className="space-y-4">
+              <form onSubmit={handleRecordPayment} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block mb-1 ml-1 font-black text-[8px] text-slate-400 uppercase">
@@ -354,6 +378,16 @@ export default function LoanDetailsPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmPaymentId}
+        onClose={() => setDeleteConfirmPaymentId(null)}
+        onConfirm={confirmDeletePayment}
+        title="Delete Repayment"
+        description="Are you sure you want to delete this repayment entry? The loan remaining balance will be updated."
+        confirmText="Delete Entry"
+        variant="danger"
+      />
     </div>
   );
 }

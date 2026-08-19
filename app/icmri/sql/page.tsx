@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   Database,
   Play,
@@ -168,7 +169,7 @@ export default function SQLBrowser() {
       }));
     } catch (err: any) {
       console.error(err);
-      alert(`Could not load table columns: ${err.message || 'Unknown error'}`);
+      toast.error(`Could not load table columns: ${err.message || 'Unknown error'}`);
       setTables(prev => prev.map(t => t.name === tableName ? { ...t, loading: false } : t));
     }
   };
@@ -939,7 +940,7 @@ export default function SQLBrowser() {
                           <button
                             onClick={() => {
                               updateActiveTabSql(item.sql);
-                              alert('Query copied to editor!');
+                              toast.success('Query copied to editor!');
                             }}
                             className="text-[11px] bg-slate-900 border border-slate-850 hover:border-slate-750 px-2.5 py-1.5 rounded transition hover:text-emerald-400 flex items-center gap-1"
                           >

@@ -28,6 +28,8 @@ import {
   SlidersHorizontal
 } from "lucide-react";
 import { EntityMentionModal, EntityType } from "@/components/admin/EntityMentionModal";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 // Dynamically import BlockNote AdminRichEditor to prevent SSR issues
 const AdminRichEditor = dynamic(() => import("@/components/admin/AdminRichEditor"), {
@@ -50,6 +52,7 @@ export default function NotesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [savingStatus, setSavingStatus] = useState<"saved" | "saving" | "unsaved">("saved");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // CRM entity references for quick mentions
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -155,6 +158,7 @@ export default function NotesPage() {
         const saved = data.note;
         setNotes(prev => [saved, ...prev]);
         loadNoteToEditor(saved);
+        toast.success("Note created");
       }
     } catch (err) {
       console.error("Failed to create note:", err);
@@ -163,14 +167,17 @@ export default function NotesPage() {
 
   const handleDeleteNote = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this note?")) return;
+    setDeleteConfirmId(id);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      const res = await fetch(`/api/notes?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(`/api/notes?id=${encodeURIComponent(deleteConfirmId)}`, { method: "DELETE" });
       if (res.ok) {
-        const remaining = notes.filter(n => n.id !== id);
+        const remaining = notes.filter(n => n.id !== deleteConfirmId);
         setNotes(remaining);
-        if (selectedNoteId === id) {
+        if (selectedNoteId === deleteConfirmId) {
           if (remaining.length > 0) loadNoteToEditor(remaining[0]);
           else {
             setSelectedNoteId(null);
@@ -178,9 +185,12 @@ export default function NotesPage() {
             setCurrentContent("");
           }
         }
+        toast.success("Note deleted");
       }
     } catch (err) {
       console.error("Failed to delete note:", err);
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -590,6 +600,16 @@ export default function NotesPage() {
         onOpenChange={setEntityModalOpen}
         entityType={activeEntityType}
         onInsert={handleModalInsert}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Note"
+        description="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

@@ -31,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const manageLinks = [
-    { id: "attendx", label: "AttendX / Academix", icon: "fa-graduation-cap" },
+    { id: "attendx", label: "AttendX / AcademiX", icon: "fa-graduation-cap" },
     { id: "payment-methods", label: "Payment Info", icon: "fa-credit-card" },
     { id: "clients", label: "Clients", icon: "fa-users" },
     { id: "companies", label: "Entities", icon: "fa-building" },
@@ -60,10 +60,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside
         className={`
         fixed md:static inset-y-0 left-0 bg-slate-900 dark:bg-[#020617] text-slate-400 flex flex-col h-screen z-50 transition-all duration-300 ease-in-out
-        ${isOpen
+        ${
+          isOpen
             ? "w-72 translate-x-0 border-r border-slate-800 dark:border-slate-800/50"
             : "w-72 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden md:border-r-0"
-          }
+        }
       `}
       >
         <div className="flex flex-col w-72 h-full flex-shrink-0">
@@ -111,10 +112,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={link.id}
                     onClick={() => handleNav(link.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${isActive(link.id)
-                      ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20"
-                      : "hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1"
-                      }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
+                      isActive(link.id)
+                        ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20"
+                        : "hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1"
+                    }`}
                   >
                     <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                     {link.label}
@@ -132,10 +134,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={link.id}
                     onClick={() => handleNav(link.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${isActive(link.id)
-                      ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20"
-                      : "hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1"
-                      }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 text-sm font-bold active:scale-[0.98] ${
+                      isActive(link.id)
+                        ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20"
+                        : "hover:bg-slate-800 hover:text-slate-200 hover:translate-x-1"
+                    }`}
                   >
                     <i className={`fa-solid ${link.icon} w-6 text-base`}></i>
                     {link.label}

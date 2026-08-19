@@ -16,6 +16,7 @@ import { Invoice, CompanyProfile, Client, InvoiceItem } from '@/types';
 import { useToast } from '@/components/ui/toast';
 import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
 import { DetailSkeleton } from '@/components/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function InvoiceDetailsPage() {
   const router = useRouter();
@@ -26,6 +27,19 @@ export default function InvoiceDetailsPage() {
   const [activeTab, setActiveTab] = useState<'manage' | 'edit'>('manage');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    variant?: 'danger' | 'info' | 'warning';
+    action: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: async () => {},
+  });
 
   // Core Data State
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -136,15 +150,23 @@ export default function InvoiceDetailsPage() {
     }
   };
 
-  const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Delete this payment record?')) return;
-    try {
-      await deleteInvoicePayment(paymentId, invoiceId);
-      toast.success('Payment record deleted.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error deleting payment');
-    }
+  const handleDeletePayment = (paymentId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Payment Record',
+      description: 'Are you sure you want to delete this payment record?',
+      confirmText: 'Delete Payment',
+      variant: 'danger',
+      action: async () => {
+        try {
+          await deleteInvoicePayment(paymentId, invoiceId);
+          toast.success('Payment record deleted.');
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Error deleting payment');
+        }
+      },
+    });
   };
 
   const handleCreateToken = async (e: React.FormEvent) => {
@@ -180,33 +202,49 @@ export default function InvoiceDetailsPage() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  const handleRevokeToken = async (tokenId: string) => {
-    if (!confirm('Revoke this share token? The link will no longer be accessible.')) return;
-    try {
-      await revokeInvoiceToken(tokenId);
-      toast.success('Sharing token revoked.');
-      // Reload token list
-      const activeTokens = await listInvoiceTokens(invoiceId);
-      setTokens(activeTokens || []);
-    } catch (err: any) {
-      toast.error(err.message || 'Error revoking token');
-    }
+  const handleRevokeToken = (tokenId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revoke Share Token',
+      description: 'Revoke this share token? The link will no longer be accessible.',
+      confirmText: 'Revoke',
+      variant: 'danger',
+      action: async () => {
+        try {
+          await revokeInvoiceToken(tokenId);
+          toast.success('Sharing token revoked.');
+          // Reload token list
+          const activeTokens = await listInvoiceTokens(invoiceId);
+          setTokens(activeTokens || []);
+        } catch (err: any) {
+          toast.error(err.message || 'Error revoking token');
+        }
+      },
+    });
   };
 
-  const handleStopRecurring = async () => {
-    if (!confirm('Stop automated recurring billing for this invoice?')) return;
-    try {
-      const { id, items: _i, client: _c, company: _comp, created_at: _cr, ...rest } = invoice!;
-      await saveInvoice({
-        ...rest,
-        id: invoice!.id,
-        is_recurring: false,
-      }, invoice!.items || []);
-      toast.success('Recurring billing stopped.');
-      await fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Error stopping recurring billing');
-    }
+  const handleStopRecurring = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Stop Recurring Billing',
+      description: 'Stop automated recurring billing for this invoice?',
+      confirmText: 'Stop Recurring',
+      variant: 'warning',
+      action: async () => {
+        try {
+          const { id, items: _i, client: _c, company: _comp, created_at: _cr, ...rest } = invoice!;
+          await saveInvoice({
+            ...rest,
+            id: invoice!.id,
+            is_recurring: false,
+          }, invoice!.items || []);
+          toast.success('Recurring billing stopped.');
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Error stopping recurring billing');
+        }
+      },
+    });
   };
 
   const handleSaveInvoiceEdits = async () => {
@@ -945,6 +983,16 @@ export default function InvoiceDetailsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }
