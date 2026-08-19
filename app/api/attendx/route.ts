@@ -5,7 +5,8 @@ import {
   saveAttendxOrganization,
   deleteAttendxOrganization,
   recordAttendxPayment,
-  addHardwareSale
+  addHardwareSale,
+  deleteHardwareSale
 } from '@/lib/attendx-service';
 
 export async function GET(request: NextRequest) {
@@ -62,6 +63,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const hardwareId = searchParams.get('hardware_id');
+    const orgId = searchParams.get('org_id');
+
+    if (hardwareId && orgId) {
+      await deleteHardwareSale(orgId, hardwareId);
+      return NextResponse.json({ success: true, message: 'Hardware deleted' });
+    }
+
     if (!id) return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
 
     await deleteAttendxOrganization(id);

@@ -1,75 +1,58 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  AttendxOrganization,
-  HardwareItem,
-  AttendxSubscriptionStatus,
-  ATTENDX_DEFAULT_PLANS,
-  PricingPlan,
-  AttendxPayment,
-  AttendxFinancials
-} from "@/types/attendx";
-import { createClient } from "@/lib/supabase/client";
-import {
-  GraduationCap,
-  Plus,
-  RefreshCw,
-  Zap,
-  FileText,
-  Copy,
-  Check,
-  Globe,
-  Radio,
   Server,
-  AlertTriangle,
-  Clock,
-  ShieldCheck,
-  Edit2,
-  Trash2,
-  ExternalLink,
+  RefreshCw,
+  Plus,
   Search,
-  SlidersHorizontal,
-  Code2,
-  HardDrive,
+  ExternalLink,
+  Clock,
   DollarSign,
-  ChevronRight,
-  Sparkles,
-  Terminal,
+  AlertTriangle,
+  FileText,
   Activity,
-  Calendar,
-  Tag,
-  Percent,
-  CheckCircle2,
-  Users,
   CreditCard,
-  History,
+  Building2,
+  Trash2,
+  Edit,
+  SlidersHorizontal,
+  ChevronRight,
   TrendingUp,
+  Cpu,
   Receipt,
-  AlertCircle
+  PlusCircle,
+  Copy,
+  Terminal,
+  ArrowLeft,
+  Sparkles,
+  Percent,
+  Calendar,
+  Layers,
+  HardDrive
 } from "lucide-react";
 import { toast } from "sonner";
+import { AttendxOrganization, HardwareItem } from "@/types/attendx";
+
+// Default pricing tiers for AttendX / Academix
+export const ATTENDX_DEFAULT_PLANS = [
+  { id: "bronze", name: "Bronze", students: "50-100 Students", monthlyPrice: 1500, yearlyPrice: 15000, color: "#CD7F32", studentLimit: 100 },
+  { id: "silver", name: "Silver", students: "100-200 Students", monthlyPrice: 2000, yearlyPrice: 20000, color: "#94a3b8", studentLimit: 200 },
+  { id: "gold", name: "Gold", students: "200-400 Students", monthlyPrice: 3000, yearlyPrice: 30000, color: "#f59e0b", studentLimit: 400 },
+  { id: "diamond", name: "Diamond", students: "400-1000 Students", monthlyPrice: 4000, yearlyPrice: 40000, color: "#06b6d4", studentLimit: 1000 },
+  { id: "platinum", name: "Platinum", students: ">1000 Students", monthlyPrice: 5000, yearlyPrice: 50000, color: "#a855f7", studentLimit: 2000 },
+];
 
 export default function AttendxPage() {
-  const supabase = createClient();
-
   const [organizations, setOrganizations] = useState<AttendxOrganization[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "payments" | "hardware" | "api">("overview");
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [clients, setClients] = useState<any[]>([]);
 
-  // Selected Org state & detailed tab view
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
-  const [selectedOrgDetails, setSelectedOrgDetails] = useState<any | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [activeOrgTab, setActiveOrgTab] = useState<"analytics" | "invoices" | "payments" | "hardware" | "integration">("analytics");
-
-  // Pricing Plans view toggle
-  const [plansBillingCycle, setPlansBillingCycle] = useState<"monthly" | "yearly">("monthly");
-  const [showPlansReference, setShowPlansReference] = useState(false);
-
-  // Modal States
+  // Modals state
   const [orgModalOpen, setOrgModalOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Partial<AttendxOrganization> | null>(null);
   const [orgPlanCycle, setOrgPlanCycle] = useState<"monthly" | "yearly">("monthly");
@@ -77,43 +60,38 @@ export default function AttendxPage() {
   const [hardwareModalOpen, setHardwareModalOpen] = useState(false);
   const [activeOrgForHardware, setActiveOrgForHardware] = useState<AttendxOrganization | null>(null);
   const [hardwareForm, setHardwareForm] = useState<Partial<HardwareItem>>({
-    name: "ZKTeco Biometric Time Attendance Terminal",
+    name: "",
     quantity: 1,
-    unit_price: 18500,
+    unit_price: 12000,
     warranty_months: 12,
+    sold_date: new Date().toISOString().split("T")[0],
     serial_numbers: [],
-    sold_date: new Date().toISOString().split("T")[0]
+    notes: ""
   });
   const [serialInput, setSerialInput] = useState("");
 
-  // ADVANCED BILL GENERATOR STATE
   const [billModalOpen, setBillModalOpen] = useState(false);
   const [billingOrg, setBillingOrg] = useState<AttendxOrganization | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [selectedPlanTier, setSelectedPlanTier] = useState<string>("silver");
   const [billBillingCycle, setBillBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [billDurationMonths, setBillDurationMonths] = useState<number>(1);
-  const [customPlanPrice, setCustomPlanPrice] = useState<number>(1049);
-  const [studentCount, setStudentCount] = useState<number>(150);
-  const [discountType, setDiscountType] = useState<"none" | "percentage" | "fixed">("none");
+  const [customPlanPrice, setCustomPlanPrice] = useState<number>(2000);
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed" | "none">("none");
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [selectedHardwareIds, setSelectedHardwareIds] = useState<string[]>([]);
-  const [billCustomNotes, setBillCustomNotes] = useState<string>("");
-  const [dueDays, setDueDays] = useState<number>(14);
+  const [newHardwareToSell, setNewHardwareToSell] = useState<any[]>([]);
+  const [showAddHardwareInBill, setShowAddHardwareInBill] = useState(false);
+  const [inlineHwName, setInlineHwName] = useState("");
+  const [inlineHwQty, setInlineHwQty] = useState(1);
+  const [inlineHwPrice, setInlineHwPrice] = useState(12000);
+  const [inlineHwWarranty, setInlineHwWarranty] = useState(12);
+  const [inlineHwSerials, setInlineHwSerials] = useState("");
+  const [generatedBillResult, setGeneratedBillResult] = useState<any | null>(null);
 
-  const [generatedBillResult, setGeneratedBillResult] = useState<any>(null);
-  const [billingLoading, setBillingLoading] = useState(false);
-
-  // RECORD PAYMENT MODAL STATE
   const [payModalOpen, setPayModalOpen] = useState(false);
-  const [payForm, setPayForm] = useState<{
-    amount: number;
-    payment_date: string;
-    payment_method: string;
-    transaction_id: string;
-    invoice_id: string;
-    notes: string;
-  }>({
-    amount: 1049,
+  const [payForm, setPayForm] = useState({
+    amount: 0,
     payment_date: new Date().toISOString().split("T")[0],
     payment_method: "Bank Transfer",
     transaction_id: "",
@@ -122,66 +100,65 @@ export default function AttendxPage() {
   });
   const [payLoading, setPayLoading] = useState(false);
 
-  // API Tester Modal
   const [apiTesterOpen, setApiTesterOpen] = useState(false);
   const [testedOrg, setTestedOrg] = useState<AttendxOrganization | null>(null);
   const [apiResponse, setApiResponse] = useState<any>(null);
   const [apiLoading, setApiLoading] = useState(false);
 
-  // Cache Purge Loading states per Org
-  const [purgingOrgId, setPurgingOrgId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchOrganizations = async () => {
     setLoading(true);
     try {
-      const [orgsRes, clientsRes] = await Promise.all([
-        fetch("/api/attendx"),
-        supabase.from("clients").select("id, name, email")
-      ]);
-
-      if (orgsRes.ok) {
-        const data = await orgsRes.json();
+      const res = await fetch("/api/attendx");
+      const data = await res.json();
+      if (data.success) {
         setOrganizations(data.organizations || []);
-        if (data.organizations?.length > 0 && !selectedOrgId) {
-          const firstOrgId = data.organizations[0].id;
-          setSelectedOrgId(firstOrgId);
-          fetchOrgDetails(data.organizations[0].org_id);
+        if (selectedOrg) {
+          const updated = (data.organizations || []).find((o: any) => o.id === selectedOrg.id || o.org_id === selectedOrg.org_id);
+          if (updated) {
+            fetchOrgDetails(updated.org_id);
+          }
         }
       }
-
-      if (clientsRes.data) {
-        setClients(clientsRes.data);
-      }
-    } catch (e) {
-      console.error("Failed to load AttendX data:", e);
-      toast.error("Failed to load AttendX organizations");
+    } catch (e: any) {
+      toast.error("Failed to load organizations: " + e.message);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchOrgDetails = async (orgId: string) => {
-    setLoadingDetails(true);
     try {
       const res = await fetch(`/api/attendx?orgId=${encodeURIComponent(orgId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedOrgDetails(data.organization);
+      const data = await res.json();
+      if (data.success && data.organization) {
+        setSelectedOrg(data.organization);
       }
     } catch (e) {
-      console.error("Failed to fetch organization details:", e);
-    } finally {
-      setLoadingDetails(false);
+      console.warn("Failed to fetch detailed org data", e);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const res = await fetch("/api/clients");
+      if (res.ok) {
+        const data = await res.json();
+        setClients(data.clients || data || []);
+      }
+    } catch (e) {
+      // ignore
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchOrganizations();
+    fetchClients();
   }, []);
 
   const handleSelectOrg = (org: AttendxOrganization) => {
-    setSelectedOrgId(org.id);
+    setSelectedOrg(org);
     fetchOrgDetails(org.org_id);
   };
 
@@ -192,10 +169,96 @@ export default function AttendxPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // ONE-CLICK ACTION: Purge Client Cache via Webhook
+  // Open Edit/Create Org Modal
+  const handleOpenOrgModal = (org?: AttendxOrganization) => {
+    if (org) {
+      setEditingOrg({ ...org });
+      setOrgPlanCycle((org.billing_cycle as any) === "yearly" ? "yearly" : "monthly");
+    } else {
+      const defaultPlan = ATTENDX_DEFAULT_PLANS[1]; // Silver
+      setEditingOrg({
+        org_id: "",
+        org_name: "",
+        client_web_base: "https://managementsite.academix.xyz",
+        plan_tier: "silver",
+        plan_price: defaultPlan.monthlyPrice,
+        currency: "৳",
+        billing_cycle: "monthly",
+        status: "active",
+        warning_start: new Date(Date.now() + 25 * 86400000).toISOString(),
+        subscription_ends: new Date(Date.now() + 30 * 86400000).toISOString(),
+      });
+      setOrgPlanCycle("monthly");
+    }
+    setOrgModalOpen(true);
+  };
+
+  const handleSelectPlanForOrg = (plan: typeof ATTENDX_DEFAULT_PLANS[0], cycle: "monthly" | "yearly") => {
+    if (!editingOrg) return;
+    const price = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+    setEditingOrg({
+      ...editingOrg,
+      plan_tier: plan.id as any,
+      plan_price: price,
+      billing_cycle: cycle,
+      student_count: plan.studentLimit
+    });
+  };
+
+  const handleSaveOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrg || !editingOrg.org_id || !editingOrg.org_name) {
+      toast.error("Please enter both Org ID and Organization Name");
+      return;
+    }
+
+    const toastId = toast.loading("Saving organization to database...");
+    try {
+      const res = await fetch("/api/attendx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingOrg)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Organization saved successfully!", { id: toastId });
+        setOrgModalOpen(false);
+        await fetchOrganizations();
+        if (data.organization) {
+          setSelectedOrg(data.organization);
+          fetchOrgDetails(data.organization.org_id);
+        }
+      } else {
+        toast.error("Failed to save: " + (data.error || "Unknown error"), { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message, { id: toastId });
+    }
+  };
+
+  const handleDeleteOrg = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete ${name}? This will permanently remove its configuration.`)) return;
+    const toastId = toast.loading("Deleting organization...");
+    try {
+      const res = await fetch(`/api/attendx?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Organization deleted", { id: toastId });
+        if (selectedOrg?.id === id || selectedOrg?.org_id === id) {
+          setSelectedOrg(null);
+        }
+        fetchOrganizations();
+      } else {
+        toast.error("Failed to delete: " + data.error, { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error("Error: " + e.message, { id: toastId });
+    }
+  };
+
+  // Webhook cache purge
   const handlePurgeCache = async (org: AttendxOrganization) => {
-    setPurgingOrgId(org.id);
-    const toastId = toast.loading(`Triggering cache refresh on ${org.org_name}...`);
+    const toastId = toast.loading(`Triggering webhook for ${org.org_name}...`);
     try {
       const res = await fetch("/api/attendx/purge-cache", {
         method: "POST",
@@ -203,29 +266,23 @@ export default function AttendxPage() {
         body: JSON.stringify({ org_id: org.org_id })
       });
       const data = await res.json();
-      toast.dismiss(toastId);
-
-      if (res.ok && data.success) {
-        toast.success(`Cache purged successfully on ${org.org_name}! Client received status 200.`);
+      if (data.success) {
+        toast.success(`Client cache refreshed successfully!`, { id: toastId });
       } else {
-        toast.error(`Webhook note: ${data.message || "Failed to reach client endpoint"}`);
+        toast.error(`Webhook returned: ${data.message || "Failed"}`, { id: toastId });
       }
-      fetchData();
-      if (selectedOrgDetails) fetchOrgDetails(selectedOrgDetails.org_id);
+      fetchOrganizations();
     } catch (e: any) {
-      toast.dismiss(toastId);
-      toast.error(`Purge failed: ${e.message}`);
-    } finally {
-      setPurgingOrgId(null);
+      toast.error("Webhook network failure: " + e.message, { id: toastId });
     }
   };
 
-  // ONE-CLICK ACTION: Extend Subscription by +30 Days
-  const handleQuickExtend30Days = async (org: AttendxOrganization) => {
-    const currentEnd = new Date(org.subscription_ends);
-    const baseDate = currentEnd > new Date() ? currentEnd : new Date();
-    const newEnd = new Date(baseDate.getTime() + 30 * 86400000);
-    const newWarning = new Date(newEnd.getTime() - 5 * 86400000);
+  // Quick Extend Subscription by 30 days
+  const handleQuickExtend = async (org: AttendxOrganization) => {
+    const currentEnd = new Date(org.subscription_ends || Date.now());
+    const baseTime = currentEnd.getTime() > Date.now() ? currentEnd.getTime() : Date.now();
+    const newEnd = new Date(baseTime + 30 * 86400000).toISOString();
+    const newWarning = new Date(baseTime + 25 * 86400000).toISOString();
 
     const toastId = toast.loading(`Extending ${org.org_name} by 30 days...`);
     try {
@@ -235,111 +292,39 @@ export default function AttendxPage() {
         body: JSON.stringify({
           ...org,
           status: "active",
-          subscription_ends: newEnd.toISOString(),
-          warning_start: newWarning.toISOString()
+          warning_start: newWarning,
+          subscription_ends: newEnd
         })
       });
-
-      if (!res.ok) throw new Error("Failed to save updated subscription");
-
-      toast.dismiss(toastId);
-      toast.success(`Extended until ${newEnd.toLocaleDateString()}! Dispatching cache purge...`);
-
-      handlePurgeCache(org);
-      fetchData();
-      if (selectedOrgDetails) fetchOrgDetails(selectedOrgDetails.org_id);
-    } catch (e: any) {
-      toast.dismiss(toastId);
-      toast.error(`Extend failed: ${e.message}`);
-    }
-  };
-
-  // ONE-CLICK ACTION: Test API Contract
-  const handleTestApi = async (org: AttendxOrganization) => {
-    setTestedOrg(org);
-    setApiTesterOpen(true);
-    setApiLoading(true);
-    try {
-      const res = await fetch(`/management/api/checkSubscription?orgId=${encodeURIComponent(org.org_id)}`);
       const data = await res.json();
-      setApiResponse(data);
-    } catch (e: any) {
-      setApiResponse({ error: e.message });
-    } finally {
-      setApiLoading(false);
-    }
-  };
-
-  // Select Plan for new/editing Org
-  const handleSelectPlanForOrg = (plan: PricingPlan, cycle: "monthly" | "yearly") => {
-    const price = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-    setEditingOrg((prev) => ({
-      ...prev,
-      plan_tier: plan.id,
-      plan_price: price,
-      billing_cycle: cycle,
-      student_count: plan.studentMax
-    }));
-  };
-
-  // Save Organization
-  const handleSaveOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingOrg?.org_id || !editingOrg?.org_name) {
-      toast.error("Please fill in Org ID and Organization Name");
-      return;
-    }
-
-    const toastId = toast.loading("Saving organization to database...");
-    try {
-      const res = await fetch("/api/attendx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editingOrg,
-          client_id: editingOrg.client_id || editingOrg.org_id,
-          client_web_base: editingOrg.client_web_base || "https://managementsite.academix.xyz",
-          status: editingOrg.status || "active",
-          plan_price: Number(editingOrg.plan_price) || 0,
-          currency: editingOrg.currency || "৳",
-          warning_start: editingOrg.warning_start || new Date(Date.now() + 25 * 86400000).toISOString(),
-          subscription_ends: editingOrg.subscription_ends || new Date(Date.now() + 30 * 86400000).toISOString()
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Save failed");
+      if (data.success) {
+        toast.success(`Extended until ${new Date(newEnd).toLocaleDateString()}`, { id: toastId });
+        await fetchOrganizations();
+        if (selectedOrg?.id === org.id || selectedOrg?.org_id === org.org_id) {
+          fetchOrgDetails(org.org_id);
+        }
       }
-
-      toast.dismiss(toastId);
-      toast.success("Organization saved to Supabase DB!");
-      setOrgModalOpen(false);
-      setEditingOrg(null);
-      fetchData();
-      if (selectedOrgDetails) fetchOrgDetails(selectedOrgDetails.org_id);
     } catch (e: any) {
-      toast.dismiss(toastId);
-      toast.error(e.message);
+      toast.error("Failed to extend: " + e.message, { id: toastId });
     }
   };
 
-  // Delete Organization
-  const handleDeleteOrg = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"? This will delete all linked hardware history.`)) return;
-
-    try {
-      const res = await fetch(`/api/attendx?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("Organization deleted");
-        fetchData();
-      }
-    } catch {
-      toast.error("Delete failed");
-    }
+  // Save standalone hardware item
+  const handleOpenHardwareModal = (org: AttendxOrganization) => {
+    setActiveOrgForHardware(org);
+    setHardwareForm({
+      name: "",
+      quantity: 1,
+      unit_price: 12000,
+      warranty_months: 12,
+      sold_date: new Date().toISOString().split("T")[0],
+      serial_numbers: [],
+      notes: ""
+    });
+    setSerialInput("");
+    setHardwareModalOpen(true);
   };
 
-  // Save Hardware Item
   const handleSaveHardware = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeOrgForHardware || !hardwareForm.name) return;
@@ -350,123 +335,115 @@ export default function AttendxPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          org_id: activeOrgForHardware.id,
+          org_id: activeOrgForHardware.org_id || activeOrgForHardware.id,
           hardware_item: {
             ...hardwareForm,
-            quantity: Number(hardwareForm.quantity) || 1,
-            unit_price: Number(hardwareForm.unit_price) || 0,
-            warranty_months: Number(hardwareForm.warranty_months) || 12,
-            sold_date: hardwareForm.sold_date || new Date().toISOString().split("T")[0]
+            serial_numbers: serialInput
+              .split(",")
+              .map(s => s.trim())
+              .filter(Boolean)
           }
         })
       });
-
-      if (!res.ok) throw new Error("Failed to record hardware");
-
-      toast.dismiss(toastId);
-      toast.success("Hardware sale recorded in Supabase DB!");
-      setHardwareModalOpen(false);
-      fetchData();
-      if (selectedOrgDetails) fetchOrgDetails(selectedOrgDetails.org_id);
-    } catch (e: any) {
-      toast.dismiss(toastId);
-      toast.error(e.message);
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Hardware recorded successfully in database!", { id: toastId });
+        setHardwareModalOpen(false);
+        await fetchOrganizations();
+        if (activeOrgForHardware.org_id) {
+          fetchOrgDetails(activeOrgForHardware.org_id);
+        }
+      } else {
+        toast.error("Failed to record hardware: " + (data.error || "Unknown error"), { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message, { id: toastId });
     }
   };
 
-  // Open Generate Bill Modal & Initialize Calculation
+  const handleDeleteHardware = async (hardwareId: string) => {
+    if (!selectedOrg) return;
+    if (!confirm("Are you sure you want to delete this hardware deployment record?")) return;
+
+    const toastId = toast.loading("Deleting hardware item...");
+    try {
+      const res = await fetch(`/api/attendx?org_id=${encodeURIComponent(selectedOrg.org_id)}&hardware_id=${encodeURIComponent(hardwareId)}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Hardware deleted", { id: toastId });
+        await fetchOrganizations();
+        fetchOrgDetails(selectedOrg.org_id);
+      } else {
+        toast.error("Failed: " + data.error, { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error("Error: " + e.message, { id: toastId });
+    }
+  };
+
+  // Open Invoice / Bill Generator Modal
   const handleOpenBillModal = (org: AttendxOrganization) => {
     setBillingOrg(org);
-    setSelectedPlanTier(org.plan_tier || "silver");
+    const plan = ATTENDX_DEFAULT_PLANS.find(p => p.id === (org.plan_tier || "silver")) || ATTENDX_DEFAULT_PLANS[1];
+    setSelectedPlanTier(plan.id);
     const cycle = org.billing_cycle === "yearly" ? "yearly" : "monthly";
     setBillBillingCycle(cycle);
-
-    const plan = ATTENDX_DEFAULT_PLANS.find(p => p.id === (org.plan_tier || "silver")) || ATTENDX_DEFAULT_PLANS[1];
-    const initialPrice = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-
-    setCustomPlanPrice(org.plan_price || initialPrice);
     setBillDurationMonths(cycle === "yearly" ? 12 : 1);
-    setStudentCount(org.student_count || plan.studentMax);
+    setCustomPlanPrice(cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice);
     setDiscountType("none");
     setDiscountValue(0);
-    setSelectedHardwareIds((org.hardware_sales || []).map(h => h.id));
+    setSelectedHardwareIds([]);
+    setNewHardwareToSell([]);
+    setShowAddHardwareInBill(false);
     setGeneratedBillResult(null);
     setBillModalOpen(true);
   };
 
-  // Open Record Payment Modal
-  const handleOpenPaymentModal = (org: any, defaultAmount?: number, invoiceId?: string) => {
-    setPayForm({
-      amount: defaultAmount || org.financials?.outstanding_due || org.plan_price || 1049,
-      payment_date: new Date().toISOString().split("T")[0],
-      payment_method: "Bank Transfer",
-      transaction_id: "",
-      invoice_id: invoiceId || (org.invoices?.find((i: any) => i.status !== "paid")?.id || ""),
-      notes: `Subscription renewal payment for ${org.org_name}`
-    });
-    setPayModalOpen(true);
-  };
-
-  // Submit Direct Payment Record
-  const handleRecordPaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrg) return;
-    setPayLoading(true);
-    const toastId = toast.loading("Recording payment in Supabase database...");
-    try {
-      const res = await fetch("/api/attendx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "record_payment",
-          organization_id: selectedOrg.id,
-          ...payForm
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Payment recording failed");
-
-      toast.dismiss(toastId);
-      toast.success("Payment successfully recorded in collection ledger!");
-      setPayModalOpen(false);
-      fetchOrgDetails(selectedOrg.org_id);
-      fetchData();
-    } catch (e: any) {
-      toast.dismiss(toastId);
-      toast.error(e.message);
-    } finally {
-      setPayLoading(false);
-    }
-  };
-
-  // Handle Plan Change in Bill Modal
   const handleBillPlanChange = (planId: string) => {
     setSelectedPlanTier(planId);
     const plan = ATTENDX_DEFAULT_PLANS.find(p => p.id === planId);
     if (plan) {
       const price = billBillingCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
       setCustomPlanPrice(price);
-      setStudentCount(plan.studentMax);
     }
   };
 
-  // Handle Billing Cycle Change in Bill Modal
   const handleBillCycleChange = (cycle: "monthly" | "yearly") => {
     setBillBillingCycle(cycle);
     const plan = ATTENDX_DEFAULT_PLANS.find(p => p.id === selectedPlanTier);
     if (plan) {
-      const price = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-      setCustomPlanPrice(price);
+      setCustomPlanPrice(cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice);
     }
-    setBillDurationMonths(cycle === "yearly" ? 12 : 1);
   };
 
-  // Calculate Real-time Invoice Breakdown
-  const calculateBillTotals = () => {
-    let planSubtotal = customPlanPrice * (billBillingCycle === "yearly" ? Math.max(1, Math.round(billDurationMonths / 12)) : billDurationMonths);
+  const handleAddInlineHardware = () => {
+    if (!inlineHwName.trim()) {
+      toast.error("Please enter a hardware model or device name");
+      return;
+    }
+    const newItem = {
+      id: `new-${Date.now()}`,
+      name: inlineHwName.trim(),
+      quantity: inlineHwQty,
+      unit_price: inlineHwPrice,
+      warranty_months: inlineHwWarranty,
+      serial_numbers: inlineHwSerials.split(",").map(s => s.trim()).filter(Boolean),
+      is_new: true
+    };
+    setNewHardwareToSell([...newHardwareToSell, newItem]);
+    setInlineHwName("");
+    setInlineHwQty(1);
+    setInlineHwSerials("");
+    setShowAddHardwareInBill(false);
+    toast.success("Hardware item added to invoice!");
+  };
 
-    // Calculate discount
+  // Calculate live grand total for invoice modal
+  const billTotals = useMemo(() => {
+    const planSubtotal = customPlanPrice * billDurationMonths;
+
     let discountAmount = 0;
     if (discountType === "percentage" && discountValue > 0) {
       discountAmount = Math.round((planSubtotal * discountValue) / 100);
@@ -474,30 +451,40 @@ export default function AttendxPage() {
       discountAmount = discountValue;
     }
 
-    const discountedPlanTotal = Math.max(0, planSubtotal - discountAmount);
+    const existingHardwareItems = (billingOrg?.hardware_sales || []).filter(h => selectedHardwareIds.includes(h.id));
+    const existingHardwareTotal = existingHardwareItems.reduce((sum, h) => sum + (h.unit_price * h.quantity), 0);
+    const newHardwareTotal = newHardwareToSell.reduce((sum, h) => sum + (h.unit_price * h.quantity), 0);
+    const hardwareTotal = existingHardwareTotal + newHardwareTotal;
 
-    // Calculate hardware total
-    const hardwareItems = (billingOrg?.hardware_sales || []).filter(h => selectedHardwareIds.includes(h.id));
-    const hardwareTotal = hardwareItems.reduce((sum, h) => sum + (h.unit_price * h.quantity), 0);
-
-    const grandTotal = discountedPlanTotal + hardwareTotal;
+    const grandTotal = Math.max(0, (planSubtotal - discountAmount) + hardwareTotal);
 
     return {
       planSubtotal,
       discountAmount,
-      discountedPlanTotal,
-      hardwareItems,
+      existingHardwareItems,
+      newHardwareItems: newHardwareToSell,
       hardwareTotal,
       grandTotal
     };
-  };
+  }, [customPlanPrice, billDurationMonths, discountType, discountValue, selectedHardwareIds, newHardwareToSell, billingOrg]);
 
   // Execute Invoice Generation
   const handleExecuteGenerateBill = async () => {
     if (!billingOrg) return;
     setBillingLoading(true);
 
-    const totals = calculateBillTotals();
+    const allHardwareToSend = [
+      ...billTotals.existingHardwareItems.map(h => ({
+        id: h.id,
+        name: h.name,
+        quantity: h.quantity,
+        unit_price: h.unit_price,
+        warranty_months: h.warranty_months,
+        serial_numbers: h.serial_numbers,
+        is_new: false
+      })),
+      ...billTotals.newHardwareItems
+    ];
 
     try {
       const res = await fetch("/api/attendx/generate-bill", {
@@ -509,83 +496,147 @@ export default function AttendxPage() {
           billing_cycle: billBillingCycle,
           duration_months: billDurationMonths,
           custom_rate: customPlanPrice,
-          students: studentCount,
           discount_type: discountType,
           discount_value: discountValue,
-          selected_hardware: totals.hardwareItems,
-          custom_notes: billCustomNotes,
-          dueDays: dueDays
+          selected_hardware: allHardwareToSend
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Bill generation failed");
-
-      setGeneratedBillResult(data);
-      toast.success(`Official Invoice #${data.invoice_number} created in Supabase!`);
-      if (selectedOrg) fetchOrgDetails(selectedOrg.org_id);
-    } catch (e: any) {
-      toast.error(e.message);
+      if (data.success) {
+        setGeneratedBillResult(data);
+        toast.success(`Official invoice #${data.invoice_number} created in Supabase!`);
+        await fetchOrganizations();
+        if (selectedOrg?.org_id === billingOrg.org_id) {
+          fetchOrgDetails(billingOrg.org_id);
+        }
+      } else {
+        toast.error("Failed to generate bill: " + (data.error || "Unknown error"));
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message);
     } finally {
       setBillingLoading(false);
     }
   };
 
-  // Filtered List
-  const filteredOrgs = organizations.filter(o => {
-    const matchesSearch =
-      o.org_name.toLowerCase().includes(search.toLowerCase()) ||
-      o.org_id.toLowerCase().includes(search.toLowerCase()) ||
-      (o.client_web_base && o.client_web_base.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Calculate Metrics
-  const totalOrgs = organizations.length;
-  const activeOrgs = organizations.filter(o => o.status === "active").length;
-  const warningOrgs = organizations.filter(o => o.status === "past_due" || o.status === "trialing").length;
-  const totalMRR = organizations.reduce((sum, o) => sum + (o.status === "active" ? (o.plan_price || 0) : 0), 0);
-  const totalHardwareUnits = organizations.reduce(
-    (sum, o) => sum + (o.hardware_sales || []).reduce((hSum, h) => hSum + (h.quantity || 0), 0),
-    0
-  );
-
-  const selectedOrg = selectedOrgDetails || organizations.find(o => o.id === selectedOrgId) || organizations[0];
-  const totals = calculateBillTotals();
-
-  const orgFinancials: AttendxFinancials = selectedOrg?.financials || {
-    total_billed: 0,
-    total_collected: 0,
-    outstanding_due: 0,
-    hardware_revenue: (selectedOrg?.hardware_sales || []).reduce((sum: number, h: any) => sum + h.unit_price * h.quantity, 0),
-    saas_revenue: selectedOrg?.plan_price || 0,
-    lifetime_spent: 0,
-    collection_rate: 100,
-    invoice_count: 0,
-    paid_invoices_count: 0,
-    unpaid_invoices_count: 0
+  // Open Record Payment Modal
+  const handleOpenPayModal = (org: any) => {
+    setSelectedOrg(org);
+    const unpaidInv = (org.invoices || []).find((i: any) => i.status !== "paid");
+    setPayForm({
+      amount: unpaidInv ? unpaidInv.due_amount || unpaidInv.total_amount : (org.plan_price || 0),
+      payment_date: new Date().toISOString().split("T")[0],
+      payment_method: "Bank Transfer",
+      transaction_id: "",
+      invoice_id: unpaidInv ? unpaidInv.id : "",
+      notes: ""
+    });
+    setPayModalOpen(true);
   };
 
+  const handleRecordPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg || !payForm.amount) return;
+
+    setPayLoading(true);
+    const toastId = toast.loading("Recording payment in database...");
+    try {
+      const res = await fetch("/api/attendx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "record_payment",
+          organization_id: selectedOrg.id || selectedOrg.org_id,
+          amount: payForm.amount,
+          payment_date: payForm.payment_date,
+          payment_method: payForm.payment_method,
+          transaction_id: payForm.transaction_id,
+          invoice_id: payForm.invoice_id || undefined,
+          notes: payForm.notes
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Payment recorded successfully!", { id: toastId });
+        setPayModalOpen(false);
+        await fetchOrganizations();
+        fetchOrgDetails(selectedOrg.org_id);
+      } else {
+        toast.error("Failed to record payment: " + (data.error || "Unknown error"), { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message, { id: toastId });
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
+  // Live CheckSubscription API Tester
+  const handleOpenApiTester = async (org: AttendxOrganization) => {
+    setTestedOrg(org);
+    setApiTesterOpen(true);
+    setApiLoading(true);
+    try {
+      const res = await fetch(`/management/api/checkSubscription?orgId=${encodeURIComponent(org.org_id)}`);
+      const data = await res.json();
+      setApiResponse(data);
+    } catch (err: any) {
+      setApiResponse({ error: err.message });
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  // Filtered organizations
+  const filteredOrgs = useMemo(() => {
+    return organizations.filter((org) => {
+      const matchesSearch =
+        org.org_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        org.org_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (org.contact_email || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" ? true : org.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [organizations, searchQuery, statusFilter]);
+
+  // Overall KPI stats
+  const stats = useMemo(() => {
+    const activeCount = organizations.filter(o => o.status === "active").length;
+    const warningCount = organizations.filter(o => o.status === "warning").length;
+    const expiredCount = organizations.filter(o => o.status === "expired").length;
+    const totalMrr = organizations
+      .filter(o => o.status === "active")
+      .reduce((sum, o) => sum + (o.billing_cycle === "yearly" ? Math.round(o.plan_price / 12) : o.plan_price), 0);
+    const totalHardwareUnits = organizations.reduce((sum, o) => {
+      return sum + (o.hardware_sales || []).reduce((hSum, h) => hSum + h.quantity, 0);
+    }, 0);
+
+    return { activeCount, warningCount, expiredCount, totalMrr, totalHardwareUnits };
+  }, [organizations]);
+
   return (
-    <div className="flex-1 p-6 md:p-10 space-y-8 bg-[#020617] text-slate-100 min-h-screen font-sans">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-3 sm:p-6 lg:p-8 font-sans space-y-6">
+      {/* TOP HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-600/10">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+              <Server className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                AttendX / Academix Hub
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
-                  DB Persistent
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  AttendX & Academix Hub
+                </h1>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase tracking-widest">
+                  Live DB
                 </span>
-              </h1>
+              </div>
               <p className="text-xs text-slate-400">
-                Subscription analytics, dues, client spent, payment history, hardware sales & management API.
+                Institutional biometric ERP subscriptions, hardware deployments & official billing
               </p>
             </div>
           </div>
@@ -593,40 +644,17 @@ export default function AttendxPage() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
-            onClick={() => setShowPlansReference(!showPlansReference)}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-              showPlansReference
-                ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
-            }`}
-          >
-            <Tag className="w-4 h-4 text-amber-400" />
-            <span>Pricing Plans</span>
-          </button>
-          <button
-            onClick={fetchData}
+            onClick={fetchOrganizations}
             disabled={loading}
-            className="p-2.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors cursor-pointer"
-            title="Refresh Data"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
+
           <button
-            onClick={() => {
-              setOrgPlanCycle("monthly");
-              setEditingOrg({
-                status: "active",
-                plan_tier: "silver",
-                billing_cycle: "monthly",
-                currency: "৳",
-                plan_price: 1049,
-                student_count: 200,
-                warning_start: new Date(Date.now() + 25 * 86400000).toISOString().split("T")[0],
-                subscription_ends: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0]
-              });
-              setOrgModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] cursor-pointer"
+            onClick={() => handleOpenOrgModal()}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Institution</span>
@@ -634,308 +662,150 @@ export default function AttendxPage() {
         </div>
       </div>
 
-      {/* PRICING PLANS REFERENCE BANNER (EXPANDABLE) */}
-      {showPlansReference && (
-        <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-5 animate-fade-in shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" /> Official Academix / AttendX Pricing Tiers
-              </h3>
-              <p className="text-xs text-slate-400">Select any tier to pre-populate billing or create new institution.</p>
-            </div>
-
-            {/* Monthly / Yearly Toggle */}
-            <div className="flex items-center p-1 bg-slate-950 border border-slate-800 rounded-xl self-start">
-              <button
-                onClick={() => setPlansBillingCycle("monthly")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  plansBillingCycle === "monthly" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Monthly Billing
-              </button>
-              <button
-                onClick={() => setPlansBillingCycle("yearly")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  plansBillingCycle === "yearly" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <span>Yearly Billing</span>
-                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-black">2 Mo Free</span>
-              </button>
-            </div>
+      {/* KPI METRIC CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Active Institutions</span>
+            <Building2 className="w-4 h-4 text-emerald-400" />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-            {ATTENDX_DEFAULT_PLANS.map((plan) => {
-              const price = plansBillingCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-              const period = plansBillingCycle === "yearly" ? "/year" : "/month";
-
-              return (
-                <div
-                  key={plan.id}
-                  className={`p-4 rounded-xl border bg-gradient-to-b ${plan.bgGradient} ${plan.borderColor} flex flex-col justify-between space-y-3 relative`}
-                >
-                  {plan.badge && (
-                    <span className="absolute -top-2 right-3 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow">
-                      {plan.badge}
-                    </span>
-                  )}
-
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-extrabold text-sm text-white" style={{ color: plan.color }}>
-                        {plan.name}
-                      </h4>
-                      <span className="text-[10px] text-slate-400 font-bold">{plan.students}</span>
-                    </div>
-
-                    <div className="mt-2 flex items-baseline gap-1">
-                      <span className="text-xl font-black text-white">৳{price.toLocaleString()}</span>
-                      <span className="text-[10px] text-slate-400 font-bold">{period}</span>
-                    </div>
-
-                    <ul className="mt-3 space-y-1.5 text-[11px] text-slate-300">
-                      {plan.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <Check className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setOrgPlanCycle(plansBillingCycle);
-                      setEditingOrg({
-                        status: "active",
-                        plan_tier: plan.id,
-                        billing_cycle: plansBillingCycle,
-                        currency: "৳",
-                        plan_price: price,
-                        student_count: plan.studentMax,
-                        warning_start: new Date(Date.now() + 25 * 86400000).toISOString().split("T")[0],
-                        subscription_ends: new Date(Date.now() + (plansBillingCycle === "yearly" ? 365 : 30) * 86400000).toISOString().split("T")[0]
-                      });
-                      setOrgModalOpen(true);
-                    }}
-                    className="w-full py-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg transition-all text-center cursor-pointer"
-                  >
-                    Select {plan.name}
-                  </button>
-                </div>
-              );
-            })}
+          <div className="text-2xl font-black text-white">{stats.activeCount} <span className="text-xs text-slate-500 font-normal">/ {organizations.length}</span></div>
+          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+            <Activity className="w-3 h-3" /> System Operational
           </div>
         </div>
-      )}
 
-      {/* 4 Executive Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Institutions</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-              <Server className="w-4 h-4" />
-            </div>
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Estimated MRR</span>
+            <TrendingUp className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white">{totalOrgs}</span>
-            <span className="text-xs text-emerald-400 font-bold">({activeOrgs} Active)</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">Live SaaS client instances</p>
+          <div className="text-2xl font-black text-indigo-400">৳{stats.totalMrr.toLocaleString()}</div>
+          <div className="text-[10px] text-slate-400 font-semibold">Recurring SaaS Revenue</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly Recurring</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
-            </div>
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Hardware Deployed</span>
+            <Cpu className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white">৳{totalMRR.toLocaleString()}</span>
-            <span className="text-xs text-slate-400">/mo</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">From active subscription plans</p>
+          <div className="text-2xl font-black text-purple-400">{stats.totalHardwareUnits} <span className="text-xs text-slate-500 font-normal">Units</span></div>
+          <div className="text-[10px] text-purple-300 font-semibold">Terminals & Biometrics</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hardware Deployed</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
-              <HardDrive className="w-4 h-4" />
-            </div>
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Attention Required</span>
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-white">{totalHardwareUnits}</span>
-            <span className="text-xs text-purple-400 font-bold">Devices</span>
+          <div className="text-2xl font-black text-amber-400">{stats.warningCount + stats.expiredCount}</div>
+          <div className="text-[10px] text-amber-300 font-semibold">
+            {stats.warningCount} in warning, {stats.expiredCount} expired
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Biometrics, Readers, NFC Terminals</p>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subscription Health</span>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${warningOrgs > 0 ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            {warningOrgs > 0 ? (
-              <>
-                <span className="text-2xl font-black text-amber-400">{warningOrgs}</span>
-                <span className="text-xs text-amber-400 font-bold">Need Renewal</span>
-              </>
-            ) : (
-              <>
-                <span className="text-2xl font-black text-emerald-400">100%</span>
-                <span className="text-xs text-emerald-400 font-bold">Healthy</span>
-              </>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            {warningOrgs > 0 ? "Warning start reached" : "All subscriptions up to date"}
-          </p>
         </div>
       </div>
 
-      {/* Main Layout: Directory (4 Cols) & Full Detail Hub (8 Cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Organization Directory (4 Cols) */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-extrabold text-sm text-slate-200 uppercase tracking-wider">Institutions Directory</h3>
-            <span className="text-xs text-slate-500">{filteredOrgs.length} of {organizations.length}</span>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="space-y-2">
+      {/* MAIN CONTENT AREA: MASTER-DETAIL INTERFACE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: INSTITUTION DIRECTORY (4 COLS ON DESKTOP, HIDDEN ON MOBILE IF ORG SELECTED) */}
+        <div className={`space-y-4 ${selectedOrg ? "hidden lg:block lg:col-span-4" : "col-span-12 lg:col-span-4"}`}>
+          {/* SEARCH & FILTER BAR */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 space-y-3">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search org name, orgId, or URL..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Search org name, ID, or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-              {["all", "active", "past_due", "trialing", "canceled"].map((st) => (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
+              {["all", "active", "warning", "expired"].map((st) => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap cursor-pointer transition-all ${
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] uppercase tracking-wide capitalize whitespace-nowrap cursor-pointer transition-all ${
                     statusFilter === st
                       ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800"
+                      : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
                   }`}
                 >
-                  {st.replace("_", " ")}
+                  {st}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Organizations List */}
-          <div className="space-y-3">
-            {loading ? (
-              <div className="p-8 text-center text-slate-500 text-xs">
-                <i className="fa-solid fa-spinner animate-spin text-indigo-500 text-lg mb-2"></i>
-                <p>Loading institutions from database...</p>
-              </div>
-            ) : filteredOrgs.length === 0 ? (
-              <div className="p-8 text-center bg-slate-900/40 border border-slate-800 rounded-2xl text-slate-500 text-xs space-y-2">
-                <p>No institutions matching filters.</p>
-                <button
-                  onClick={() => {
-                    setEditingOrg({
-                      org_id: "academix_main",
-                      org_name: "Academix University & College ERP",
-                      client_id: "academix_main",
-                      client_web_base: "https://managementsite.academix.xyz",
-                      status: "active",
-                      plan_tier: "silver",
-                      plan_price: 1049,
-                      student_count: 200,
-                      currency: "৳",
-                      billing_cycle: "monthly"
-                    });
-                    setOrgModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer"
-                >
-                  Add Academix Main
-                </button>
+          {/* ORGANIZATIONS LIST */}
+          <div className="space-y-2.5 max-h-[calc(100vh-280px)] overflow-y-auto custom-scrollbar pr-1">
+            {filteredOrgs.length === 0 ? (
+              <div className="p-8 text-center bg-slate-900/50 border border-slate-800 rounded-2xl text-slate-400 text-xs">
+                No organizations found matching criteria.
               </div>
             ) : (
               filteredOrgs.map((org) => {
-                const isSelected = selectedOrg?.id === org.id;
-                const isExpired = new Date(org.subscription_ends) < new Date();
-                const isWarning = !isExpired && new Date(org.warning_start) <= new Date();
+                const isSelected = selectedOrg?.org_id === org.org_id || selectedOrg?.id === org.id;
+                const daysLeft = Math.ceil(
+                  (new Date(org.subscription_ends).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                );
+                const hardwareCount = (org.hardware_sales || []).reduce((sum, h) => sum + h.quantity, 0);
 
                 return (
                   <div
-                    key={org.id}
+                    key={org.id || org.org_id}
                     onClick={() => handleSelectOrg(org)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer relative group ${
                       isSelected
-                        ? "bg-indigo-950/30 border-indigo-500/60 shadow-lg shadow-indigo-600/10 ring-1 ring-indigo-500/50"
-                        : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900"
+                        ? "bg-indigo-950/40 border-indigo-500 ring-1 ring-indigo-500/50 shadow-lg shadow-indigo-950/50"
+                        : "bg-slate-900/80 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-sm text-white">{org.org_name}</h4>
-                        </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <code className="text-[10px] bg-slate-800 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">
-                            {org.org_id}
-                          </code>
-                          {org.plan_tier && (
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">
-                              {org.plan_tier}
-                            </span>
-                          )}
-                          <span
-                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                              org.status === "active"
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                : org.status === "past_due"
-                                ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                                : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                            }`}
-                          >
-                            {org.status.replace("_", " ")}
+                          <h3 className="font-extrabold text-sm text-white group-hover:text-indigo-400 transition-colors">
+                            {org.org_name}
+                          </h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            org.status === "active"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                              : org.status === "warning"
+                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                              : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                          }`}>
+                            {org.status}
                           </span>
-                          {isWarning && (
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 flex items-center gap-1 animate-pulse">
-                              <AlertTriangle className="w-2.5 h-2.5" /> Warning
-                            </span>
-                          )}
                         </div>
+                        <p className="text-[11px] font-mono text-slate-400">
+                          orgId: <strong className="text-slate-300">{org.org_id}</strong>
+                        </p>
                       </div>
 
-                      <div className="text-right">
-                        <div className="font-black text-sm text-white">
-                          {org.currency}{org.plan_price?.toLocaleString()}
-                        </div>
-                        <span className="text-[10px] text-slate-400 capitalize">{org.billing_cycle}</span>
-                      </div>
+                      <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? "text-indigo-400 translate-x-1" : "text-slate-600"}`} />
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
-                      <span className="truncate max-w-[170px] text-slate-400">
-                        {org.client_web_base}
-                      </span>
-                      <span className="font-mono text-slate-300">
-                        Ends: {new Date(org.subscription_ends).toLocaleDateString()}
-                      </span>
+                    <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="w-3 h-3 text-indigo-400" />
+                        <span className="font-bold text-slate-200">
+                          {org.currency}{org.plan_price.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-slate-500 capitalize">/{org.billing_cycle || "mo"}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {hardwareCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-bold flex items-center gap-1">
+                            <Cpu className="w-2.5 h-2.5" /> {hardwareCount} HW
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-bold ${daysLeft <= 5 ? "text-rose-400" : daysLeft <= 15 ? "text-amber-400" : "text-slate-400"}`}>
+                          {daysLeft > 0 ? `${daysLeft}d left` : "Expired"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -944,269 +814,274 @@ export default function AttendxPage() {
           </div>
         </div>
 
-        {/* Right Column: Full Detail Hub with Analytics, Dues, Invoices, Payments (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        {/* RIGHT COLUMN: INSTITUTION DETAILS & ACTIONS (8 COLS ON DESKTOP, FULL WIDTH ON MOBILE) */}
+        <div className={`space-y-5 ${selectedOrg ? "col-span-12 lg:col-span-8" : "hidden lg:block lg:col-span-8"}`}>
           {selectedOrg ? (
-            <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-6 shadow-xl">
-              {/* Header Info */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-800">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-white">{selectedOrg.org_name}</h2>
-                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                      selectedOrg.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
-                    }`}>
-                      {selectedOrg.status}
-                    </span>
+            <div className="space-y-5">
+              {/* INSTITUTION HEADER CARD */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+                {/* Mobile Back Button */}
+                <div className="lg:hidden flex items-center justify-between pb-3 border-b border-slate-800">
+                  <button
+                    onClick={() => setSelectedOrg(null)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to Institutions List
+                  </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h2 className="text-xl font-black text-white">{selectedOrg.org_name}</h2>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        selectedOrg.status === "active"
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                          : selectedOrg.status === "warning"
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                          : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                      }`}>
+                        {selectedOrg.status}
+                      </span>
+                      {selectedOrg.plan_tier && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                          {selectedOrg.plan_tier} tier
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                      <span className="font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-slate-300">
+                        orgId: {selectedOrg.org_id}
+                      </span>
+                      {selectedOrg.client_web_base && (
+                        <a
+                          href={selectedOrg.client_web_base}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-400 hover:underline flex items-center gap-1 text-[11px]"
+                        >
+                          <span>{selectedOrg.client_web_base}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-400 font-mono mt-1 flex-wrap">
-                    <span>Org ID: <strong className="text-indigo-400">{selectedOrg.org_id}</strong></span>
-                    {selectedOrg.plan_tier && (
-                      <span className="capitalize text-amber-400 font-bold">Tier: {selectedOrg.plan_tier}</span>
-                    )}
-                    {selectedOrg.student_count && (
-                      <span>Capacity: {selectedOrg.student_count} Students</span>
-                    )}
+
+                  {/* Top Action Pills */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleOpenOrgModal(selectedOrg)}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                      title="Edit Settings"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOrg(selectedOrg.id || selectedOrg.org_id, selectedOrg.org_name)}
+                      className="p-2 rounded-xl bg-rose-950/40 border border-rose-900/50 hover:bg-rose-900/60 text-rose-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                      title="Delete Institution"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* PRIMARY ACTION TOOLBAR */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
                   <button
-                    onClick={() => handleOpenPaymentModal(selectedOrg)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                    onClick={() => handleOpenBillModal(selectedOrg)}
+                    className="p-2.5 rounded-xl bg-amber-600/20 border border-amber-500/40 hover:bg-amber-600/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Generate Bill</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenPayModal(selectedOrg)}
+                    className="p-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/40 hover:bg-emerald-600/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Record Payment</span>
                   </button>
+
                   <button
-                    onClick={() => {
-                      setEditingOrg(selectedOrg);
-                      setOrgPlanCycle(selectedOrg.billing_cycle === "yearly" ? "yearly" : "monthly");
-                      setOrgModalOpen(true);
-                    }}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                    title="Edit Settings"
+                    onClick={() => handleQuickExtend(selectedOrg)}
+                    className="p-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>+30 Days</span>
                   </button>
+
                   <button
-                    onClick={() => handleDeleteOrg(selectedOrg.id, selectedOrg.org_name)}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
-                    title="Delete Organization"
+                    onClick={() => handlePurgeCache(selectedOrg)}
+                    className="p-2.5 rounded-xl bg-purple-600/20 border border-purple-500/40 hover:bg-purple-600/30 text-purple-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Purge Webhook</span>
                   </button>
                 </div>
               </div>
 
-              {/* ONE-CLICK ACTIONS TOOLBAR */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {/* Action 1: Quick Extend */}
-                <button
-                  onClick={() => handleQuickExtend30Days(selectedOrg)}
-                  className="p-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-300 hover:text-white flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer shadow-sm group"
-                >
-                  <Clock className="w-4 h-4 text-indigo-400 group-hover:text-white" />
-                  <span className="text-[11px] font-black">+30 Days Extend</span>
-                </button>
-
-                {/* Action 2: Purge Cache */}
-                <button
-                  onClick={() => handlePurgeCache(selectedOrg)}
-                  disabled={purgingOrgId === selectedOrg.id}
-                  className="p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-300 hover:text-white flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer shadow-sm group"
-                >
-                  <RefreshCw className={`w-4 h-4 text-emerald-400 group-hover:text-white ${purgingOrgId === selectedOrg.id ? "animate-spin" : ""}`} />
-                  <span className="text-[11px] font-black">Purge Client Cache</span>
-                </button>
-
-                {/* Action 3: Generate Bill */}
-                <button
-                  onClick={() => handleOpenBillModal(selectedOrg)}
-                  className="p-3 rounded-xl bg-amber-600/20 hover:bg-amber-600 border border-amber-500/40 text-amber-300 hover:text-white flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer shadow-sm group"
-                >
-                  <FileText className="w-4 h-4 text-amber-400 group-hover:text-white" />
-                  <span className="text-[11px] font-black">Generate Bill / Inv</span>
-                </button>
-
-                {/* Action 4: Live API Contract Tester */}
-                <button
-                  onClick={() => handleTestApi(selectedOrg)}
-                  className="p-3 rounded-xl bg-purple-600/20 hover:bg-purple-600 border border-purple-500/40 text-purple-300 hover:text-white flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer shadow-sm group"
-                >
-                  <Terminal className="w-4 h-4 text-purple-400 group-hover:text-white" />
-                  <span className="text-[11px] font-black">Test API Contract</span>
-                </button>
-              </div>
-
-              {/* TAB NAVIGATION: Analytics, Invoices, Payments, Hardware, Integration */}
+              {/* TABS NAVIGATION */}
               <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto custom-scrollbar">
                 {[
-                  { id: "analytics", label: "Analytics & Dues", icon: <TrendingUp className="w-3.5 h-3.5" /> },
-                  { id: "invoices", label: `Invoices History (${selectedOrg.invoices?.length || 0})`, icon: <Receipt className="w-3.5 h-3.5" /> },
-                  { id: "payments", label: `Payments Ledger (${selectedOrg.payments?.length || 0})`, icon: <History className="w-3.5 h-3.5" /> },
-                  { id: "hardware", label: `Hardware Devices (${selectedOrg.hardware_sales?.length || 0})`, icon: <HardDrive className="w-3.5 h-3.5" /> },
-                  { id: "integration", label: "Server Integration", icon: <Globe className="w-3.5 h-3.5" /> }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveOrgTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                      activeOrgTab === tab.id
-                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
+                  { id: "overview", label: "Overview & Dues", icon: Activity },
+                  { id: "invoices", label: `Invoices (${selectedOrg.invoices?.length || 0})`, icon: Receipt },
+                  { id: "payments", label: `Payments (${selectedOrg.payments?.length || 0})`, icon: CreditCard },
+                  { id: "hardware", label: `Hardware (${selectedOrg.hardware_sales?.length || 0})`, icon: HardDrive },
+                  { id: "api", label: "Live API Tester", icon: Terminal }
+                ].map((t) => {
+                  const Icon = t.icon;
+                  const isActive = activeTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTab(t.id as any)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+                        isActive
+                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                          : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* TAB 1: ANALYTICS & DUES & CLIENT SPENT */}
-              {activeOrgTab === "analytics" && (
-                <div className="space-y-6 animate-fade-in">
-                  {/* Financial Overview Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Lifetime Client Spent</span>
-                      <div className="text-xl font-black text-emerald-400 mt-1">
-                        {selectedOrg.currency}{orgFinancials.lifetime_spent.toLocaleString()}
-                      </div>
-                      <span className="text-[10px] text-slate-500">Total collected to date</span>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Outstanding Dues</span>
-                      <div className={`text-xl font-black mt-1 ${orgFinancials.outstanding_due > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                        {selectedOrg.currency}{orgFinancials.outstanding_due.toLocaleString()}
-                      </div>
-                      <span className="text-[10px] text-slate-500">
-                        {orgFinancials.outstanding_due > 0 ? "Unpaid balance" : "Fully paid"}
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+              {/* TAB 1: OVERVIEW & METRICS */}
+              {activeTab === "overview" && (
+                <div className="space-y-4">
+                  {/* Financial Metrics Summary */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Total Invoiced</span>
-                      <div className="text-xl font-black text-indigo-400 mt-1">
-                        {selectedOrg.currency}{orgFinancials.total_billed.toLocaleString()}
+                      <div className="text-lg font-black text-white mt-0.5">
+                        {selectedOrg.currency}{(selectedOrg.financials?.total_billed || 0).toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-slate-500">{orgFinancials.invoice_count} invoices generated</span>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Hardware Revenue</span>
-                      <div className="text-xl font-black text-purple-400 mt-1">
-                        {selectedOrg.currency}{orgFinancials.hardware_revenue.toLocaleString()}
+                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase">Total Collected</span>
+                      <div className="text-lg font-black text-emerald-400 mt-0.5">
+                        {selectedOrg.currency}{(selectedOrg.financials?.total_collected || 0).toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-slate-500">{(selectedOrg.hardware_sales || []).length} devices sold</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 col-span-2 sm:col-span-1">
+                      <span className="text-[10px] font-bold text-rose-400 uppercase">Outstanding Due</span>
+                      <div className="text-lg font-black text-rose-400 mt-0.5">
+                        {selectedOrg.currency}{(selectedOrg.financials?.outstanding_due || 0).toLocaleString()}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Revenue Stream Breakdown */}
-                  <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
-                    <h4 className="font-extrabold text-xs text-white uppercase tracking-wider">Revenue Breakdown</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-slate-300">SaaS Cloud Subscription ({selectedOrg.billing_cycle})</span>
-                          <span className="font-bold text-indigo-400">{selectedOrg.currency}{selectedOrg.plan_price?.toLocaleString()}</span>
+                  {/* Dates & Subscription Information */}
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+                    <h4 className="font-black text-xs uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" /> Subscription Lifecycle
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold">Warning Period Starts</span>
+                        <div className="font-bold text-amber-400">
+                          {selectedOrg.warning_start ? new Date(selectedOrg.warning_start).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
                         </div>
-                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
-                          <div className="bg-indigo-500 h-full rounded-full" style={{ width: "70%" }}></div>
-                        </div>
+                        <p className="text-[10px] text-slate-500">Client ERP displays renewal warning after this date</p>
                       </div>
 
+                      <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold">Subscription Expiry Date</span>
+                        <div className="font-bold text-rose-400">
+                          {selectedOrg.subscription_ends ? new Date(selectedOrg.subscription_ends).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
+                        </div>
+                        <p className="text-[10px] text-slate-500">Client ERP biometric access pauses if unpaid after this date</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Client Contacts */}
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Contact & Organization Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-slate-300">Hardware Terminals & Kits</span>
-                          <span className="font-bold text-purple-400">{selectedOrg.currency}{orgFinancials.hardware_revenue.toLocaleString()}</span>
-                        </div>
-                        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
-                          <div className="bg-purple-500 h-full rounded-full" style={{ width: "30%" }}></div>
-                        </div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">Contact Person</span>
+                        <span className="font-bold text-slate-200">{selectedOrg.contact_person || "Not specified"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">Email</span>
+                        <span className="font-mono text-slate-200">{selectedOrg.contact_email || "Not specified"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">Phone</span>
+                        <span className="font-mono text-slate-200">{selectedOrg.contact_phone || "Not specified"}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* TAB 2: INVOICES HISTORY */}
-              {activeOrgTab === "invoices" && (
-                <div className="space-y-4 animate-fade-in">
+              {/* TAB 2: INVOICES & BILLING */}
+              {activeTab === "invoices" && (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300">Generated Official Invoices</span>
+                    <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Official Invoices in Supabase</h4>
                     <button
                       onClick={() => handleOpenBillModal(selectedOrg)}
-                      className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" /> Generate New Bill
                     </button>
                   </div>
 
-                  {(!selectedOrg.invoices || selectedOrg.invoices.length === 0) ? (
-                    <div className="p-8 text-center bg-slate-950 border border-slate-800 rounded-xl text-slate-500 text-xs space-y-2">
-                      <Receipt className="w-8 h-8 mx-auto stroke-1 text-slate-700" />
-                      <p>No invoices generated yet for this institution.</p>
-                      <button
-                        onClick={() => handleOpenBillModal(selectedOrg)}
-                        className="px-3 py-1.5 bg-amber-600 text-white rounded-lg font-bold"
-                      >
-                        Generate First Invoice
-                      </button>
+                  {!selectedOrg.invoices || selectedOrg.invoices.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 text-xs">
+                      No invoices created yet for this institution. Click "Generate New Bill" to create an official invoice with plan & hardware.
                     </div>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="space-y-3">
                       {selectedOrg.invoices.map((inv: any) => (
-                        <div key={inv.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                        <div key={inv.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-white">#{inv.invoice_number}</span>
-                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              <span className="font-mono font-black text-sm text-white">#{inv.invoice_number}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                                 inv.status === "paid"
-                                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                  : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
                               }`}>
                                 {inv.status}
                               </span>
                             </div>
-                            <p className="text-[10px] text-slate-400">
-                              Issued: {inv.date} · Due: {inv.due_date}
+                            <p className="text-[11px] text-slate-400">
+                              Date: {inv.date} | Due: {inv.due_date}
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <div className="font-black text-sm text-white">
+                              <div className="font-mono font-black text-sm text-white">
                                 {inv.currency}{inv.total_amount?.toLocaleString()}
                               </div>
                               {inv.due_amount > 0 && (
-                                <span className="text-[10px] text-rose-400 font-bold block">
-                                  Due: {inv.currency}{inv.due_amount?.toLocaleString()}
-                                </span>
+                                <div className="text-[10px] text-rose-400 font-bold">
+                                  Due: {inv.currency}{inv.due_amount.toLocaleString()}
+                                </div>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-1.5">
-                              {inv.due_amount > 0 && (
-                                <button
-                                  onClick={() => handleOpenPaymentModal(selectedOrg, inv.due_amount, inv.id)}
-                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold cursor-pointer"
-                                  title="Record Payment"
-                                >
-                                  Pay
-                                </button>
-                              )}
-                              <a
-                                href={inv.share_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg"
-                                title="Open Invoice"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
+                            <a
+                              href={inv.share_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>View</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
                           </div>
                         </div>
                       ))}
@@ -1215,51 +1090,43 @@ export default function AttendxPage() {
                 </div>
               )}
 
-              {/* TAB 3: PAYMENTS LEDGER */}
-              {activeOrgTab === "payments" && (
-                <div className="space-y-4 animate-fade-in">
+              {/* TAB 3: PAYMENTS HISTORY */}
+              {activeTab === "payments" && (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300">Payment Collection History</span>
+                    <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Payment Transactions</h4>
                     <button
-                      onClick={() => handleOpenPaymentModal(selectedOrg)}
-                      className="flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                      onClick={() => handleOpenPayModal(selectedOrg)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" /> Record Payment
                     </button>
                   </div>
 
-                  {(!selectedOrg.payments || selectedOrg.payments.length === 0) ? (
-                    <div className="p-8 text-center bg-slate-950 border border-slate-800 rounded-xl text-slate-500 text-xs space-y-2">
-                      <History className="w-8 h-8 mx-auto stroke-1 text-slate-700" />
-                      <p>No payments recorded in collection ledger yet.</p>
-                      <button
-                        onClick={() => handleOpenPaymentModal(selectedOrg)}
-                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold cursor-pointer"
-                      >
-                        Record First Payment
-                      </button>
+                  {!selectedOrg.payments || selectedOrg.payments.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 text-xs">
+                      No direct payments recorded yet. Click "Record Payment" to log client transfers or bKash/Nagad transactions.
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {selectedOrg.payments.map((pmt: AttendxPayment) => (
-                        <div key={pmt.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-emerald-400">
-                                + {selectedOrg.currency}{pmt.amount.toLocaleString()}
-                              </span>
-                              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-bold">
-                                {pmt.payment_method}
-                              </span>
+                      {selectedOrg.payments.map((p: any) => (
+                        <div key={p.id} className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <div className="font-bold text-xs text-white flex items-center gap-2">
+                              <span>{p.payment_method || "Payment"}</span>
+                              {p.transaction_id && (
+                                <span className="font-mono text-[10px] bg-slate-950 px-1.5 py-0.5 rounded text-indigo-400 border border-slate-800">
+                                  Trx: {p.transaction_id}
+                                </span>
+                              )}
                             </div>
                             <p className="text-[10px] text-slate-400">
-                              Date: {pmt.payment_date} {pmt.transaction_id ? `· Trx: ${pmt.transaction_id}` : ""}
+                              Date: {p.payment_date} {p.notes ? `• ${p.notes}` : ""}
                             </p>
-                            {pmt.notes && (
-                              <p className="text-[10px] text-slate-500 italic">{pmt.notes}</p>
-                            )}
                           </div>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <div className="font-black text-sm text-emerald-400 font-mono">
+                            +{selectedOrg.currency}{Number(p.amount).toLocaleString()}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1267,43 +1134,61 @@ export default function AttendxPage() {
                 </div>
               )}
 
-              {/* TAB 4: HARDWARE DEVICES */}
-              {activeOrgTab === "hardware" && (
-                <div className="space-y-4 animate-fade-in">
+              {/* TAB 4: HARDWARE DEPLOYMENTS */}
+              {activeTab === "hardware" && (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300">Hardware Deployments & Inventory</span>
+                    <div>
+                      <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Hardware & Biometric Terminals</h4>
+                      <p className="text-[11px] text-slate-500">Physical devices deployed at this institution</p>
+                    </div>
                     <button
-                      onClick={() => {
-                        setActiveOrgForHardware(selectedOrg);
-                        setHardwareModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 text-xs font-bold text-purple-400 hover:text-purple-300 cursor-pointer"
+                      onClick={() => handleOpenHardwareModal(selectedOrg)}
+                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Device
+                      <Plus className="w-3.5 h-3.5" /> Deploy Device
                     </button>
                   </div>
 
-                  {(!selectedOrg.hardware_sales || selectedOrg.hardware_sales.length === 0) ? (
-                    <div className="p-8 text-center bg-slate-950 border border-slate-800 rounded-xl text-slate-500 text-xs">
-                      No hardware devices logged for this organization yet.
+                  {!selectedOrg.hardware_sales || selectedOrg.hardware_sales.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 text-xs">
+                      No hardware deployments recorded. Click "Deploy Device" to add biometric terminals, readers, or access controllers.
                     </div>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedOrg.hardware_sales.map((hw: HardwareItem) => (
-                        <div key={hw.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-                          <div>
-                            <h5 className="font-bold text-white">{hw.name}</h5>
-                            <p className="text-[10px] text-slate-400">
-                              Qty: <strong className="text-slate-200">{hw.quantity}</strong> · Warranty: {hw.warranty_months || 12} Mo · Sold: {hw.sold_date}
-                            </p>
-                            {hw.serial_numbers && hw.serial_numbers.length > 0 && (
-                              <p className="text-[10px] font-mono text-indigo-400">
-                                S/N: {hw.serial_numbers.join(", ")}
-                              </p>
-                            )}
+                        <div key={hw.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5 relative group">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h5 className="font-bold text-xs text-white">{hw.name}</h5>
+                              <span className="text-[10px] text-purple-400 font-bold">
+                                Qty: {hw.quantity} @ {selectedOrg.currency}{hw.unit_price.toLocaleString()}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteHardware(hw.id)}
+                              className="text-slate-600 hover:text-rose-400 p-1 rounded cursor-pointer transition-colors"
+                              title="Delete hardware item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <div className="text-right font-black text-purple-400">
-                            {selectedOrg.currency}{(hw.unit_price * hw.quantity).toLocaleString()}
+
+                          <div className="text-[11px] text-slate-400 space-y-1">
+                            <div>Warranty: <strong>{hw.warranty_months || 12} Months</strong></div>
+                            <div>Sold Date: <strong>{hw.sold_date || "N/A"}</strong></div>
+                            {hw.serial_numbers && hw.serial_numbers.length > 0 && (
+                              <div className="pt-1">
+                                <span className="text-[10px] text-slate-500 uppercase font-bold block">Serial Numbers</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {hw.serial_numbers.map((sn, idx) => (
+                                    <span key={idx} className="font-mono text-[9px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300">
+                                      {sn}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1312,90 +1197,80 @@ export default function AttendxPage() {
                 </div>
               )}
 
-              {/* TAB 5: INTEGRATION & WEBHOOK */}
-              {activeOrgTab === "integration" && (
-                <div className="space-y-4 animate-fade-in">
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5 text-indigo-400" /> Client Server Integration
-                    </span>
-
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Client Web Base URL</label>
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 mt-1 font-mono text-slate-200">
-                          <span className="truncate">{selectedOrg.client_web_base || "Not configured"}</span>
-                          <button
-                            onClick={() => handleCopy(selectedOrg.client_web_base, "url")}
-                            className="text-slate-400 hover:text-white p-1 cursor-pointer"
-                          >
-                            {copiedKey === "url" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Client ID (Webhook Secret / Bearer Token)</label>
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 mt-1 font-mono text-indigo-300">
-                          <span>{selectedOrg.client_id || selectedOrg.org_id}</span>
-                          <button
-                            onClick={() => handleCopy(selectedOrg.client_id || selectedOrg.org_id, "token")}
-                            className="text-slate-400 hover:text-white p-1 cursor-pointer"
-                          >
-                            {copiedKey === "token" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
+              {/* TAB 5: LIVE API TESTER */}
+              {activeTab === "api" && (
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+                    <div>
+                      <h4 className="font-black text-xs uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                        <Terminal className="w-3.5 h-3.5" /> Client Subscription API Contract
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Endpoint queried by client ERP / Academix instances to verify validity and grace period.
+                      </p>
                     </div>
 
-                    {selectedOrg.last_webhook_status && (
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${selectedOrg.last_webhook_status.success ? "bg-emerald-400" : "bg-rose-400"}`} />
-                          Last Webhook: {selectedOrg.last_webhook_status.message}
-                        </span>
-                        <span className="text-slate-500 font-mono">
-                          {new Date(selectedOrg.last_webhook_status.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    )}
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-purple-300 flex items-center justify-between gap-2 overflow-x-auto">
+                      <span>GET /management/api/checkSubscription?orgId={selectedOrg.org_id}</span>
+                      <button
+                        onClick={() => handleOpenApiTester(selectedOrg)}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-[11px] shrink-0 cursor-pointer"
+                      >
+                        Run Live Test
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Live JSON Contract Response</span>
+                      <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-emerald-400 text-xs overflow-x-auto">
+                        {JSON.stringify({
+                          Status: selectedOrg.status,
+                          WarningStart: selectedOrg.warning_start,
+                          SubscriptionEnds: selectedOrg.subscription_ends
+                        }, null, 2)}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="p-12 rounded-2xl bg-slate-900/40 border border-slate-800 text-center text-slate-500 space-y-2">
-              <GraduationCap className="w-12 h-12 stroke-1 text-slate-700 mx-auto" />
-              <h4 className="font-bold text-slate-300">No Organization Selected</h4>
-              <p className="text-xs">Select an organization from the left directory to view details and trigger actions.</p>
+            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/60 rounded-3xl space-y-3">
+              <Building2 className="w-10 h-10 text-slate-600 mx-auto" />
+              <h3 className="font-black text-sm text-slate-300">Select an Institution</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Choose an institution from the list on the left to manage billing, generate official invoices, record hardware, or inspect live subscription API contracts.
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* MODAL 1: ADD / EDIT ORGANIZATION WITH INTERACTIVE PLAN SELECTOR */}
+      {/* ========================================================================= */}
+      {/* MODAL 1: ADD / EDIT INSTITUTION */}
+      {/* ========================================================================= */}
       {orgModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-sans">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-slate-100">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in font-sans">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden text-slate-100 max-h-[92vh] flex flex-col">
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <h3 className="font-black text-sm text-white">
-                {editingOrg?.id ? "Edit Institution Configuration" : "Add New AttendX Institution"}
+                {editingOrg?.id ? "Edit Institution Configuration" : "Register New Institution"}
               </h3>
-              <button onClick={() => setOrgModalOpen(false)} className="text-slate-400 hover:text-white font-bold text-lg cursor-pointer">✕</button>
+              <button onClick={() => setOrgModalOpen(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleSaveOrg} className="p-6 overflow-y-auto custom-scrollbar space-y-5 text-xs">
-              {/* Plan Tier Selection Tiles */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
-                    Select Official Pricing Plan Tier
+            <form onSubmit={handleSaveOrg} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-4 text-xs">
+              {/* Plan Tier Selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                    Select Plan Tier & Pricing
                   </label>
                   <div className="flex items-center p-0.5 bg-slate-950 border border-slate-800 rounded-lg">
                     <button
                       type="button"
                       onClick={() => setOrgPlanCycle("monthly")}
-                      className={`px-2 py-1 rounded text-[10px] font-bold cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
                         orgPlanCycle === "monthly" ? "bg-indigo-600 text-white" : "text-slate-400"
                       }`}
                     >
@@ -1404,7 +1279,7 @@ export default function AttendxPage() {
                     <button
                       type="button"
                       onClick={() => setOrgPlanCycle("yearly")}
-                      className={`px-2 py-1 rounded text-[10px] font-bold cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
                         orgPlanCycle === "yearly" ? "bg-indigo-600 text-white" : "text-slate-400"
                       }`}
                     >
@@ -1417,93 +1292,72 @@ export default function AttendxPage() {
                   {ATTENDX_DEFAULT_PLANS.map((plan) => {
                     const isSelected = editingOrg?.plan_tier === plan.id;
                     const price = orgPlanCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-
                     return (
                       <div
                         key={plan.id}
                         onClick={() => handleSelectPlanForOrg(plan, orgPlanCycle)}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer text-center space-y-1 relative ${
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-indigo-600/30 border-indigo-500 ring-2 ring-indigo-500 shadow-md"
+                            ? "bg-indigo-600/30 border-indigo-500 ring-2 ring-indigo-500"
                             : "bg-slate-950 border-slate-800 hover:border-slate-700"
                         }`}
                       >
-                        <span className="font-extrabold text-xs block" style={{ color: plan.color }}>
-                          {plan.name}
-                        </span>
-                        <span className="text-[9px] text-slate-400 block">{plan.students}</span>
-                        <div className="font-black text-xs text-white">৳{price.toLocaleString()}</div>
+                        <span className="font-black text-xs block" style={{ color: plan.color }}>{plan.name}</span>
+                        <span className="text-[9px] text-slate-400 block">{plan.studentLimit} std</span>
+                        <div className="font-black text-xs text-white mt-1">৳{price.toLocaleString()}</div>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* ID & Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Organization ID (orgId) *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. academix_main"
+                    placeholder="e.g. academix_dhaka"
                     value={editingOrg?.org_id || ""}
-                    onChange={(e) => setEditingOrg({ ...editingOrg, org_id: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    onChange={(e) => setEditingOrg({ ...editingOrg, org_id: e.target.value.toLowerCase().replace(/\s+/g, "_") })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Organization Name *</label>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Institution Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Academix University ERP"
+                    placeholder="e.g. Dhaka Model College"
                     value={editingOrg?.org_name || ""}
                     onChange={(e) => setEditingOrg({ ...editingOrg, org_name: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
 
+              {/* Web URL */}
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Client Web Base URL *</label>
+                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Client Web Base URL</label>
                 <input
                   type="text"
-                  required
-                  placeholder="https://clientapp.academix.xyz"
+                  placeholder="https://managementsite.academix.xyz"
                   value={editingOrg?.client_web_base || ""}
                   onChange={(e) => setEditingOrg({ ...editingOrg, client_web_base: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* Pricing rate and cycle */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Plan Tier</label>
-                  <select
-                    value={editingOrg?.plan_tier || "silver"}
-                    onChange={(e) => {
-                      const tier = e.target.value as any;
-                      const plan = ATTENDX_DEFAULT_PLANS.find(p => p.id === tier);
-                      const price = plan ? (orgPlanCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice) : editingOrg?.plan_price || 0;
-                      setEditingOrg({ ...editingOrg, plan_tier: tier, plan_price: price });
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none capitalize"
-                  >
-                    <option value="bronze">Bronze (50-100)</option>
-                    <option value="silver">Silver (100-200)</option>
-                    <option value="gold">Gold (200-400)</option>
-                    <option value="diamond">Diamond (400-1000)</option>
-                    <option value="platinum">Platinum (&gt;1000)</option>
-                    <option value="custom">Custom Plan</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Plan Rate ({editingOrg?.currency || "৳"})</label>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Rate (৳)</label>
                   <input
                     type="number"
                     value={editingOrg?.plan_price || 0}
                     onChange={(e) => setEditingOrg({ ...editingOrg, plan_price: Number(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1511,44 +1365,56 @@ export default function AttendxPage() {
                   <select
                     value={editingOrg?.billing_cycle || "monthly"}
                     onChange={(e) => setEditingOrg({ ...editingOrg, billing_cycle: e.target.value as any })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none capitalize"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   >
                     <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="biannual">Biannual (6 Mo)</option>
                     <option value="yearly">Yearly</option>
                     <option value="custom">Custom</option>
                   </select>
                 </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Status</label>
+                  <select
+                    value={editingOrg?.status || "active"}
+                    onChange={(e) => setEditingOrg({ ...editingOrg, status: e.target.value as any })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="active">Active</option>
+                    <option value="warning">Warning</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-amber-400 mb-1">Warning Start Date</label>
                   <input
                     type="date"
                     value={editingOrg?.warning_start?.split("T")[0] || ""}
                     onChange={(e) => setEditingOrg({ ...editingOrg, warning_start: new Date(e.target.value).toISOString() })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-rose-400 mb-1">Subscription Ends Date</label>
+                  <label className="block text-[10px] font-black uppercase text-rose-400 mb-1">Subscription Expiry Date</label>
                   <input
                     type="date"
                     value={editingOrg?.subscription_ends?.split("T")[0] || ""}
                     onChange={(e) => setEditingOrg({ ...editingOrg, subscription_ends: new Date(e.target.value).toISOString() })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
 
+              {/* Link CRM Client */}
               <div>
                 <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Link with CRM Client (Optional)</label>
                 <select
                   value={editingOrg?.linked_client_id || ""}
                   onChange={(e) => setEditingOrg({ ...editingOrg, linked_client_id: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 >
                   <option value="">-- Select Client from CRM --</option>
                   {clients.map(c => (
@@ -1557,7 +1423,7 @@ export default function AttendxPage() {
                 </select>
               </div>
 
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setOrgModalOpen(false)}
@@ -1567,9 +1433,9 @@ export default function AttendxPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-black shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 cursor-pointer"
                 >
-                  Save to Database
+                  Save Institution
                 </button>
               </div>
             </form>
@@ -1577,25 +1443,27 @@ export default function AttendxPage() {
         </div>
       )}
 
-      {/* MODAL 2: ADD HARDWARE DEPLOYMENT */}
+      {/* ========================================================================= */}
+      {/* MODAL 2: DEPLOY HARDWARE */}
+      {/* ========================================================================= */}
       {hardwareModalOpen && activeOrgForHardware && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-sans">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in font-sans">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-slate-100">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <h3 className="font-black text-sm text-white">Record Hardware Deployment</h3>
               <button onClick={() => setHardwareModalOpen(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleSaveHardware} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveHardware} className="p-4 sm:p-6 space-y-4 text-xs">
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Hardware Model / Device Name *</label>
+                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Device Model / Terminal Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. ZKTeco Biometric Time Attendance Terminal"
+                  placeholder="e.g. ZKTeco SilkBio-101TC Face & RFID Terminal"
                   value={hardwareForm.name || ""}
                   onChange={(e) => setHardwareForm({ ...hardwareForm, name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
 
@@ -1606,8 +1474,8 @@ export default function AttendxPage() {
                     type="number"
                     min="1"
                     value={hardwareForm.quantity || 1}
-                    onChange={(e) => setHardwareForm({ ...hardwareForm, quantity: Number(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    onChange={(e) => setHardwareForm({ ...hardwareForm, quantity: Math.max(1, Number(e.target.value)) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1616,7 +1484,7 @@ export default function AttendxPage() {
                     type="number"
                     value={hardwareForm.unit_price || 0}
                     onChange={(e) => setHardwareForm({ ...hardwareForm, unit_price: Number(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1628,7 +1496,7 @@ export default function AttendxPage() {
                     type="number"
                     value={hardwareForm.warranty_months || 12}
                     onChange={(e) => setHardwareForm({ ...hardwareForm, warranty_months: Number(e.target.value) })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1637,29 +1505,23 @@ export default function AttendxPage() {
                     type="date"
                     value={hardwareForm.sold_date || ""}
                     onChange={(e) => setHardwareForm({ ...hardwareForm, sold_date: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Serial Numbers (Optional)</label>
+                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Serial Numbers (Comma separated)</label>
                 <input
                   type="text"
                   placeholder="e.g. SN-ZK-991, SN-ZK-992"
                   value={serialInput}
-                  onChange={(e) => {
-                    setSerialInput(e.target.value);
-                    setHardwareForm({
-                      ...hardwareForm,
-                      serial_numbers: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                    });
-                  }}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  onChange={(e) => setSerialInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
 
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setHardwareModalOpen(false)}
@@ -1669,7 +1531,7 @@ export default function AttendxPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-black shadow-lg shadow-purple-600/30 cursor-pointer"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-black shadow-lg shadow-purple-600/30 cursor-pointer"
                 >
                   Save Hardware
                 </button>
@@ -1679,11 +1541,13 @@ export default function AttendxPage() {
         </div>
       )}
 
-      {/* MODAL 3: ADVANCED BILL & INVOICE GENERATOR */}
+      {/* ========================================================================= */}
+      {/* MODAL 3: ADVANCED INVOICE & BILL GENERATOR */}
+      {/* ========================================================================= */}
       {billModalOpen && billingOrg && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-sans">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-slate-100">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in font-sans">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden text-slate-100">
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                   <FileText className="w-4 h-4" />
@@ -1696,32 +1560,29 @@ export default function AttendxPage() {
               <button onClick={() => setBillModalOpen(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
             </div>
 
-            <div className="p-6 overflow-y-auto custom-scrollbar space-y-5 text-xs">
-              {/* Step 1: Select Plan Tier */}
-              <div>
-                <label className="block text-[10px] font-black uppercase text-amber-400 tracking-wider mb-2">
+            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-4 text-xs">
+              {/* Step 1: Subscription Tier */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black uppercase text-amber-400 tracking-wider">
                   1. Subscription Tier
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {ATTENDX_DEFAULT_PLANS.map((plan) => {
                     const isSelected = selectedPlanTier === plan.id;
                     const price = billBillingCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-
                     return (
                       <button
                         key={plan.id}
                         type="button"
                         onClick={() => handleBillPlanChange(plan.id)}
-                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-indigo-600/30 border-indigo-500 ring-2 ring-indigo-500 shadow-md"
+                            ? "bg-indigo-600/30 border-indigo-500 ring-2 ring-indigo-500"
                             : "bg-slate-950 border-slate-800 hover:border-slate-700"
                         }`}
                       >
-                        <span className="font-black text-xs block" style={{ color: plan.color }}>
-                          {plan.name}
-                        </span>
-                        <span className="text-[9px] text-slate-400 block">{plan.students}</span>
+                        <span className="font-black text-xs block" style={{ color: plan.color }}>{plan.name}</span>
+                        <span className="text-[9px] text-slate-400 block">{plan.studentLimit} std</span>
                         <div className="font-black text-xs text-white mt-1">৳{price.toLocaleString()}</div>
                       </button>
                     );
@@ -1729,29 +1590,26 @@ export default function AttendxPage() {
                 </div>
               </div>
 
-              {/* Step 2: Duration in Months & Billing Cycle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Step 2: Duration & Rate */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
                     2. Duration Period (Months)
                   </label>
-                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                     {[1, 3, 6, 12, 24].map((m) => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => {
                           setBillDurationMonths(m);
-                          if (m >= 12 && billBillingCycle !== "yearly") {
-                            handleBillCycleChange("yearly");
-                          } else if (m < 12 && billBillingCycle === "yearly") {
-                            handleBillCycleChange("monthly");
-                          }
+                          if (m >= 12 && billBillingCycle !== "yearly") handleBillCycleChange("yearly");
+                          else if (m < 12 && billBillingCycle === "yearly") handleBillCycleChange("monthly");
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
                           billDurationMonths === m
                             ? "bg-indigo-600 text-white"
-                            : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200"
+                            : "bg-slate-950 border border-slate-800 text-slate-400"
                         }`}
                       >
                         {m} {m === 12 ? "Yr (12 Mo)" : m === 24 ? "2 Yrs" : "Mo"}
@@ -1763,7 +1621,7 @@ export default function AttendxPage() {
                     min="1"
                     value={billDurationMonths}
                     onChange={(e) => setBillDurationMonths(Math.max(1, Number(e.target.value)))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
 
@@ -1775,16 +1633,153 @@ export default function AttendxPage() {
                     type="number"
                     value={customPlanPrice}
                     onChange={(e) => setCustomPlanPrice(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-black text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none mt-7"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 font-black text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none mt-7"
                   />
                 </div>
               </div>
 
-              {/* Step 3: Discounts & Promotions */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              {/* Step 3: Hardware Selling & Bundling */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <Percent className="w-3.5 h-3.5 text-emerald-400" /> 3. Promotional Discount
+                    <HardDrive className="w-3.5 h-3.5 text-purple-400" /> 3. Hardware Selling & Bundling
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddHardwareInBill(!showAddHardwareInBill)}
+                    className="text-[11px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" /> + Sell New Hardware
+                  </button>
+                </div>
+
+                {/* Inline form to sell new hardware on this invoice */}
+                {showAddHardwareInBill && (
+                  <div className="p-3 rounded-lg bg-slate-900 border border-purple-900/50 space-y-2.5 animate-fade-in">
+                    <span className="text-[10px] font-bold uppercase text-purple-300 block">Add New Hardware Line Item</span>
+                    <input
+                      type="text"
+                      placeholder="Device Model (e.g. ZKTeco K40)"
+                      value={inlineHwName}
+                      onChange={(e) => setInlineHwName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={inlineHwQty}
+                          onChange={(e) => setInlineHwQty(Math.max(1, Number(e.target.value)))}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase">Unit Price</label>
+                        <input
+                          type="number"
+                          value={inlineHwPrice}
+                          onChange={(e) => setInlineHwPrice(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase">Warranty (Mo)</label>
+                        <input
+                          type="number"
+                          value={inlineHwWarranty}
+                          onChange={(e) => setInlineHwWarranty(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Serial numbers (e.g. SN-1, SN-2)"
+                      value={inlineHwSerials}
+                      onChange={(e) => setInlineHwSerials(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddHardwareInBill(false)}
+                        className="px-2.5 py-1 text-[11px] text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddInlineHardware}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-[11px]"
+                      >
+                        Add to Invoice
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Existing hardware list */}
+                {billingOrg.hardware_sales && billingOrg.hardware_sales.length > 0 && (
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                    {billingOrg.hardware_sales.map((hw) => {
+                      const isChecked = selectedHardwareIds.includes(hw.id);
+                      return (
+                        <div
+                          key={hw.id}
+                          onClick={() => {
+                            if (isChecked) setSelectedHardwareIds(selectedHardwareIds.filter(id => id !== hw.id));
+                            else setSelectedHardwareIds([...selectedHardwareIds, hw.id]);
+                          }}
+                          className={`p-2 rounded-lg border flex items-center justify-between cursor-pointer ${
+                            isChecked ? "bg-purple-950/30 border-purple-600 text-white" : "bg-slate-900 border-slate-800 text-slate-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input type="checkbox" checked={isChecked} readOnly className="rounded text-purple-600" />
+                            <div>
+                              <span className="font-bold text-xs">{hw.name}</span>
+                              <span className="text-[10px] text-slate-400 block">Qty: {hw.quantity}</span>
+                            </div>
+                          </div>
+                          <span className="font-black text-xs text-purple-400">
+                            {billingOrg.currency}{(hw.unit_price * hw.quantity).toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Newly added hardware in bill */}
+                {newHardwareToSell.length > 0 && (
+                  <div className="space-y-1 pt-1 border-t border-slate-800">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase">New Hardware Items:</span>
+                    {newHardwareToSell.map((nh, idx) => (
+                      <div key={idx} className="p-2 rounded-lg bg-purple-950/40 border border-purple-600/50 flex items-center justify-between text-xs text-white">
+                        <span>{nh.name} (Qty: {nh.quantity})</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-purple-300">{billingOrg.currency}{(nh.unit_price * nh.quantity).toLocaleString()}</span>
+                          <button
+                            type="button"
+                            onClick={() => setNewHardwareToSell(newHardwareToSell.filter((_, i) => i !== idx))}
+                            className="text-rose-400 hover:text-rose-300 font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Step 4: Discounts */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-emerald-400" /> 4. Promotional Discount
                   </span>
                   <div className="flex items-center p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
                     <button
@@ -1803,7 +1798,7 @@ export default function AttendxPage() {
                         discountType === "percentage" ? "bg-indigo-600 text-white" : "text-slate-400"
                       }`}
                     >
-                      Percentage (%)
+                      % Off
                     </button>
                     <button
                       type="button"
@@ -1812,7 +1807,7 @@ export default function AttendxPage() {
                         discountType === "fixed" ? "bg-indigo-600 text-white" : "text-slate-400"
                       }`}
                     >
-                      Fixed ({billingOrg.currency})
+                      ৳ Off
                     </button>
                   </div>
                 </div>
@@ -1824,102 +1819,57 @@ export default function AttendxPage() {
                       placeholder={discountType === "percentage" ? "e.g. 10 (for 10% off)" : "e.g. 500 (for ৳500 off)"}
                       value={discountValue || ""}
                       onChange={(e) => setDiscountValue(Number(e.target.value))}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
-                    <span className="text-xs text-slate-400 whitespace-nowrap">
-                      {discountType === "percentage" ? "% Discount" : `${billingOrg.currency} Off`}
-                    </span>
                   </div>
                 )}
               </div>
 
-              {/* Step 4: Hardware Bundling Selector */}
-              {billingOrg.hardware_sales && billingOrg.hardware_sales.length > 0 && (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <HardDrive className="w-3.5 h-3.5 text-purple-400" /> 4. Bundle Hardware Deployments
-                  </span>
-                  <div className="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
-                    {billingOrg.hardware_sales.map((hw) => {
-                      const isChecked = selectedHardwareIds.includes(hw.id);
-                      return (
-                        <div
-                          key={hw.id}
-                          onClick={() => {
-                            if (isChecked) setSelectedHardwareIds(selectedHardwareIds.filter(id => id !== hw.id));
-                            else setSelectedHardwareIds([...selectedHardwareIds, hw.id]);
-                          }}
-                          className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer ${
-                            isChecked ? "bg-purple-950/30 border-purple-600 text-white" : "bg-slate-900 border-slate-800 text-slate-400"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={isChecked} readOnly className="rounded text-purple-600" />
-                            <div>
-                              <span className="font-bold text-xs">{hw.name}</span>
-                              <span className="text-[10px] text-slate-400 block">Qty: {hw.quantity}</span>
-                            </div>
-                          </div>
-                          <span className="font-black text-xs text-purple-400">
-                            {billingOrg.currency}{(hw.unit_price * hw.quantity).toLocaleString()}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* LIVE BREAKDOWN & GRAND TOTAL CARD */}
+              {/* LIVE TOTALS CARD */}
               <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/40 space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 block">
-                  Invoice Summary & Calculations
+                  Invoice Breakdown
                 </span>
                 <div className="flex items-center justify-between text-slate-300">
-                  <span>
-                    {selectedPlanTier.toUpperCase()} Plan ({billDurationMonths} {billDurationMonths === 1 ? "Month" : "Months"} @ {billingOrg.currency}{customPlanPrice.toLocaleString()})
-                  </span>
-                  <span className="font-mono">{billingOrg.currency}{totals.planSubtotal.toLocaleString()}</span>
+                  <span>Subscription ({billDurationMonths} Mo @ {billingOrg.currency}{customPlanPrice.toLocaleString()})</span>
+                  <span className="font-mono">{billingOrg.currency}{billTotals.planSubtotal.toLocaleString()}</span>
                 </div>
-                {totals.discountAmount > 0 && (
+                {billTotals.discountAmount > 0 && (
                   <div className="flex items-center justify-between text-emerald-400">
-                    <span>Discount Applied ({discountType === "percentage" ? `${discountValue}%` : "Fixed"})</span>
-                    <span className="font-mono">- {billingOrg.currency}{totals.discountAmount.toLocaleString()}</span>
+                    <span>Discount</span>
+                    <span className="font-mono">- {billingOrg.currency}{billTotals.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {totals.hardwareTotal > 0 && (
+                {billTotals.hardwareTotal > 0 && (
                   <div className="flex items-center justify-between text-purple-400">
-                    <span>Hardware Deployments ({totals.hardwareItems.length} items)</span>
-                    <span className="font-mono">+ {billingOrg.currency}{totals.hardwareTotal.toLocaleString()}</span>
+                    <span>Hardware Line Items</span>
+                    <span className="font-mono">+ {billingOrg.currency}{billTotals.hardwareTotal.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="pt-2 border-t border-indigo-500/30 flex items-center justify-between">
-                  <span className="font-black text-sm text-white">Grand Total Amount</span>
-                  <span className="font-black text-lg text-emerald-400">
-                    {billingOrg.currency}{totals.grandTotal.toLocaleString()}
+                <div className="pt-2 border-t border-indigo-500/30 flex items-center justify-between font-black">
+                  <span className="text-white text-sm">Grand Total Amount</span>
+                  <span className="text-emerald-400 text-base">
+                    {billingOrg.currency}{billTotals.grandTotal.toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {/* Result Container */}
+              {/* ACTION / RESULT */}
               {generatedBillResult ? (
                 <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800/60 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400 font-black">
-                    <CheckCircle2 className="w-5 h-5" /> Official Invoice #{generatedBillResult.invoice_number} Created in Supabase!
+                  <div className="font-black text-emerald-400 text-xs">
+                    Official Invoice #{generatedBillResult.invoice_number} Created in Supabase!
                   </div>
-                  <p className="text-slate-300">
-                    Total Amount: <strong>{billingOrg.currency}{generatedBillResult.total_amount?.toLocaleString()}</strong>
-                  </p>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       readOnly
                       value={window.location.origin + generatedBillResult.share_url}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[11px] text-slate-300"
+                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[11px] text-slate-300"
                     />
                     <button
                       onClick={() => handleCopy(window.location.origin + generatedBillResult.share_url, "inv_link")}
-                      className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shrink-0 cursor-pointer"
+                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shrink-0 cursor-pointer"
                     >
                       {copiedKey === "inv_link" ? "Copied!" : "Copy Link"}
                     </button>
@@ -1927,10 +1877,10 @@ export default function AttendxPage() {
                       href={generatedBillResult.share_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shrink-0 flex items-center gap-1"
+                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shrink-0 flex items-center gap-1"
                     >
                       <span>View</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 </div>
@@ -1938,10 +1888,10 @@ export default function AttendxPage() {
                 <button
                   onClick={handleExecuteGenerateBill}
                   disabled={billingLoading}
-                  className="w-full py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-lg shadow-amber-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                  className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-lg shadow-amber-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>{billingLoading ? "Creating Official Invoice in Supabase..." : "Confirm & Generate Invoice"}</span>
+                  <span>{billingLoading ? "Creating Invoice in Database..." : "Confirm & Create Invoice"}</span>
                 </button>
               )}
             </div>
@@ -1949,11 +1899,13 @@ export default function AttendxPage() {
         </div>
       )}
 
-      {/* MODAL 4: RECORD PAYMENT MODAL */}
+      {/* ========================================================================= */}
+      {/* MODAL 4: RECORD PAYMENT */}
+      {/* ========================================================================= */}
       {payModalOpen && selectedOrg && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-sans">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in font-sans">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-slate-100">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-black text-sm text-white">Record Client Payment</h3>
@@ -1961,7 +1913,7 @@ export default function AttendxPage() {
               <button onClick={() => setPayModalOpen(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleRecordPaymentSubmit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleRecordPaymentSubmit} className="p-4 sm:p-6 space-y-4 text-xs">
               <div>
                 <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Payment Amount ({selectedOrg.currency}) *</label>
                 <input
@@ -1970,7 +1922,7 @@ export default function AttendxPage() {
                   min="1"
                   value={payForm.amount || ""}
                   onChange={(e) => setPayForm({ ...payForm, amount: Number(e.target.value) })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-lg font-black text-emerald-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-lg font-black text-emerald-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -1986,7 +1938,7 @@ export default function AttendxPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Payment Method</label>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Method</label>
                   <select
                     value={payForm.payment_method}
                     onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value })}
@@ -2003,10 +1955,10 @@ export default function AttendxPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Transaction ID / Reference (Optional)</label>
+                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Transaction ID / Ref</label>
                 <input
                   type="text"
-                  placeholder="e.g. TRX-992812 or Bank Ref"
+                  placeholder="e.g. TRX-88912 or Bank Ref"
                   value={payForm.transaction_id}
                   onChange={(e) => setPayForm({ ...payForm, transaction_id: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -2015,7 +1967,7 @@ export default function AttendxPage() {
 
               {selectedOrg.invoices && selectedOrg.invoices.length > 0 && (
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Link to Unpaid Invoice (Optional)</label>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Link to Unpaid Invoice</label>
                   <select
                     value={payForm.invoice_id}
                     onChange={(e) => setPayForm({ ...payForm, invoice_id: e.target.value })}
@@ -2032,17 +1984,17 @@ export default function AttendxPage() {
               )}
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Notes / Remarks (Optional)</label>
+                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Notes (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Monthly subscription payment cleared"
+                  placeholder="e.g. Monthly subscription payment"
                   value={payForm.notes}
                   onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setPayModalOpen(false)}
@@ -2053,7 +2005,7 @@ export default function AttendxPage() {
                 <button
                   type="submit"
                   disabled={payLoading}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black shadow-lg shadow-emerald-600/30 cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black shadow-lg shadow-emerald-600/30 cursor-pointer"
                 >
                   {payLoading ? "Saving..." : "Record Payment"}
                 </button>
@@ -2063,35 +2015,33 @@ export default function AttendxPage() {
         </div>
       )}
 
-      {/* MODAL 5: MANAGEMENT API TESTER */}
+      {/* ========================================================================= */}
+      {/* MODAL 5: API TESTER */}
+      {/* ========================================================================= */}
       {apiTesterOpen && testedOrg && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-sans">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-4 animate-fade-in font-sans">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden text-slate-100">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <h3 className="font-black text-sm text-white flex items-center gap-2">
                 <Terminal className="w-4 h-4 text-purple-400" /> Management API Live Tester
               </h3>
               <button onClick={() => setApiTesterOpen(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-4 sm:p-6 space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint URL</label>
-                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-purple-300 break-all">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint</label>
+                <div className="p-2 bg-slate-950 border border-slate-800 font-mono text-purple-300 text-xs break-all rounded-lg">
                   GET /management/api/checkSubscription?orgId={testedOrg.org_id}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Live JSON Response</label>
-                <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-emerald-400 text-xs overflow-x-auto">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Response JSON</label>
+                <pre className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-emerald-400 text-xs overflow-x-auto">
                   {apiLoading ? "Fetching..." : JSON.stringify(apiResponse, null, 2)}
                 </pre>
               </div>
-
-              <p className="text-[11px] text-slate-500">
-                Matches the client contract: <code>&#123; Status, WarningStart, SubscriptionEnds &#125;</code>
-              </p>
             </div>
           </div>
         </div>

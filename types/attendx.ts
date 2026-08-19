@@ -1,4 +1,4 @@
-export type AttendxSubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
+export type AttendxSubscriptionStatus = 'active' | 'warning' | 'expired' | 'past_due' | 'canceled' | 'trialing';
 
 export interface HardwareItem {
   id: string;
@@ -9,6 +9,7 @@ export interface HardwareItem {
   warranty_months?: number;
   sold_date: string;
   notes?: string;
+  is_new?: boolean;
 }
 
 export interface PricingPlan {

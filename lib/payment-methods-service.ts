@@ -254,7 +254,7 @@ export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest
 
 export async function reviewPaymentUpdateRequest(
   id: string,
-  action: 'approve' | 'reject',
+  action: 'approve' | 'approved' | 'reject' | 'rejected',
   adminNotes?: string
 ): Promise<{ success: boolean; request?: PaymentUpdateRequest; error?: string }> {
   const supabase = createServiceRoleClient();
@@ -271,7 +271,8 @@ export async function reviewPaymentUpdateRequest(
     const currentReq = req || readLocalRequests().find(r => r.id === id);
     if (!currentReq) return { success: false, error: 'Request not found' };
 
-    const status = action === 'approve' ? 'approved' : 'rejected';
+    const isApproved = action === 'approve' || action === 'approved';
+    const status: 'approved' | 'rejected' = isApproved ? 'approved' : 'rejected';
 
     // Update status in Supabase
     await supabase
@@ -284,7 +285,7 @@ export async function reviewPaymentUpdateRequest(
       .eq('id', id);
 
     // If approved, automatically record the payment in Supabase
-    if (action === 'approve') {
+    if (isApproved) {
       if (currentReq.type === 'invoice' && currentReq.invoice_id) {
         await supabase.from('invoice_payments').insert({
           invoice_id: currentReq.invoice_id,

@@ -36,7 +36,12 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
-  if (url.pathname.startsWith('/invoices/token/') || url.pathname.startsWith('/subscriptions/share/')) {
+  if (
+    url.pathname.startsWith('/invoices/token/') ||
+    url.pathname.startsWith('/subscriptions/share/') ||
+    url.pathname.startsWith('/management/api/') ||
+    url.pathname.startsWith('/api/')
+  ) {
     return supabaseResponse;
   }
 

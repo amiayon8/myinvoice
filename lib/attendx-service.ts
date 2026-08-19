@@ -13,6 +13,11 @@ function ensureDataDir() {
   }
 }
 
+export function isUuid(val?: string | null): boolean {
+  if (!val || typeof val !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+}
+
 function readLocalOrgs(): AttendxOrganization[] {
   ensureDataDir();
   try {
@@ -56,11 +61,13 @@ export async function getAttendxOrganizations(): Promise<AttendxOrganization[]> 
         contact_email: o.contact_email,
         contact_phone: o.contact_phone,
         status: o.status,
+        plan_tier: o.plan_tier,
         warning_start: o.warning_start,
         subscription_ends: o.subscription_ends,
         billing_cycle: o.billing_cycle,
         plan_price: Number(o.plan_price) || 0,
         currency: o.currency || '৳',
+        student_count: o.student_count || 100,
         hardware_sales: (o.hardware_sales || []).map((h: any) => ({
           id: h.id,
           name: h.name,
@@ -89,19 +96,25 @@ export async function getAttendxOrganizations(): Promise<AttendxOrganization[]> 
 }
 
 /**
- * Get organization by org_id (for client checkSubscription API)
+ * Get organization by org_id or UUID id
  */
 export async function getAttendxOrganizationByOrgId(orgId: string): Promise<AttendxOrganization | null> {
   const supabase = createServiceRoleClient();
   try {
-    const { data: org, error } = await supabase
+    let query = supabase
       .from('attendx_organizations')
       .select(`
         *,
         hardware_sales:attendx_hardware_sales(*)
-      `)
-      .eq('org_id', orgId)
-      .maybeSingle();
+      `);
+
+    if (isUuid(orgId)) {
+      query = query.or(`id.eq.${orgId},org_id.eq.${orgId}`);
+    } else {
+      query = query.eq('org_id', orgId);
+    }
+
+    const { data: org, error } = await query.maybeSingle();
 
     if (!error && org) {
       return {
@@ -114,11 +127,13 @@ export async function getAttendxOrganizationByOrgId(orgId: string): Promise<Atte
         contact_email: org.contact_email,
         contact_phone: org.contact_phone,
         status: org.status,
+        plan_tier: org.plan_tier,
         warning_start: org.warning_start,
         subscription_ends: org.subscription_ends,
         billing_cycle: org.billing_cycle,
         plan_price: Number(org.plan_price) || 0,
         currency: org.currency || '৳',
+        student_count: org.student_count || 100,
         hardware_sales: (org.hardware_sales || []).map((h: any) => ({
           id: h.id,
           name: h.name,
@@ -141,7 +156,7 @@ export async function getAttendxOrganizationByOrgId(orgId: string): Promise<Atte
   }
 
   const all = readLocalOrgs();
-  return all.find(o => o.org_id === orgId) || null;
+  return all.find(o => o.org_id === orgId || o.id === orgId) || null;
 }
 
 /**
@@ -160,25 +175,27 @@ export async function saveAttendxOrganization(orgData: Partial<AttendxOrganizati
     contact_email: orgData.contact_email || null,
     contact_phone: orgData.contact_phone || null,
     status: orgData.status || 'active',
+    plan_tier: orgData.plan_tier || 'silver',
     warning_start: orgData.warning_start || new Date(Date.now() + 25 * 86400000).toISOString(),
     subscription_ends: orgData.subscription_ends || new Date(Date.now() + 30 * 86400000).toISOString(),
     billing_cycle: orgData.billing_cycle || 'monthly',
     plan_price: orgData.plan_price ?? 0,
     currency: orgData.currency || '৳',
+    student_count: orgData.student_count || 100,
     linked_client_id: orgData.linked_client_id || null,
     last_webhook_status: orgData.last_webhook_status || null,
     notes: orgData.notes || null,
     updated_at: now
   };
 
-  let savedId = orgData.id;
+  let savedId = isUuid(orgData.id) ? orgData.id : undefined;
 
   try {
-    if (orgData.id) {
+    if (savedId) {
       const { data, error } = await supabase
         .from('attendx_organizations')
         .update(payload)
-        .eq('id', orgData.id)
+        .eq('id', savedId)
         .select()
         .single();
       if (!error && data) savedId = data.id;
@@ -193,20 +210,19 @@ export async function saveAttendxOrganization(orgData: Partial<AttendxOrganizati
     }
 
     // Persist hardware sales if provided
-    if (savedId && orgData.hardware_sales && orgData.hardware_sales.length >= 0) {
-      // Upsert hardware sales
+    if (savedId && orgData.hardware_sales && orgData.hardware_sales.length > 0) {
       for (const h of orgData.hardware_sales) {
         const hPayload: any = {
           organization_id: savedId,
           name: h.name,
           serial_numbers: h.serial_numbers || [],
-          quantity: h.quantity || 1,
-          unit_price: h.unit_price || 0,
-          warranty_months: h.warranty_months || 12,
+          quantity: Number(h.quantity) || 1,
+          unit_price: Number(h.unit_price) || 0,
+          warranty_months: Number(h.warranty_months) || 12,
           sold_date: h.sold_date || new Date().toISOString().split('T')[0],
           notes: h.notes || null
         };
-        if (h.id && !h.id.startsWith('hw-temp')) {
+        if (isUuid(h.id)) {
           await supabase.from('attendx_hardware_sales').update(hPayload).eq('id', h.id);
         } else {
           await supabase.from('attendx_hardware_sales').insert(hPayload);
@@ -239,50 +255,75 @@ export async function saveAttendxOrganization(orgData: Partial<AttendxOrganizati
 }
 
 /**
- * Add Hardware sale record to organization in Supabase
+ * Add Hardware sale record to organization in Supabase and local cache
  */
-export async function addHardwareSale(orgId: string, item: Omit<HardwareItem, 'id'>): Promise<HardwareItem> {
+export async function addHardwareSale(orgId: string, item: Omit<HardwareItem, 'id'> & { id?: string }): Promise<HardwareItem> {
   const supabase = createServiceRoleClient();
   let createdItem: HardwareItem = {
-    id: `hw-${Date.now()}`,
+    id: isUuid(item.id) ? item.id : `hw-${Date.now()}`,
     ...item
   };
 
   try {
-    // Find organization uuid
-    const { data: org } = await supabase
-      .from('attendx_organizations')
-      .select('id')
-      .or(`id.eq.${orgId},org_id.eq.${orgId}`)
-      .maybeSingle();
+    // Find organization DB uuid
+    let orgQuery = supabase.from('attendx_organizations').select('id');
+    if (isUuid(orgId)) {
+      orgQuery = orgQuery.or(`id.eq.${orgId},org_id.eq.${orgId}`);
+    } else {
+      orgQuery = orgQuery.eq('org_id', orgId);
+    }
+    const { data: org } = await orgQuery.maybeSingle();
 
     if (org) {
-      const { data: hw, error } = await supabase
-        .from('attendx_hardware_sales')
-        .insert({
-          organization_id: org.id,
-          name: item.name,
-          serial_numbers: item.serial_numbers || [],
-          quantity: item.quantity || 1,
-          unit_price: item.unit_price || 0,
-          warranty_months: item.warranty_months || 12,
-          sold_date: item.sold_date || new Date().toISOString().split('T')[0],
-          notes: item.notes || null
-        })
-        .select()
-        .single();
+      const hwPayload = {
+        organization_id: org.id,
+        name: item.name,
+        serial_numbers: item.serial_numbers || [],
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        warranty_months: Number(item.warranty_months) || 12,
+        sold_date: item.sold_date || new Date().toISOString().split('T')[0],
+        notes: item.notes || null
+      };
 
-      if (!error && hw) {
-        createdItem = {
-          id: hw.id,
-          name: hw.name,
-          serial_numbers: hw.serial_numbers || [],
-          quantity: hw.quantity,
-          unit_price: Number(hw.unit_price),
-          warranty_months: hw.warranty_months,
-          sold_date: hw.sold_date,
-          notes: hw.notes
-        };
+      if (isUuid(item.id)) {
+        const { data: hw, error } = await supabase
+          .from('attendx_hardware_sales')
+          .update(hwPayload)
+          .eq('id', item.id)
+          .select()
+          .single();
+        if (!error && hw) {
+          createdItem = {
+            id: hw.id,
+            name: hw.name,
+            serial_numbers: hw.serial_numbers || [],
+            quantity: hw.quantity,
+            unit_price: Number(hw.unit_price),
+            warranty_months: hw.warranty_months,
+            sold_date: hw.sold_date,
+            notes: hw.notes
+          };
+        }
+      } else {
+        const { data: hw, error } = await supabase
+          .from('attendx_hardware_sales')
+          .insert(hwPayload)
+          .select()
+          .single();
+
+        if (!error && hw) {
+          createdItem = {
+            id: hw.id,
+            name: hw.name,
+            serial_numbers: hw.serial_numbers || [],
+            quantity: hw.quantity,
+            unit_price: Number(hw.unit_price),
+            warranty_months: hw.warranty_months,
+            sold_date: hw.sold_date,
+            notes: hw.notes
+          };
+        }
       }
     }
   } catch (e) {
@@ -293,7 +334,14 @@ export async function addHardwareSale(orgId: string, item: Omit<HardwareItem, 'i
   const all = readLocalOrgs();
   const orgObj = all.find(o => o.id === orgId || o.org_id === orgId);
   if (orgObj) {
-    orgObj.hardware_sales = [...(orgObj.hardware_sales || []), createdItem];
+    const existingList = orgObj.hardware_sales || [];
+    const idx = existingList.findIndex(h => h.id === createdItem.id || (h.name === createdItem.name && h.sold_date === createdItem.sold_date));
+    if (idx >= 0) {
+      existingList[idx] = createdItem;
+    } else {
+      existingList.unshift(createdItem);
+    }
+    orgObj.hardware_sales = existingList;
     orgObj.updated_at = new Date().toISOString();
     saveLocalOrgs(all);
   }
@@ -302,12 +350,39 @@ export async function addHardwareSale(orgId: string, item: Omit<HardwareItem, 'i
 }
 
 /**
+ * Delete Hardware item
+ */
+export async function deleteHardwareSale(orgId: string, hardwareId: string): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  try {
+    if (isUuid(hardwareId)) {
+      await supabase.from('attendx_hardware_sales').delete().eq('id', hardwareId);
+    }
+  } catch (e) {
+    console.warn('Supabase deleteHardwareSale error:', e);
+  }
+
+  const all = readLocalOrgs();
+  const orgObj = all.find(o => o.id === orgId || o.org_id === orgId);
+  if (orgObj && orgObj.hardware_sales) {
+    orgObj.hardware_sales = orgObj.hardware_sales.filter(h => h.id !== hardwareId);
+    orgObj.updated_at = new Date().toISOString();
+    saveLocalOrgs(all);
+  }
+  return true;
+}
+
+/**
  * Delete AttendX organization from Supabase
  */
 export async function deleteAttendxOrganization(id: string): Promise<boolean> {
   const supabase = createServiceRoleClient();
   try {
-    await supabase.from('attendx_organizations').delete().or(`id.eq.${id},org_id.eq.${id}`);
+    if (isUuid(id)) {
+      await supabase.from('attendx_organizations').delete().or(`id.eq.${id},org_id.eq.${id}`);
+    } else {
+      await supabase.from('attendx_organizations').delete().eq('org_id', id);
+    }
   } catch (e) {
     console.warn('Supabase delete organization error:', e);
   }
@@ -413,13 +488,21 @@ export interface GenerateBillOptions {
   discount_type?: 'percentage' | 'fixed' | 'none';
   discount_value?: number;
   includeHardware?: boolean;
-  selected_hardware?: { id?: string; name: string; quantity: number; unit_price: number; serial_numbers?: string[] }[];
+  selected_hardware?: {
+    id?: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    warranty_months?: number;
+    serial_numbers?: string[];
+    is_new?: boolean;
+  }[];
   custom_notes?: string;
   dueDays?: number;
 }
 
 /**
- * Auto-generate official Supabase Invoice for AttendX billing with plan selection, duration, and discounts
+ * Auto-generate official Supabase Invoice for AttendX billing with plan selection, duration, hardware sales, and discounts
  */
 export async function generateAttendxBill(orgId: string, options?: GenerateBillOptions) {
   const supabase = createServiceRoleClient();
@@ -431,7 +514,7 @@ export async function generateAttendxBill(orgId: string, options?: GenerateBillO
   const invNumber = `INV-ATX-${Date.now().toString().slice(-6)}`;
 
   let clientId = org.linked_client_id;
-  if (!clientId) {
+  if (!clientId || !isUuid(clientId)) {
     const { data: clients } = await supabase.from('clients').select('id').limit(1);
     if (clients && clients.length > 0) {
       clientId = clients[0].id;
@@ -439,7 +522,31 @@ export async function generateAttendxBill(orgId: string, options?: GenerateBillO
   }
 
   if (!clientId) {
+    // If no client exists in CRM, create or fallback to a default client placeholder
+    const { data: newClient } = await supabase
+      .from('clients')
+      .insert({
+        name: org.org_name,
+        email: org.contact_email || `admin@${org.org_id}.com`,
+        phone: org.contact_phone || ''
+      })
+      .select('id')
+      .single();
+
+    if (newClient) {
+      clientId = newClient.id;
+    }
+  }
+
+  if (!clientId) {
     throw new Error('Please create at least one Client in your CRM to associate with this invoice.');
+  }
+
+  // Get company profile
+  let companyId = null;
+  const { data: companies } = await supabase.from('companies').select('id').limit(1);
+  if (companies && companies.length > 0) {
+    companyId = companies[0].id;
   }
 
   const cycle = options?.billing_cycle || org.billing_cycle || 'monthly';
@@ -447,19 +554,22 @@ export async function generateAttendxBill(orgId: string, options?: GenerateBillO
   const planName = (options?.plan_tier ? options.plan_tier.charAt(0).toUpperCase() + options.plan_tier.slice(1) : '') || 'Standard';
 
   // Determine rate
-  let baseRate = options?.custom_rate !== undefined ? options.custom_rate : (org.plan_price || 0);
+  const baseRate = options?.custom_rate !== undefined ? Number(options.custom_rate) : (org.plan_price || 0);
   const studentInfo = options?.students ? ` (${options.students} Students)` : '';
 
   const { data: invoice, error: invErr } = await supabase
     .from('invoices')
     .insert({
+      company_id: companyId,
       client_id: clientId,
       invoice_number: invNumber,
       date: now.toISOString().split('T')[0],
-      due_date: dueDate.toISOString().split('T')[0],
       currency: org.currency || '৳',
-      status: 'unpaid',
-      notes: options?.custom_notes || `Subscription billing for ${org.org_name} - ${planName} Plan${studentInfo} (${cycle}, ${duration} ${duration === 1 ? 'Month' : 'Months'}).`
+      status: 'draft',
+      tax_rate: 0,
+      paid_amount: 0,
+      is_recurring: false,
+      notes: options?.custom_notes || `Subscription billing for ${org.org_name} - ${planName} Plan${studentInfo} (${cycle}, ${duration} ${duration === 1 ? 'Month' : 'Months'}). Due: ${dueDate.toISOString().split('T')[0]}`
     })
     .select()
     .single();
@@ -471,12 +581,14 @@ export async function generateAttendxBill(orgId: string, options?: GenerateBillO
   const items: any[] = [];
 
   // Main subscription item
-  items.push({
-    invoice_id: invoice.id,
-    description: `Academix ERP / AttendX Cloud Platform - ${planName} Plan${studentInfo} (${duration} ${duration === 1 ? 'month' : 'months'})`,
-    quantity: duration,
-    rate: baseRate
-  });
+  if (baseRate > 0 || duration > 0) {
+    items.push({
+      invoice_id: invoice.id,
+      description: `Academix ERP / AttendX Cloud Platform - ${planName} Plan${studentInfo} (${duration} ${duration === 1 ? 'month' : 'months'})`,
+      quantity: duration,
+      rate: baseRate
+    });
+  }
 
   // Discount line item if applicable
   const subtotalBeforeDiscount = baseRate * duration;
@@ -501,20 +613,38 @@ export async function generateAttendxBill(orgId: string, options?: GenerateBillO
     }
   }
 
-  // Hardware items
+  // Hardware items sold/bundled
   const hardwareList = options?.selected_hardware || (options?.includeHardware ? org.hardware_sales : []);
   if (hardwareList && hardwareList.length > 0) {
     for (const hw of hardwareList) {
+      const qty = Number(hw.quantity) || 1;
+      const unitPrice = Number(hw.unit_price) || 0;
+
       items.push({
         invoice_id: invoice.id,
-        description: `Hardware Terminal: ${hw.name} (Qty: ${hw.quantity})${hw.serial_numbers?.length ? ` S/N: ${hw.serial_numbers.join(', ')}` : ''}`,
-        quantity: hw.quantity,
-        rate: hw.unit_price
+        description: `Hardware Terminal: ${hw.name} (Qty: ${qty})${hw.serial_numbers?.length ? ` S/N: ${hw.serial_numbers.join(', ')}` : ''}`,
+        quantity: qty,
+        rate: unitPrice
       });
+
+      // If this is a newly sold hardware item or marked for recording, automatically log in organization's hardware sales table!
+      if (hw.is_new || !hw.id || hw.id.startsWith('new-')) {
+        await addHardwareSale(org.org_id, {
+          name: hw.name,
+          quantity: qty,
+          unit_price: unitPrice,
+          warranty_months: hw.warranty_months || 12,
+          serial_numbers: hw.serial_numbers || [],
+          sold_date: now.toISOString().split('T')[0],
+          notes: `Sold via Invoice #${invNumber}`
+        });
+      }
     }
   }
 
-  await supabase.from('invoice_items').insert(items);
+  if (items.length > 0) {
+    await supabase.from('invoice_items').insert(items);
+  }
 
   const token = `inv_tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   await supabase.from('invoice_access_tokens').insert({
@@ -549,9 +679,22 @@ export async function recordAttendxPayment(data: {
   const now = new Date().toISOString();
   const paymentDate = data.payment_date || now.split('T')[0];
 
-  const payload = {
-    organization_id: data.organization_id,
-    invoice_id: data.invoice_id || null,
+  // Resolve organization DB UUID safely
+  let orgDbId = isUuid(data.organization_id) ? data.organization_id : null;
+  if (!orgDbId) {
+    const { data: foundOrg } = await supabase
+      .from('attendx_organizations')
+      .select('id')
+      .eq('org_id', data.organization_id)
+      .maybeSingle();
+    if (foundOrg) orgDbId = foundOrg.id;
+  }
+
+  const validInvoiceId = isUuid(data.invoice_id) ? data.invoice_id : null;
+
+  const payload: any = {
+    organization_id: orgDbId,
+    invoice_id: validInvoiceId,
     amount: Number(data.amount) || 0,
     payment_date: paymentDate,
     payment_method: data.payment_method || 'Bank Transfer',
@@ -561,17 +704,21 @@ export async function recordAttendxPayment(data: {
   };
 
   try {
-    const { data: pmt, error } = await supabase
-      .from('attendx_payments')
-      .insert(payload)
-      .select()
-      .single();
+    let pmtResult: any = null;
+    if (orgDbId) {
+      const { data: pmt, error } = await supabase
+        .from('attendx_payments')
+        .insert(payload)
+        .select()
+        .single();
+      if (!error && pmt) pmtResult = pmt;
+    }
 
     // If linked to invoice, also record in invoice_payments & update invoice status
-    if (data.invoice_id) {
+    if (validInvoiceId) {
       await supabase.from('invoice_payments').insert({
-        invoice_id: data.invoice_id,
-        amount: data.amount,
+        invoice_id: validInvoiceId,
+        amount: Number(data.amount) || 0,
         payment_date: paymentDate,
         payment_method: data.payment_method || 'Bank Transfer',
         notes: `AttendX Payment: ${data.notes || ''} (Trx: ${data.transaction_id || 'N/A'})`
@@ -585,19 +732,19 @@ export async function recordAttendxPayment(data: {
           items:invoice_items(quantity, rate),
           payments:invoice_payments(amount)
         `)
-        .eq('id', data.invoice_id)
+        .eq('id', validInvoiceId)
         .maybeSingle();
 
       if (inv) {
         const totalAmount = (inv.items || []).reduce((sum: number, it: any) => sum + (it.quantity * it.rate), 0);
         const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
         if (totalPaid >= totalAmount) {
-          await supabase.from('invoices').update({ status: 'paid' }).eq('id', data.invoice_id);
+          await supabase.from('invoices').update({ status: 'paid' }).eq('id', validInvoiceId);
         }
       }
     }
 
-    return { success: true, payment: pmt || payload };
+    return { success: true, payment: pmtResult || payload };
   } catch (e: any) {
     console.warn('Supabase recordAttendxPayment error:', e);
     return { success: true, payment: payload };
@@ -634,7 +781,7 @@ export async function getAttendxOrganizationDetails(orgId: string) {
       `)
       .order('date', { ascending: false });
 
-    if (org.linked_client_id) {
+    if (org.linked_client_id && isUuid(org.linked_client_id)) {
       invQuery = invQuery.or(`client_id.eq.${org.linked_client_id},notes.ilike.%${org.org_name}%,notes.ilike.%${org.org_id}%`);
     } else {
       invQuery = invQuery.or(`notes.ilike.%${org.org_name}%,notes.ilike.%${org.org_id}%`);
@@ -664,14 +811,16 @@ export async function getAttendxOrganizationDetails(orgId: string) {
     }
 
     // 2. Fetch Payments
-    const { data: pmtData } = await supabase
-      .from('attendx_payments')
-      .select('*')
-      .eq('organization_id', org.id)
-      .order('payment_date', { ascending: false });
+    if (isUuid(org.id)) {
+      const { data: pmtData } = await supabase
+        .from('attendx_payments')
+        .select('*')
+        .eq('organization_id', org.id)
+        .order('payment_date', { ascending: false });
 
-    if (pmtData) {
-      payments = pmtData;
+      if (pmtData) {
+        payments = pmtData;
+      }
     }
   } catch (e) {
     console.warn('Supabase getAttendxOrganizationDetails error:', e);
