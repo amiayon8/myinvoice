@@ -15,12 +15,16 @@ import {
   Link,
   Phone,
   Building,
+  CreditCard,
+  Layers,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export type EntityType =
   | "invoice"
   | "client"
+  | "subscription_user"
+  | "plan"
   | "whatsapp"
   | "instagram"
   | "attendx";
@@ -48,6 +52,8 @@ export function EntityMentionModal({
   const [invoices, setInvoices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [subUsers, setSubUsers] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
 
   // Selected item state
   const [selectedId, setSelectedId] = useState<string>("");
@@ -86,6 +92,22 @@ export function EntityMentionModal({
               .order("name")
               .limit(50);
             setClients(data || []);
+            if (data && data.length > 0) setSelectedId(data[0].id);
+          } else if (entityType === "subscription_user") {
+            const { data } = await supabase
+              .from("subscription_users")
+              .select("id, name, contact, phone")
+              .order("name")
+              .limit(50);
+            setSubUsers(data || []);
+            if (data && data.length > 0) setSelectedId(data[0].id);
+          } else if (entityType === "plan") {
+            const { data } = await supabase
+              .from("subscription_plans")
+              .select("id, name, selling_price, number_of_slots")
+              .order("name")
+              .limit(50);
+            setPlans(data || []);
             if (data && data.length > 0) setSelectedId(data[0].id);
           } else if (entityType === "attendx") {
             const res = await fetch("/api/attendx");
@@ -147,6 +169,28 @@ export function EntityMentionModal({
         const name = manualValue.trim() || "Client Name";
         snippet = `<p>👤 <strong>Client CRM:</strong> <span style="background-color: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${name}</span> ${manualExtra ? `(${manualExtra})` : ""}</p>`;
         mentionData = { type: "client", label: `@${name}` };
+      }
+    } else if (entityType === "subscription_user") {
+      if (mode === "select") {
+        const u = subUsers.find((u) => u.id === selectedId);
+        if (!u) return;
+        snippet = `<p>💳 <strong>Subscription User:</strong> <span style="background-color: rgba(6,182,212,0.15); color: #22d3ee; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${u.name}</span> ${u.contact ? `(${u.contact})` : ""} ${u.phone ? `[${u.phone}]` : ""}</p>`;
+        mentionData = { type: "user", id: u.id, label: `@${u.name}` };
+      } else {
+        const name = manualValue.trim() || "Subscriber";
+        snippet = `<p>💳 <strong>Subscription User:</strong> <span style="background-color: rgba(6,182,212,0.15); color: #22d3ee; padding: 2px 8px; border-radius: 6px; font-weight: bold;">@${name}</span> ${manualExtra ? `(${manualExtra})` : ""}</p>`;
+        mentionData = { type: "user", label: `@${name}` };
+      }
+    } else if (entityType === "plan") {
+      if (mode === "select") {
+        const p = plans.find((pl) => pl.id === selectedId);
+        if (!p) return;
+        snippet = `<p>📦 <strong>Subscription Plan:</strong> <span style="background-color: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 6px; font-weight: bold;">${p.name}</span> (Price: ৳${p.selling_price}/slot · Slots: ${p.number_of_slots})</p>`;
+        mentionData = { type: "plan", id: p.id, label: p.name };
+      } else {
+        const name = manualValue.trim() || "Subscription Plan";
+        snippet = `<p>📦 <strong>Subscription Plan:</strong> <span style="background-color: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 6px; font-weight: bold;">${name}</span> ${manualExtra ? `(${manualExtra})` : ""}</p>`;
+        mentionData = { type: "plan", label: name };
       }
     } else if (entityType === "whatsapp") {
       const phone = (mode === "select" ? "8801870828373" : manualValue).replace(
@@ -217,6 +261,22 @@ export function EntityMentionModal({
           selectLabel: "Select Client from CRM",
           manualLabel: "Enter Client Name",
         };
+      case "subscription_user":
+        return {
+          title: "Insert Subscription User (@User)",
+          icon: <CreditCard className="w-5 h-5 text-cyan-400" />,
+          badgeColor: "bg-cyan-500/20 text-cyan-400",
+          selectLabel: "Select Subscription User",
+          manualLabel: "Enter User Name",
+        };
+      case "plan":
+        return {
+          title: "Insert Subscription Plan (@Plan)",
+          icon: <Layers className="w-5 h-5 text-amber-400" />,
+          badgeColor: "bg-amber-500/20 text-amber-400",
+          selectLabel: "Select Subscription Plan",
+          manualLabel: "Enter Plan Name",
+        };
       case "whatsapp":
         return {
           title: "Insert WhatsApp Chat Link (@WhatsApp)",
@@ -274,6 +334,16 @@ export function EntityMentionModal({
     (o) =>
       o.org_name.toLowerCase().includes(search.toLowerCase()) ||
       o.org_id.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const filteredSubUsers = subUsers.filter(
+    (u) =>
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      (u.contact && u.contact.toLowerCase().includes(search.toLowerCase())),
+  );
+
+  const filteredPlans = plans.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -440,6 +510,90 @@ export function EntityMentionModal({
                           {isSelected && (
                             <Check className="w-4 h-4 text-emerald-400" />
                           )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* LIST: Subscription Users */}
+              {entityType === "subscription_user" && (
+                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  {loading ? (
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      Loading subscription users...
+                    </p>
+                  ) : filteredSubUsers.length === 0 ? (
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      No subscription users found.
+                    </p>
+                  ) : (
+                    filteredSubUsers.map((u) => {
+                      const isSelected = selectedId === u.id;
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => setSelectedId(u.id)}
+                          className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-cyan-600/20 border-cyan-500 text-white shadow-sm"
+                              : "bg-zinc-950 border-zinc-800/80 hover:border-zinc-700 text-zinc-300"
+                          }`}
+                        >
+                          <div>
+                            <h4 className="font-extrabold text-xs text-white">
+                              @{u.name}
+                            </h4>
+                            <p className="text-[10px] text-zinc-400">
+                              {u.contact || u.phone || "No contact info"}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-cyan-400" />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* LIST: Subscription Plans */}
+              {entityType === "plan" && (
+                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  {loading ? (
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      Loading subscription plans...
+                    </p>
+                  ) : filteredPlans.length === 0 ? (
+                    <p className="text-center text-xs text-zinc-500 py-6">
+                      No subscription plans found.
+                    </p>
+                  ) : (
+                    filteredPlans.map((p) => {
+                      const isSelected = selectedId === p.id;
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => setSelectedId(p.id)}
+                          className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-amber-600/20 border-amber-500 text-white shadow-sm"
+                              : "bg-zinc-950 border-zinc-800/80 hover:border-zinc-700 text-zinc-300"
+                          }`}
+                        >
+                          <div>
+                            <h4 className="font-extrabold text-xs text-white">
+                              {p.name}
+                            </h4>
+                            <p className="text-[10px] text-zinc-400">
+                              Slots: {p.number_of_slots}
+                            </p>
+                          </div>
+                          <span className="font-black text-xs text-amber-400">
+                            ৳{p.selling_price?.toLocaleString()}
+                          </span>
                         </div>
                       );
                     })

@@ -45,12 +45,12 @@
     "last_webhook_status": {
       "message": "Cache purged successfully on client site",
       "success": true,
-      "timestamp": "2026-08-19T17:56:07.116Z",
+      "timestamp": "2026-08-22T04:43:19.247Z",
       "status_code": 200
     },
     "notes": null,
     "created_at": "2026-08-18T09:00:14.466+00:00",
-    "updated_at": "2026-08-19T17:56:07.117+00:00",
+    "updated_at": "2026-08-22T04:43:19.25+00:00",
     "invoices": [],
     "payments": [],
     "financials": {

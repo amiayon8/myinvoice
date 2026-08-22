@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { AttendxOrganization, HardwareItem } from "@/types/attendx";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // Default pricing tiers for AttendX / AcademiX
 export const ATTENDX_DEFAULT_PLANS = [
@@ -92,6 +93,7 @@ export default function AttendxPage() {
     "overview" | "invoices" | "payments" | "hardware" | "api"
   >("overview");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [clients, setClients] = useState<any[]>([]);
 
@@ -768,17 +770,17 @@ export default function AttendxPage() {
   const filteredOrgs = useMemo(() => {
     return organizations.filter((org) => {
       const matchesSearch =
-        org.org_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        org.org_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        org.org_name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        org.org_id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (org.contact_email || "")
           .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+          .includes(debouncedSearchQuery.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" ? true : org.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [organizations, searchQuery, statusFilter]);
+  }, [organizations, debouncedSearchQuery, statusFilter]);
 
   // Overall KPI stats
   const stats = useMemo(() => {

@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "id": "abf22336-991e-45a3-b54d-1b8e0e827628",
+    "title": "New Note",
+    "content": "<div class=\"bn-block-group\" data-node-type=\"blockGroup\"><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"c85cfe4c-1c66-494c-9f74-0cbde05a86ce\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"c85cfe4c-1c66-494c-9f74-0cbde05a86ce\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\">Start typing or type '/' for commands...</p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"9f1e8444-345f-4103-99b9-d842724f5110\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"9f1e8444-345f-4103-99b9-d842724f5110\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\"><span class=\"ProseMirror-trailingBreak\" style=\"display: inline-block;\"></span></p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"ded1cf9e-b2f8-4e8a-9f8b-7b651839148c\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"ded1cf9e-b2f8-4e8a-9f8b-7b651839148c\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\">📸 <strong>Instagram:</strong> <strong><u><a href=\"https://instagram.com/thenicedev\" target=\"_blank\" rel=\"noopener noreferrer nofollow\" classname=\"bn-inline-content-section\" data-inline-content-type=\"link\">@thenicedev</a></u></strong></p></div></div></div><div class=\"bn-block-outer\" data-node-type=\"blockOuter\" data-id=\"0efc24c0-54aa-47eb-a230-1689bbc553c3\"><div class=\"bn-block\" data-node-type=\"blockContainer\" data-id=\"0efc24c0-54aa-47eb-a230-1689bbc553c3\"><div class=\"bn-block-content\" data-content-type=\"paragraph\"><p class=\"bn-inline-content\"><span class=\"ProseMirror-trailingBreak\" style=\"display: inline-block;\"></span></p></div></div></div></div><p>📦 <strong>Subscription Plan:</strong> <span style=\"background-color: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 6px; font-weight: bold;\">YouTube Premium Family 1</span> (Price: ৳140/slot · Slots: 5)</p>",
+    "plain_text": "Start typing or type '/' for commands... 📸 Instagram: @thenicedev 📦 Subscription Plan: YouTube Premium Family 1 (Price: ৳140/slot · Slots: 5)",
+    "folder_id": "all",
+    "is_pinned": false,
+    "is_archived": false,
+    "tags": [],
+    "mentions": [
+      {
+        "url": "https://instagram.com/thenicedev",
+        "icon": "fa-instagram",
+        "type": "entity",
+        "label": "@thenicedev"
+      },
+      {
+        "id": "0d13c43b-30f5-4882-9e7e-889cca80aef9",
+        "type": "plan",
+        "label": "YouTube Premium Family 1"
+      }
+    ],
+    "created_at": "2026-08-22T04:46:16.39+00:00",
+    "updated_at": "2026-08-22T04:49:52.365+00:00"
+  }
+]

@@ -21,11 +21,13 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  Users
+  Users,
+  Search
 } from "lucide-react";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function PaymentMethodsPage() {
   const supabase = createClient();
@@ -36,6 +38,9 @@ export default function PaymentMethodsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Editor Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -194,6 +199,27 @@ export default function PaymentMethodsPage() {
 
   const pendingRequests = requests.filter(r => r.status === "pending");
 
+  const filteredMethods = methods.filter(m => {
+    const q = debouncedSearchQuery.toLowerCase();
+    if (!q) return true;
+    const nameMatch = m.name?.toLowerCase().includes(q);
+    const typeMatch = m.type?.toLowerCase().includes(q);
+    const badgeMatch = m.badge?.toLowerCase().includes(q);
+    const fieldMatch = m.fields?.some(f => f.label?.toLowerCase().includes(q) || f.value?.toLowerCase().includes(q));
+    return nameMatch || typeMatch || badgeMatch || fieldMatch;
+  });
+
+  const filteredRequests = requests.filter(r => {
+    const q = debouncedSearchQuery.toLowerCase();
+    if (!q) return true;
+    const clientMatch = r.client_name?.toLowerCase().includes(q);
+    const trxMatch = r.transaction_id?.toLowerCase().includes(q);
+    const accMatch = r.account_number?.toLowerCase().includes(q);
+    const invMatch = r.invoice_number?.toLowerCase().includes(q);
+    const notesMatch = r.notes?.toLowerCase().includes(q);
+    return clientMatch || trxMatch || accMatch || invMatch || notesMatch;
+  });
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 font-sans">
       {/* Header */}
@@ -212,13 +238,23 @@ export default function PaymentMethodsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search payment data..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-800 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            />
+          </div>
           <button
             onClick={() => handleOpenEditor()}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 cursor-pointer uppercase tracking-wider"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 cursor-pointer uppercase tracking-wider shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Payment Method</span>
+            <span>Add Method</span>
           </button>
         </div>
       </div>
@@ -264,11 +300,11 @@ export default function PaymentMethodsPage() {
                 <div key={i} className="h-64 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
               ))}
             </div>
-          ) : methods.length === 0 ? (
+          ) : filteredMethods.length === 0 ? (
             <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
               <CreditCard className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">No payment methods configured</h3>
-              <p className="text-xs text-slate-500">Add payment methods for invoices and subscriptions.</p>
+              <h3 className="font-bold text-slate-700 dark:text-slate-300">No payment methods found</h3>
+              <p className="text-xs text-slate-500">Try adjusting your search criteria or add a new method.</p>
               <button
                 onClick={() => handleOpenEditor()}
                 className="mt-2 inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
@@ -278,7 +314,7 @@ export default function PaymentMethodsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {methods.map((method) => {
+              {filteredMethods.map((method) => {
                 const accent = method.color || "#6366f1";
                 const visMode = method.visibility?.mode || "all";
                 const visClientsCount = method.visibility?.client_ids?.length || 0;
@@ -426,7 +462,7 @@ export default function PaymentMethodsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {requests.map((req) => {
+                    {filteredRequests.map((req) => {
                       const isPending = req.status === "pending";
                       const isApproved = req.status === "approved";
 

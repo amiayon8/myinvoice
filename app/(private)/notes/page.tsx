@@ -25,7 +25,8 @@ import {
   ChevronRight,
   Layers,
   Globe,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronLeft
 } from "lucide-react";
 import { EntityMentionModal, EntityType } from "@/components/admin/EntityMentionModal";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ export default function NotesPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [savingStatus, setSavingStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "editor">("list");
 
   // CRM entity references for quick mentions
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -134,6 +136,7 @@ export default function NotesPage() {
     setIsPinned(note.is_pinned);
     setMentions(note.mentions || []);
     setSavingStatus("saved");
+    setMobileView("editor");
   };
 
   const handleCreateNewNote = async () => {
@@ -305,7 +308,7 @@ export default function NotesPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
       {/* COLUMN 1: FOLDERS SIDEBAR (Notes Style) */}
-      <div className="w-60 bg-zinc-950 border-r border-zinc-800 flex flex-col justify-between shrink-0 hidden md:flex">
+      <div className="w-60 bg-zinc-950 border-r border-zinc-800 flex-col justify-between shrink-0 hidden lg:flex">
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
@@ -352,7 +355,7 @@ export default function NotesPage() {
       </div>
 
       {/* COLUMN 2: NOTE LIST */}
-      <div className="w-80 bg-zinc-900/90 border-r border-zinc-800 flex flex-col shrink-0">
+      <div className={`w-full md:w-72 lg:w-80 bg-zinc-900/90 border-r border-zinc-800 flex-col shrink-0 ${mobileView === "editor" ? "hidden md:flex" : "flex"}`}>
         {/* Search & New Note header */}
         <div className="p-4 border-b border-zinc-800 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -366,6 +369,19 @@ export default function NotesPage() {
             >
               <Plus className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Folder Pills for Mobile / Tablet */}
+          <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+            {folders.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setSelectedFolder(f.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors ${selectedFolder === f.id ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400"}`}
+              >
+                {f.name}
+              </button>
+            ))}
           </div>
 
           <div className="relative">
@@ -447,12 +463,19 @@ export default function NotesPage() {
       </div>
 
       {/* COLUMN 3: NOTE WORKSPACE & BLOCKNOTE EDITOR */}
-      <div className="flex-1 flex flex-col bg-zinc-950 overflow-hidden">
+      <div className={`w-full flex-1 flex-col bg-zinc-950 overflow-hidden ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
         {selectedNoteId ? (
           <>
             {/* Top Toolbar */}
             <div className="p-4 border-b border-zinc-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-zinc-950/80">
               <div className="flex-1 flex items-center gap-3 w-full md:w-auto">
+                <button
+                  onClick={() => setMobileView("list")}
+                  className="md:hidden flex items-center gap-1 text-xs text-zinc-300 font-bold hover:text-white px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-xl shrink-0"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Notes</span>
+                </button>
                 <input
                   type="text"
                   value={currentTitle}
@@ -522,6 +545,18 @@ export default function NotesPage() {
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900/60 transition-colors shrink-0"
               >
                 <User className="w-3 h-3" /> @Client
+              </button>
+              <button
+                onClick={() => handleInsertEntityMention("subscription_user")}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-950/40 border border-cyan-800/40 text-cyan-400 hover:bg-cyan-900/60 transition-colors shrink-0"
+              >
+                <User className="w-3 h-3" /> @SubUser
+              </button>
+              <button
+                onClick={() => handleInsertEntityMention("plan")}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-950/40 border border-amber-800/40 text-amber-400 hover:bg-amber-900/60 transition-colors shrink-0"
+              >
+                <Layers className="w-3 h-3" /> @Plan
               </button>
               <button
                 onClick={() => handleInsertEntityMention("whatsapp")}

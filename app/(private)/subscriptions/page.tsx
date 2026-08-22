@@ -30,6 +30,7 @@ import {
   getStartMonthStr,
 } from "@/lib/date-utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function SubscriptionsDashboardPage() {
   const router = useRouter();
@@ -67,6 +68,10 @@ export default function SubscriptionsDashboardPage() {
   const [showRemoved, setShowRemoved] = useState(false);
   const [planSearch, setPlanSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+
+  const debouncedSubSearch = useDebounce(subSearch, 300);
+  const debouncedPlanSearch = useDebounce(planSearch, 300);
+  const debouncedUserSearch = useDebounce(userSearch, 300);
 
   // Modals state
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -670,7 +675,7 @@ export default function SubscriptionsDashboardPage() {
     if (!showRemoved && subFilter !== "kicked" && sub.status === "kicked") {
       return false;
     }
-    const query = subSearch.toLowerCase();
+    const query = debouncedSubSearch.toLowerCase();
     const userName = sub.user?.name?.toLowerCase() || "";
     const userContact = sub.user?.contact?.toLowerCase() || "";
     const userPhone = sub.user?.phone?.toLowerCase() || "";
@@ -708,13 +713,13 @@ export default function SubscriptionsDashboardPage() {
   });
 
   const filteredPlans = plans.filter((p) =>
-    p.name?.toLowerCase().includes(planSearch.toLowerCase()),
+    p.name?.toLowerCase().includes(debouncedPlanSearch.toLowerCase()),
   );
   const filteredUsers = users.filter(
     (u) =>
-      u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.contact?.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.phone?.includes(userSearch),
+      u.name?.toLowerCase().includes(debouncedUserSearch.toLowerCase()) ||
+      u.contact?.toLowerCase().includes(debouncedUserSearch.toLowerCase()) ||
+      u.phone?.includes(debouncedUserSearch),
   );
 
   if (loading) {
