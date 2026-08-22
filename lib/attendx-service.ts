@@ -11,14 +11,28 @@ export type {
 } from "@/types/attendx";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const ATTENDX_FILE = path.join(DATA_DIR, "attendx_organizations.json");
+const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
+const WRITABLE_DATA_DIR = path.join(os.tmpdir(), "myinvoice_data");
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDataDir(): string {
+  try {
+    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
+      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
+    }
+    return WRITABLE_DATA_DIR;
+  } catch {
+    return BUNDLED_DATA_DIR;
   }
+}
+
+function getReadFilePath(filename: string): string {
+  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
+  if (fs.existsSync(writablePath)) {
+    return writablePath;
+  }
+  return path.join(BUNDLED_DATA_DIR, filename);
 }
 
 export function isUuid(val?: string | null): boolean {
@@ -29,12 +43,12 @@ export function isUuid(val?: string | null): boolean {
 }
 
 function readLocalOrgs(): AttendxOrganization[] {
-  ensureDataDir();
   try {
-    if (!fs.existsSync(ATTENDX_FILE)) {
+    const file = getReadFilePath("attendx_organizations.json");
+    if (!fs.existsSync(file)) {
       return [];
     }
-    const raw = fs.readFileSync(ATTENDX_FILE, "utf-8");
+    const raw = fs.readFileSync(file, "utf-8");
     return JSON.parse(raw);
   } catch (e) {
     return [];
@@ -42,8 +56,13 @@ function readLocalOrgs(): AttendxOrganization[] {
 }
 
 function saveLocalOrgs(orgs: AttendxOrganization[]) {
-  ensureDataDir();
-  fs.writeFileSync(ATTENDX_FILE, JSON.stringify(orgs, null, 2), "utf-8");
+  try {
+    const dir = ensureDataDir();
+    const targetFile = path.join(dir, "attendx_organizations.json");
+    fs.writeFileSync(targetFile, JSON.stringify(orgs, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("Local orgs write skipped:", err);
+  }
 }
 
 /**

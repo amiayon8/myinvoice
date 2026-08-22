@@ -4,30 +4,48 @@ export type { NoteItem, NoteFolder, NoteMention } from '@/types/notes';
 export { DEFAULT_FOLDERS } from '@/types/notes';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const NOTES_FILE = path.join(DATA_DIR, 'internal_notes.json');
-const FOLDERS_FILE = path.join(DATA_DIR, 'note_folders.json');
+const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
+const WRITABLE_DATA_DIR = path.join(os.tmpdir(), 'myinvoice_data');
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDataDir(): string {
+  try {
+    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
+      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
+    }
+    return WRITABLE_DATA_DIR;
+  } catch {
+    return BUNDLED_DATA_DIR;
   }
 }
 
+function getReadFilePath(filename: string): string {
+  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
+  if (fs.existsSync(writablePath)) {
+    return writablePath;
+  }
+  return path.join(BUNDLED_DATA_DIR, filename);
+}
+
 function readLocalNotes(): NoteItem[] {
-  ensureDataDir();
   try {
-    if (!fs.existsSync(NOTES_FILE)) return [];
-    return JSON.parse(fs.readFileSync(NOTES_FILE, 'utf-8'));
+    const file = getReadFilePath('internal_notes.json');
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch {
     return [];
   }
 }
 
 function saveLocalNotes(notes: NoteItem[]) {
-  ensureDataDir();
-  fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2), 'utf-8');
+  try {
+    const dir = ensureDataDir();
+    const targetFile = path.join(dir, 'internal_notes.json');
+    fs.writeFileSync(targetFile, JSON.stringify(notes, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Local notes write skipped:', err);
+  }
 }
 
 /**

@@ -4,45 +4,68 @@ export type { PaymentMethod, PaymentField, PaymentUpdateRequest, PaymentMethodVi
 export { PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from '@/types/payment-methods';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const METHODS_FILE = path.join(DATA_DIR, 'payment_methods.json');
-const REQUESTS_FILE = path.join(DATA_DIR, 'payment_update_requests.json');
+const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
+const WRITABLE_DATA_DIR = path.join(os.tmpdir(), 'myinvoice_data');
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDataDir(): string {
+  try {
+    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
+      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
+    }
+    return WRITABLE_DATA_DIR;
+  } catch {
+    return BUNDLED_DATA_DIR;
   }
 }
 
+function getReadFilePath(filename: string): string {
+  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
+  if (fs.existsSync(writablePath)) {
+    return writablePath;
+  }
+  return path.join(BUNDLED_DATA_DIR, filename);
+}
+
 function readLocalMethods(): PaymentMethod[] {
-  ensureDataDir();
   try {
-    if (!fs.existsSync(METHODS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(METHODS_FILE, 'utf-8'));
+    const file = getReadFilePath('payment_methods.json');
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch {
     return [];
   }
 }
 
 function saveLocalMethods(methods: PaymentMethod[]) {
-  ensureDataDir();
-  fs.writeFileSync(METHODS_FILE, JSON.stringify(methods, null, 2), 'utf-8');
+  try {
+    const dir = ensureDataDir();
+    const targetFile = path.join(dir, 'payment_methods.json');
+    fs.writeFileSync(targetFile, JSON.stringify(methods, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Local methods write skipped:', err);
+  }
 }
 
 function readLocalRequests(): PaymentUpdateRequest[] {
-  ensureDataDir();
   try {
-    if (!fs.existsSync(REQUESTS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(REQUESTS_FILE, 'utf-8'));
+    const file = getReadFilePath('payment_update_requests.json');
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch {
     return [];
   }
 }
 
 function saveLocalRequests(reqs: PaymentUpdateRequest[]) {
-  ensureDataDir();
-  fs.writeFileSync(REQUESTS_FILE, JSON.stringify(reqs, null, 2), 'utf-8');
+  try {
+    const dir = ensureDataDir();
+    const targetFile = path.join(dir, 'payment_update_requests.json');
+    fs.writeFileSync(targetFile, JSON.stringify(reqs, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Local requests write skipped:', err);
+  }
 }
 
 // ----------------------------------------------------

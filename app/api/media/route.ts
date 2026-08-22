@@ -1,42 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
+const BUNDLED_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
+const WRITABLE_UPLOAD_DIR = path.join(os.tmpdir(), 'myinvoice_uploads');
 
-function ensureUploadDir() {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+function getWritableUploadDir(): string {
+  try {
+    if (!fs.existsSync(WRITABLE_UPLOAD_DIR)) {
+      fs.mkdirSync(WRITABLE_UPLOAD_DIR, { recursive: true });
+    }
+    return WRITABLE_UPLOAD_DIR;
+  } catch {
+    return BUNDLED_UPLOAD_DIR;
   }
 }
 
 export async function GET() {
-  ensureUploadDir();
   try {
-    const files = fs.readdirSync(UPLOAD_DIR);
-    const mediaList = files
-      .filter(f => /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f))
-      .map(f => {
-        const stats = fs.statSync(path.join(UPLOAD_DIR, f));
-        return {
-          id: f,
-          name: f,
-          url: `/uploads/${f}`,
-          mediumUrl: `/uploads/${f}`,
-          size: stats.size,
-          created_at: stats.mtime.toISOString()
-        };
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const directories = [WRITABLE_UPLOAD_DIR, BUNDLED_UPLOAD_DIR];
+    const mediaMap = new Map<string, any>();
+
+    for (const dir of directories) {
+      if (!fs.existsSync(dir)) continue;
+      try {
+        const files = fs.readdirSync(dir);
+        for (const f of files) {
+          if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f)) continue;
+          if (mediaMap.has(f)) continue;
+          try {
+            const stats = fs.statSync(path.join(dir, f));
+            mediaMap.set(f, {
+              id: f,
+              name: f,
+              url: `/uploads/${f}`,
+              mediumUrl: `/uploads/${f}`,
+              size: stats.size,
+              created_at: stats.mtime.toISOString()
+            });
+          } catch {}
+        }
+      } catch {}
+    }
+
+    const mediaList = Array.from(mediaMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
     return NextResponse.json({ success: true, media: mediaList });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: true, media: [] });
   }
 }
 
 export async function POST(request: NextRequest) {
-  ensureUploadDir();
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -51,9 +69,15 @@ export async function POST(request: NextRequest) {
     const ext = path.extname(file.name) || '.png';
     const safeBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileName = `${Date.now()}_${safeBase}${ext}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
 
-    fs.writeFileSync(filePath, buffer);
+    const targetDir = getWritableUploadDir();
+    const filePath = path.join(targetDir, fileName);
+
+    try {
+      fs.writeFileSync(filePath, buffer);
+    } catch (writeErr: any) {
+      console.warn('File save warning:', writeErr);
+    }
 
     const publicUrl = `/uploads/${fileName}`;
 
