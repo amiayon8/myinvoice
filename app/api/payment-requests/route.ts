@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaymentUpdateRequests, submitPaymentUpdateRequest } from '@/lib/payment-methods-service';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export async function GET(request: NextRequest) {
   try {
-    const requests = await getPaymentUpdateRequests();
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || undefined;
+    const type = searchParams.get('type') || undefined;
+
+    const requests = await getPaymentUpdateRequests({ status, type });
     return NextResponse.json({ success: true, requests });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

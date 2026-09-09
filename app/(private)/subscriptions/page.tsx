@@ -123,6 +123,7 @@ export default function SubscriptionsDashboardPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -132,7 +133,7 @@ export default function SubscriptionsDashboardPage() {
         getSubscriptionUsers(),
         getSubscriptions(),
         getShareLinks(),
-        fetch('/api/payment-requests?status=pending').then(r => r.ok ? r.json() : { requests: [] })
+        fetch('/api/payment-requests?status=pending&type=subscription', { cache: 'no-store' }).then(r => r.ok ? r.json() : { requests: [] })
       ]);
       setPlans(plansRes);
       setUsers(usersRes);
@@ -148,6 +149,8 @@ export default function SubscriptionsDashboardPage() {
   };
 
   const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+    if (reviewingRequestId) return;
+    setReviewingRequestId(requestId);
     try {
       const res = await fetch(`/api/payment-requests/${requestId}`, {
         method: 'PATCH',
@@ -163,6 +166,8 @@ export default function SubscriptionsDashboardPage() {
       }
     } catch (err: any) {
       toast.error(err.message || 'Error updating request');
+    } finally {
+      setReviewingRequestId(null);
     }
   };
 
@@ -825,14 +830,19 @@ export default function SubscriptionsDashboardPage() {
 
                 <div className="flex items-center gap-1.5 shrink-0 ml-3">
                   <button
+                    disabled={reviewingRequestId === req.id}
                     onClick={() => handleReviewVerificationRequest(req.id, "approved")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all"
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all flex items-center gap-1"
                   >
+                    {reviewingRequestId === req.id ? (
+                      <i className="fa-solid fa-spinner animate-spin"></i>
+                    ) : null}
                     Approve
                   </button>
                   <button
+                    disabled={reviewingRequestId === req.id}
                     onClick={() => handleReviewVerificationRequest(req.id, "rejected")}
-                    className="bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
+                    className="bg-slate-100 hover:bg-rose-100 disabled:opacity-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
                   >
                     Reject
                   </button>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reviewPaymentUpdateRequest } from '@/lib/payment-methods-service';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

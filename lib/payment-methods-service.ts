@@ -5,6 +5,8 @@ export { PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from '@/types/payment-meth
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
+import { revalidatePath } from 'next/cache';
 
 const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
 const WRITABLE_DATA_DIR = path.join(os.tmpdir(), 'myinvoice_data');
@@ -249,18 +251,55 @@ export async function getPaymentUpdateRequests(filter?: { status?: string; type?
   return mergedList;
 }
 
+function isUuid(value: unknown): boolean {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function mapToInvoicePaymentMethod(methodType?: string, methodName?: string): 'cash' | 'bank_transfer' | 'mobile_banking' | 'card' | 'other' {
+  const normalized = `${methodType || ''} ${methodName || ''}`.toLowerCase();
+  if (normalized.includes('cash')) return 'cash';
+  if (normalized.includes('bank') || normalized.includes('wire') || normalized.includes('transfer')) return 'bank_transfer';
+  if (normalized.includes('mobile') || normalized.includes('bkash') || normalized.includes('nagad') || normalized.includes('rocket') || normalized.includes('upay')) return 'mobile_banking';
+  if (normalized.includes('card') || normalized.includes('visa') || normalized.includes('master') || normalized.includes('credit') || normalized.includes('debit')) return 'card';
+  return 'other';
+}
+
 export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest, 'id' | 'status' | 'submitted_at'>): Promise<PaymentUpdateRequest> {
   const supabase = createServiceRoleClient();
   const now = new Date().toISOString();
-  const targetId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const targetId = crypto.randomUUID();
+
+  let validClientId: string | null = null;
+  if (isUuid(data.client_id)) {
+    const { data: clientExists } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('id', data.client_id)
+      .maybeSingle();
+    if (clientExists) {
+      validClientId = clientExists.id;
+    }
+  }
+
+  let validInvoiceId: string | null = null;
+  if (isUuid(data.invoice_id)) {
+    const { data: invoiceExists } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('id', data.invoice_id)
+      .maybeSingle();
+    if (invoiceExists) {
+      validInvoiceId = invoiceExists.id;
+    }
+  }
 
   const dbPayload: any = {
     id: targetId,
     type: data.type || 'invoice',
-    invoice_id: data.invoice_id || null,
+    invoice_id: validInvoiceId,
     invoice_number: data.invoice_number || null,
-    subscription_id: data.subscription_id || null,
-    client_id: data.client_id || null,
+    subscription_id: isUuid(data.subscription_id) ? data.subscription_id : null,
+    client_id: validClientId,
     client_name: data.client_name || null,
     client_contact: data.client_contact || null,
     transaction_id: data.transaction_id,
@@ -293,6 +332,7 @@ export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest
   }
 
   const newReq: PaymentUpdateRequest = {
+    ...data,
     ...dbPayload,
     id: savedId
   };
@@ -318,57 +358,226 @@ export async function reviewPaymentUpdateRequest(
   const now = new Date().toISOString();
 
   try {
-    // Read request
-    const { data: req } = await supabase
-      .from('payment_update_requests')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    const currentReq = req || readLocalRequests().find(r => r.id === id);
-    if (!currentReq) return { success: false, error: 'Request not found' };
-
     const isApproved = action === 'approve' || action === 'approved';
     const status: 'approved' | 'rejected' = isApproved ? 'approved' : 'rejected';
 
-    // Update status in Supabase
-    await supabase
-      .from('payment_update_requests')
-      .update({
-        status,
-        admin_notes: adminNotes || null,
-        reviewed_at: now
-      })
-      .eq('id', id);
+    let currentReq: PaymentUpdateRequest | null = null;
 
-    // If approved, automatically record the payment in Supabase
-    if (isApproved) {
-      if (currentReq.type === 'invoice' && currentReq.invoice_id) {
-        await supabase.from('invoice_payments').insert({
-          invoice_id: currentReq.invoice_id,
-          amount: currentReq.amount || 0,
-          payment_date: now.split('T')[0],
-          payment_method: currentReq.payment_method_name || 'Client Direct',
-          notes: `Verified Trx ID: ${currentReq.transaction_id} (Acc: ${currentReq.account_number})`
-        });
+    if (isUuid(id)) {
+      const { data: req, error: reqErr } = await supabase
+        .from('payment_update_requests')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
 
-        // Update invoice status to paid
-        await supabase
-          .from('invoices')
-          .update({ status: 'paid' })
-          .eq('id', currentReq.invoice_id);
-      } else if (currentReq.type === 'subscription' && currentReq.subscription_id) {
-        await supabase.from('subscription_payments').insert({
-          subscription_id: currentReq.subscription_id,
-          amount: currentReq.amount || 0,
-          payment_date: now.split('T')[0],
-          payment_method: currentReq.payment_method_name || 'Client Direct',
-          notes: `Verified Trx ID: ${currentReq.transaction_id} (Acc: ${currentReq.account_number})`
-        });
+      if (!reqErr && req) {
+        currentReq = req as PaymentUpdateRequest;
       }
     }
 
-    // Update local JSON cache
+    if (!currentReq) {
+      currentReq = readLocalRequests().find(r => r.id === id) || null;
+    }
+
+    if (!currentReq) {
+      return { success: false, error: 'Request not found' };
+    }
+
+    if (isApproved) {
+      if (currentReq.type === 'subscription' || currentReq.subscription_id) {
+        let subscriptionId = currentReq.subscription_id && isUuid(currentReq.subscription_id)
+          ? currentReq.subscription_id
+          : null;
+
+        if (!subscriptionId && currentReq.client_id && isUuid(currentReq.client_id)) {
+          const { data: clientSub } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('user_id', currentReq.client_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (clientSub) subscriptionId = clientSub.id;
+        }
+
+        if (!subscriptionId) {
+          const { data: latestSub } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (latestSub) subscriptionId = latestSub.id;
+        }
+
+        if (!subscriptionId) {
+          return { success: false, error: 'Subscription not found for this verification request' };
+        }
+
+        const { data: sub, error: subErr } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('id', subscriptionId)
+          .single();
+
+        if (subErr || !sub) {
+          return { success: false, error: 'Target subscription not found' };
+        }
+
+        const pricePerSlot = Number(sub.price_per_slot) || 0;
+        const slotsCount = Number(sub.slots_count) || 1;
+        const monthlyRate = pricePerSlot * slotsCount;
+        const amount = Number(currentReq.amount) || monthlyRate;
+
+        let months = 1;
+        if (monthlyRate > 0 && amount > 0) {
+          months = Math.round((amount / monthlyRate) * 100) / 100;
+          if (months <= 0) months = 1;
+        }
+
+        const notesParts = [
+          currentReq.payment_method_name ? `Method: ${currentReq.payment_method_name}` : null,
+          currentReq.transaction_id ? `Trx: ${currentReq.transaction_id}` : null,
+          currentReq.account_number ? `Acc: ${currentReq.account_number}` : null,
+          currentReq.notes ? `Note: ${currentReq.notes}` : null
+        ].filter(Boolean);
+
+        const paymentNotes = notesParts.join(' | ') || 'Verified client payment';
+
+        const { error: subPayErr } = await supabase
+          .from('subscription_payments')
+          .insert({
+            subscription_id: subscriptionId,
+            amount,
+            months,
+            notes: paymentNotes
+          });
+
+        if (subPayErr) {
+          console.error('Error inserting subscription_payments:', subPayErr);
+          return { success: false, error: `Failed to record subscription payment: ${subPayErr.message}` };
+        }
+
+        const newMonthsPaid = Math.round(((Number(sub.months_paid) || 0) + months) * 100) / 100;
+        const newTotalPaid = (Number(sub.total_amount_paid) || 0) + amount;
+
+        const { error: updateSubErr } = await supabase
+          .from('subscriptions')
+          .update({
+            months_paid: newMonthsPaid,
+            total_amount_paid: newTotalPaid
+          })
+          .eq('id', subscriptionId);
+
+        if (updateSubErr) {
+          console.error('Error updating subscription aggregates:', updateSubErr);
+          return { success: false, error: `Failed to update subscription aggregates: ${updateSubErr.message}` };
+        }
+      } else if (currentReq.type === 'invoice' || currentReq.invoice_id || currentReq.invoice_number) {
+        let invoiceId = currentReq.invoice_id && isUuid(currentReq.invoice_id)
+          ? currentReq.invoice_id
+          : null;
+
+        if (!invoiceId && currentReq.invoice_number) {
+          const { data: invByNum } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('invoice_number', currentReq.invoice_number)
+            .maybeSingle();
+          if (invByNum) invoiceId = invByNum.id;
+        }
+
+        if (!invoiceId && currentReq.client_id && isUuid(currentReq.client_id)) {
+          const { data: clientInv } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('client_id', currentReq.client_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (clientInv) invoiceId = clientInv.id;
+        }
+
+        if (!invoiceId) {
+          return { success: false, error: 'Invoice not found for this verification request' };
+        }
+
+        const { data: inv, error: invErr } = await supabase
+          .from('invoices')
+          .select('id, paid_amount, items:invoice_items(quantity, rate), payments:invoice_payments(amount)')
+          .eq('id', invoiceId)
+          .single();
+
+        if (invErr || !inv) {
+          return { success: false, error: 'Target invoice not found' };
+        }
+
+        const amount = Number(currentReq.amount) || 0;
+        const validMethod = mapToInvoicePaymentMethod(
+          currentReq.payment_method_id,
+          currentReq.payment_method_name
+        );
+
+        const notesParts = [
+          currentReq.payment_method_name ? `Method: ${currentReq.payment_method_name}` : null,
+          currentReq.transaction_id ? `Trx: ${currentReq.transaction_id}` : null,
+          currentReq.account_number ? `Acc: ${currentReq.account_number}` : null,
+          currentReq.notes ? `Note: ${currentReq.notes}` : null
+        ].filter(Boolean);
+
+        const paymentNotes = notesParts.join(' | ') || 'Verified client payment';
+
+        const { error: invPayErr } = await supabase
+          .from('invoice_payments')
+          .insert({
+            invoice_id: invoiceId,
+            amount,
+            payment_date: now,
+            payment_method: validMethod,
+            notes: paymentNotes
+          });
+
+        if (invPayErr) {
+          console.error('Error inserting invoice_payments:', invPayErr);
+          return { success: false, error: `Failed to record invoice payment: ${invPayErr.message}` };
+        }
+
+        const totalInvoiceAmount = (inv.items || []).reduce(
+          (sum: number, item: any) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0),
+          0
+        );
+        const existingPaid = (inv.payments || []).reduce(
+          (sum: number, payment: any) => sum + (Number(payment.amount) || 0),
+          0
+        );
+        const newTotalPaid = existingPaid + amount;
+        const nextStatus = totalInvoiceAmount > 0 && newTotalPaid >= totalInvoiceAmount
+          ? 'paid'
+          : newTotalPaid > 0
+          ? 'partially_paid'
+          : 'sent';
+
+        await supabase
+          .from('invoices')
+          .update({
+            status: nextStatus,
+            paid_amount: newTotalPaid
+          })
+          .eq('id', invoiceId);
+      }
+    }
+
+    if (isUuid(id)) {
+      await supabase
+        .from('payment_update_requests')
+        .update({
+          status,
+          admin_notes: adminNotes || null,
+          reviewed_at: now
+        })
+        .eq('id', id);
+    }
+
     const reqs = readLocalRequests();
     const idx = reqs.findIndex(r => r.id === id);
     if (idx >= 0) {
@@ -379,6 +588,14 @@ export async function reviewPaymentUpdateRequest(
         reviewed_at: now
       };
       saveLocalRequests(reqs);
+    }
+
+    try {
+      revalidatePath('/subscriptions');
+      revalidatePath('/invoices');
+      revalidatePath('/dashboard');
+      revalidatePath('/payment-methods');
+    } catch {
     }
 
     return {

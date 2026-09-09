@@ -248,6 +248,7 @@ export default function PublicSharedSubscriptionPage({
           clientName={scope?.label}
           subscriptionId={subscriptions[0]?.id}
           currency="৳"
+          totalDue={subscriptions.reduce((sum, s) => sum + (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1), 0)}
           isPaid={false}
           initialMethods={paymentMethods}
         />
