@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.notes (
 
 -- 5. Dynamic Payment Methods Table
 CREATE TABLE IF NOT EXISTS public.payment_methods (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name TEXT NOT NULL,
     type TEXT NOT NULL DEFAULT 'mobile_banking' CHECK (type IN ('mobile_banking', 'bank_transfer', 'card', 'crypto', 'other')),
     badge TEXT,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS public.payment_methods (
 
 -- 6. Client Payment Update / Verification Requests Table
 CREATE TABLE IF NOT EXISTS public.payment_update_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     type TEXT NOT NULL DEFAULT 'invoice' CHECK (type IN ('invoice', 'subscription')),
     invoice_id UUID REFERENCES public.invoices(id) ON DELETE SET NULL,
     invoice_number TEXT,

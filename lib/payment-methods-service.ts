@@ -82,7 +82,7 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       const mapped: PaymentMethod[] = data.map((m: any) => ({
         id: m.id,
         name: m.name,
@@ -214,7 +214,6 @@ export async function deletePaymentMethod(id: string): Promise<boolean> {
 // ----------------------------------------------------
 export async function getPaymentUpdateRequests(filter?: { status?: string; type?: string }): Promise<PaymentUpdateRequest[]> {
   const supabase = createServiceRoleClient();
-  let supabaseReqs: PaymentUpdateRequest[] = [];
 
   try {
     let query = supabase
@@ -227,7 +226,9 @@ export async function getPaymentUpdateRequests(filter?: { status?: string; type?
 
     const { data, error } = await query;
     if (!error && data) {
-      supabaseReqs = data as PaymentUpdateRequest[];
+      const results = data as PaymentUpdateRequest[];
+      saveLocalRequests(results);
+      return results;
     } else if (error) {
       console.error('Supabase getPaymentUpdateRequests error:', error);
     }
@@ -236,19 +237,10 @@ export async function getPaymentUpdateRequests(filter?: { status?: string; type?
   }
 
   const localReqs = readLocalRequests();
-  const mergedMap = new Map<string, PaymentUpdateRequest>();
-  localReqs.forEach(r => mergedMap.set(r.id, r));
-  supabaseReqs.forEach(r => mergedMap.set(r.id, r));
-
-  let mergedList = Array.from(mergedMap.values()).sort(
-    (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
-  );
-
-  saveLocalRequests(mergedList);
-
-  if (filter?.status && filter.status !== 'all') mergedList = mergedList.filter(r => r.status === filter.status);
-  if (filter?.type && filter.type !== 'all') mergedList = mergedList.filter(r => r.type === filter.type);
-  return mergedList;
+  let filtered = localReqs;
+  if (filter?.status && filter.status !== 'all') filtered = filtered.filter(r => r.status === filter.status);
+  if (filter?.type && filter.type !== 'all') filtered = filtered.filter(r => r.type === filter.type);
+  return filtered;
 }
 
 function isUuid(value: unknown): boolean {
