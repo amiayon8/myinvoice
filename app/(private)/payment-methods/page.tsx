@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from "@/types/payment-methods";
+import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS, scopeSvgIds } from "@/types/payment-methods";
 import { createClient } from "@/lib/supabase/client";
 import {
   CreditCard,
@@ -146,10 +146,17 @@ export default function PaymentMethodsPage() {
 
     setSaving(true);
     try {
+      const payloadToSave = {
+        ...editingMethod,
+        icon_svg: editingMethod.icon_svg
+          ? scopeSvgIds(editingMethod.icon_svg, editingMethod.id || `pm-${Date.now()}`)
+          : null,
+      };
+
       const res = await fetch("/api/payment-methods", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingMethod)
+        body: JSON.stringify(payloadToSave)
       });
 
       if (!res.ok) {
@@ -337,9 +344,9 @@ export default function PaymentMethodsPage() {
                         <div className="flex items-center gap-3">
                           {method.icon_svg ? (
                             <div
-                              className="w-11 h-11 rounded-xl flex items-center justify-center p-2 text-white shadow-md shadow-slate-900/10 shrink-0"
+                              className="w-11 h-11 rounded-xl flex items-center justify-center p-1.5 text-white shadow-md shadow-slate-900/10 shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
                               style={{ backgroundColor: accent }}
-                              dangerouslySetInnerHTML={{ __html: method.icon_svg }}
+                              dangerouslySetInnerHTML={{ __html: scopeSvgIds(method.icon_svg, method.id) }}
                             />
                           ) : (
                             <div
@@ -686,6 +693,20 @@ export default function PaymentMethodsPage() {
                   onChange={(e) => setEditingMethod({ ...editingMethod, icon_svg: e.target.value })}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
+                {editingMethod.icon_svg && (
+                  <div className="flex items-center gap-3 p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Icon Preview:
+                    </span>
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-sm shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
+                      style={{ backgroundColor: editingMethod.color || "#6366f1" }}
+                      dangerouslySetInnerHTML={{
+                        __html: scopeSvgIds(editingMethod.icon_svg, editingMethod.id || "preview"),
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Key-Value Pairs */}

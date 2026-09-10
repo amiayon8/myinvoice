@@ -69,3 +69,32 @@ export const PRESET_PAYMENT_SVGS: Record<string, string> = {
   card: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`,
   crypto: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5c.5-1 1.5-1.5 2.5-1.5 1.5 0 2.5 1 2.5 2.5 0 1-.5 1.5-1.5 2 1 .5 1.5 1 1.5 2 0 1.5-1 2.5-2.5 2.5-1 0-2-.5-2.5-1.5"/><line x1="12" x2="12" y1="6" y2="8"/><line x1="12" x2="12" y1="16" y2="18"/><line x1="9" x2="14" y1="12" y2="12"/></svg>`,
 };
+
+/**
+ * Scopes internal IDs in inline SVGs (e.g. id="img1", href="#img1", url(#...))
+ * so multiple SVGs with identical IDs do not collide in the DOM.
+ */
+export function scopeSvgIds(svg?: string | null, uniqueKey?: string): string {
+  if (!svg || typeof svg !== "string") return "";
+  const clean = svg.trim();
+  if (!clean.includes("id=")) return clean;
+
+  const key = (uniqueKey || "svg_" + Math.random().toString(36).substring(2, 8)).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const idRegex = /\bid=["']([^"']+)["']/g;
+  const ids = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = idRegex.exec(clean)) !== null) {
+    ids.add(match[1]);
+  }
+
+  let result = clean;
+  for (const id of ids) {
+    if (id.startsWith(`${key}_`)) continue;
+    const newId = `${key}_${id}`;
+    result = result.replace(new RegExp(`\\bid=(["'])${id}(["'])`, "g"), `id=$1${newId}$2`);
+    result = result.replace(new RegExp(`href=(["'])#${id}(["'])`, "g"), `href=$1#${newId}$2`);
+    result = result.replace(new RegExp(`url\\((["']?)#${id}(["']?)\\)`, "g"), `url($1#${newId}$2)`);
+  }
+  return result;
+}
+

@@ -1,74 +1,9 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
-import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS } from '@/types/payment-methods';
+import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS, scopeSvgIds } from '@/types/payment-methods';
 export type { PaymentMethod, PaymentField, PaymentUpdateRequest, PaymentMethodVisibility } from '@/types/payment-methods';
-export { PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS } from '@/types/payment-methods';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+export { PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS, scopeSvgIds } from '@/types/payment-methods';
 import crypto from 'crypto';
 import { revalidatePath } from 'next/cache';
-
-const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
-const WRITABLE_DATA_DIR = path.join(os.tmpdir(), 'myinvoice_data');
-
-function ensureDataDir(): string {
-  try {
-    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
-      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
-    }
-    return WRITABLE_DATA_DIR;
-  } catch {
-    return BUNDLED_DATA_DIR;
-  }
-}
-
-function getReadFilePath(filename: string): string {
-  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
-  if (fs.existsSync(writablePath)) {
-    return writablePath;
-  }
-  return path.join(BUNDLED_DATA_DIR, filename);
-}
-
-function readLocalMethods(): PaymentMethod[] {
-  try {
-    const file = getReadFilePath('payment_methods.json');
-    if (!fs.existsSync(file)) return [];
-    return JSON.parse(fs.readFileSync(file, 'utf-8'));
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalMethods(methods: PaymentMethod[]) {
-  try {
-    const dir = ensureDataDir();
-    const targetFile = path.join(dir, 'payment_methods.json');
-    fs.writeFileSync(targetFile, JSON.stringify(methods, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('Local methods write skipped:', err);
-  }
-}
-
-function readLocalRequests(): PaymentUpdateRequest[] {
-  try {
-    const file = getReadFilePath('payment_update_requests.json');
-    if (!fs.existsSync(file)) return [];
-    return JSON.parse(fs.readFileSync(file, 'utf-8'));
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalRequests(reqs: PaymentUpdateRequest[]) {
-  try {
-    const dir = ensureDataDir();
-    const targetFile = path.join(dir, 'payment_update_requests.json');
-    fs.writeFileSync(targetFile, JSON.stringify(reqs, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('Local requests write skipped:', err);
-  }
-}
 
 // ----------------------------------------------------
 // PAYMENT METHODS CRUD (Supabase DB)
@@ -83,12 +18,12 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      const mapped: PaymentMethod[] = data.map((m: any) => ({
+      return data.map((m: any) => ({
         id: m.id,
         name: m.name,
         type: m.type,
         badge: m.badge,
-        icon_svg: m.icon_svg,
+        icon_svg: m.icon_svg ? scopeSvgIds(m.icon_svg, m.id) : null,
         icon_name: m.icon_name,
         color: m.color,
         bg_gradient: m.bg_gradient,
@@ -100,14 +35,15 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
         created_at: m.created_at,
         updated_at: m.updated_at
       }));
-      saveLocalMethods(mapped);
-      return mapped;
+    }
+    if (error) {
+      console.error('Supabase getPaymentMethods error:', error.message);
     }
   } catch (err) {
-    console.warn('Supabase payment_methods fallback:', err);
+    console.error('Supabase getPaymentMethods exception:', err);
   }
 
-  return readLocalMethods();
+  return [];
 }
 
 /**
@@ -143,12 +79,15 @@ export async function savePaymentMethod(method: Partial<PaymentMethod> & { name:
   const now = new Date().toISOString();
   const targetId = method.id || `pm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
+  // Automatically scope any SVG IDs to prevent cross-card collisions
+  const scopedSvg = method.icon_svg ? scopeSvgIds(method.icon_svg, targetId) : null;
+
   const payload: any = {
     id: targetId,
     name: method.name,
     type: method.type,
     badge: method.badge || null,
-    icon_svg: method.icon_svg || null,
+    icon_svg: scopedSvg,
     icon_name: method.icon_name || 'fa-credit-card',
     color: method.color || '#6366f1',
     bg_gradient: method.bg_gradient || 'from-indigo-600 to-purple-600',
@@ -173,24 +112,16 @@ export async function savePaymentMethod(method: Partial<PaymentMethod> & { name:
     if (!error && data) {
       savedId = data.id;
     } else if (error) {
-      console.warn('Supabase savePaymentMethod upsert error:', error.message);
+      console.error('Supabase savePaymentMethod upsert error:', error.message);
     }
   } catch (err) {
-    console.warn('Supabase savePaymentMethod fallback:', err);
+    console.error('Supabase savePaymentMethod exception:', err);
   }
 
-  const finalMethod: PaymentMethod = {
+  return {
     ...payload,
     id: savedId
   };
-
-  const all = readLocalMethods();
-  const idx = all.findIndex(m => m.id === finalMethod.id);
-  if (idx >= 0) all[idx] = finalMethod;
-  else all.push(finalMethod);
-  saveLocalMethods(all);
-
-  return finalMethod;
 }
 
 /**
@@ -199,14 +130,16 @@ export async function savePaymentMethod(method: Partial<PaymentMethod> & { name:
 export async function deletePaymentMethod(id: string): Promise<boolean> {
   const supabase = createServiceRoleClient();
   try {
-    await supabase.from('payment_methods').delete().eq('id', id);
+    const { error } = await supabase.from('payment_methods').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase deletePaymentMethod error:', error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn('Supabase deletePaymentMethod fallback:', err);
+    console.error('Supabase deletePaymentMethod exception:', err);
+    return false;
   }
-
-  const all = readLocalMethods().filter(m => m.id !== id);
-  saveLocalMethods(all);
-  return true;
 }
 
 // ----------------------------------------------------
@@ -226,21 +159,15 @@ export async function getPaymentUpdateRequests(filter?: { status?: string; type?
 
     const { data, error } = await query;
     if (!error && data) {
-      const results = data as PaymentUpdateRequest[];
-      saveLocalRequests(results);
-      return results;
+      return data as PaymentUpdateRequest[];
     } else if (error) {
-      console.error('Supabase getPaymentUpdateRequests error:', error);
+      console.error('Supabase getPaymentUpdateRequests error:', error.message);
     }
   } catch (err) {
-    console.warn('Supabase getPaymentUpdateRequests fallback:', err);
+    console.error('Supabase getPaymentUpdateRequests exception:', err);
   }
 
-  const localReqs = readLocalRequests();
-  let filtered = localReqs;
-  if (filter?.status && filter.status !== 'all') filtered = filtered.filter(r => r.status === filter.status);
-  if (filter?.type && filter.type !== 'all') filtered = filtered.filter(r => r.type === filter.type);
-  return filtered;
+  return [];
 }
 
 function isUuid(value: unknown): boolean {
@@ -316,29 +243,18 @@ export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest
       .single();
 
     if (error) {
-      console.error('Supabase submitPaymentUpdateRequest error:', error);
+      console.error('Supabase submitPaymentUpdateRequest error:', error.message);
     }
     if (!error && inserted) savedId = inserted.id;
   } catch (err) {
-    console.warn('Supabase submitPaymentUpdateRequest fallback error:', err);
+    console.error('Supabase submitPaymentUpdateRequest exception:', err);
   }
 
-  const newReq: PaymentUpdateRequest = {
+  return {
     ...data,
     ...dbPayload,
     id: savedId
   };
-
-  const reqs = readLocalRequests();
-  const existingIdx = reqs.findIndex(r => r.id === savedId);
-  if (existingIdx >= 0) {
-    reqs[existingIdx] = newReq;
-  } else {
-    reqs.unshift(newReq);
-  }
-  saveLocalRequests(reqs);
-
-  return newReq;
 }
 
 export async function reviewPaymentUpdateRequest(
@@ -355,20 +271,14 @@ export async function reviewPaymentUpdateRequest(
 
     let currentReq: PaymentUpdateRequest | null = null;
 
-    if (isUuid(id)) {
-      const { data: req, error: reqErr } = await supabase
-        .from('payment_update_requests')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+    const { data: req, error: reqErr } = await supabase
+      .from('payment_update_requests')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
-      if (!reqErr && req) {
-        currentReq = req as PaymentUpdateRequest;
-      }
-    }
-
-    if (!currentReq) {
-      currentReq = readLocalRequests().find(r => r.id === id) || null;
+    if (!reqErr && req) {
+      currentReq = req as PaymentUpdateRequest;
     }
 
     if (!currentReq) {
@@ -559,28 +469,14 @@ export async function reviewPaymentUpdateRequest(
       }
     }
 
-    if (isUuid(id)) {
-      await supabase
-        .from('payment_update_requests')
-        .update({
-          status,
-          admin_notes: adminNotes || null,
-          reviewed_at: now
-        })
-        .eq('id', id);
-    }
-
-    const reqs = readLocalRequests();
-    const idx = reqs.findIndex(r => r.id === id);
-    if (idx >= 0) {
-      reqs[idx] = {
-        ...reqs[idx],
+    await supabase
+      .from('payment_update_requests')
+      .update({
         status,
-        admin_notes: adminNotes || undefined,
+        admin_notes: adminNotes || null,
         reviewed_at: now
-      };
-      saveLocalRequests(reqs);
-    }
+      })
+      .eq('id', id);
 
     try {
       revalidatePath('/subscriptions');

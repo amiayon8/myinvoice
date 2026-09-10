@@ -9,60 +9,11 @@ export type {
   HardwareItem,
   AttendxSubscriptionStatus,
 } from "@/types/attendx";
-import fs from "fs";
-import path from "path";
-import os from "os";
-
-const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
-const WRITABLE_DATA_DIR = path.join(os.tmpdir(), "myinvoice_data");
-
-function ensureDataDir(): string {
-  try {
-    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
-      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
-    }
-    return WRITABLE_DATA_DIR;
-  } catch {
-    return BUNDLED_DATA_DIR;
-  }
-}
-
-function getReadFilePath(filename: string): string {
-  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
-  if (fs.existsSync(writablePath)) {
-    return writablePath;
-  }
-  return path.join(BUNDLED_DATA_DIR, filename);
-}
-
 export function isUuid(val?: string | null): boolean {
   if (!val || typeof val !== "string") return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     val.trim(),
   );
-}
-
-function readLocalOrgs(): AttendxOrganization[] {
-  try {
-    const file = getReadFilePath("attendx_organizations.json");
-    if (!fs.existsSync(file)) {
-      return [];
-    }
-    const raw = fs.readFileSync(file, "utf-8");
-    return JSON.parse(raw);
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveLocalOrgs(orgs: AttendxOrganization[]) {
-  try {
-    const dir = ensureDataDir();
-    const targetFile = path.join(dir, "attendx_organizations.json");
-    fs.writeFileSync(targetFile, JSON.stringify(orgs, null, 2), "utf-8");
-  } catch (err) {
-    console.warn("Local orgs write skipped:", err);
-  }
 }
 
 /**
@@ -127,18 +78,13 @@ export async function getAttendxOrganizations(): Promise<
         }),
       );
 
-      // Keep local JSON in sync as secondary cache
-      saveLocalOrgs(fullOrgs);
       return fullOrgs;
     }
   } catch (err) {
-    console.warn(
-      "Supabase attendx_organizations read failed, using local storage cache:",
-      err,
-    );
+    console.error("Supabase attendx_organizations read failed:", err);
   }
 
-  return readLocalOrgs();
+  return [];
 }
 
 /**
@@ -200,11 +146,10 @@ export async function getAttendxOrganizationByOrgId(
       };
     }
   } catch (e) {
-    console.warn("Supabase org_id query failed:", e);
+    console.error("Supabase org_id query failed:", e);
   }
 
-  const all = readLocalOrgs();
-  return all.find((o) => o.org_id === orgId || o.id === orgId) || null;
+  return null;
 }
 
 /**
@@ -299,27 +244,13 @@ export async function saveAttendxOrganization(
     console.warn("Supabase saveAttendxOrganization write fallback:", e);
   }
 
-  // Also update local JSON backup
-  const all = readLocalOrgs();
-  const existingIdx = all.findIndex(
-    (o) => o.id === (savedId || orgData.id) || o.org_id === orgData.org_id,
-  );
-  const fullOrg: AttendxOrganization = {
+  return {
     id: savedId || orgData.id || `org_${Date.now()}`,
     ...payload,
     hardware_sales: orgData.hardware_sales || [],
     created_at: orgData.created_at || now,
     updated_at: now,
   };
-
-  if (existingIdx >= 0) {
-    all[existingIdx] = fullOrg;
-  } else {
-    all.unshift(fullOrg);
-  }
-  saveLocalOrgs(all);
-
-  return fullOrg;
 }
 
 /**
@@ -401,26 +332,6 @@ export async function addHardwareSale(
     console.warn("Supabase addHardwareSale error:", e);
   }
 
-  // Update local file backup
-  const all = readLocalOrgs();
-  const orgObj = all.find((o) => o.id === orgId || o.org_id === orgId);
-  if (orgObj) {
-    const existingList = orgObj.hardware_sales || [];
-    const idx = existingList.findIndex(
-      (h) =>
-        h.id === createdItem.id ||
-        (h.name === createdItem.name && h.sold_date === createdItem.sold_date),
-    );
-    if (idx >= 0) {
-      existingList[idx] = createdItem;
-    } else {
-      existingList.unshift(createdItem);
-    }
-    orgObj.hardware_sales = existingList;
-    orgObj.updated_at = new Date().toISOString();
-    saveLocalOrgs(all);
-  }
-
   return createdItem;
 }
 
@@ -440,18 +351,10 @@ export async function deleteHardwareSale(
         .eq("id", hardwareId);
     }
   } catch (e) {
-    console.warn("Supabase deleteHardwareSale error:", e);
+    console.error("Supabase deleteHardwareSale error:", e);
+    return false;
   }
 
-  const all = readLocalOrgs();
-  const orgObj = all.find((o) => o.id === orgId || o.org_id === orgId);
-  if (orgObj && orgObj.hardware_sales) {
-    orgObj.hardware_sales = orgObj.hardware_sales.filter(
-      (h) => h.id !== hardwareId,
-    );
-    orgObj.updated_at = new Date().toISOString();
-    saveLocalOrgs(all);
-  }
   return true;
 }
 
@@ -470,12 +373,10 @@ export async function deleteAttendxOrganization(id: string): Promise<boolean> {
       await supabase.from("attendx_organizations").delete().eq("org_id", id);
     }
   } catch (e) {
-    console.warn("Supabase delete organization error:", e);
+    console.error("Supabase delete organization error:", e);
+    return false;
   }
 
-  const all = readLocalOrgs();
-  const filtered = all.filter((o) => o.id !== id && o.org_id !== id);
-  saveLocalOrgs(filtered);
   return true;
 }
 

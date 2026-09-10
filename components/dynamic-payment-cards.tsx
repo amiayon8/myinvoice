@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod } from "@/types/payment-methods";
+import { PaymentMethod, scopeSvgIds } from "@/types/payment-methods";
 import {
   Copy,
   Check,
@@ -215,9 +215,9 @@ export function DynamicPaymentCards({
                   <div className="flex items-center gap-3">
                     {method.icon_svg ? (
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center p-2 text-white shadow-sm shrink-0"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center p-1.5 text-white shadow-sm shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
                         style={{ backgroundColor: accentColor }}
-                        dangerouslySetInnerHTML={{ __html: method.icon_svg }}
+                        dangerouslySetInnerHTML={{ __html: scopeSvgIds(method.icon_svg, method.id) }}
                       />
                     ) : (
                       <div

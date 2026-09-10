@@ -2,51 +2,6 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { NoteItem, NoteFolder, NoteMention, DEFAULT_FOLDERS } from '@/types/notes';
 export type { NoteItem, NoteFolder, NoteMention } from '@/types/notes';
 export { DEFAULT_FOLDERS } from '@/types/notes';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-
-const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
-const WRITABLE_DATA_DIR = path.join(os.tmpdir(), 'myinvoice_data');
-
-function ensureDataDir(): string {
-  try {
-    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
-      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
-    }
-    return WRITABLE_DATA_DIR;
-  } catch {
-    return BUNDLED_DATA_DIR;
-  }
-}
-
-function getReadFilePath(filename: string): string {
-  const writablePath = path.join(WRITABLE_DATA_DIR, filename);
-  if (fs.existsSync(writablePath)) {
-    return writablePath;
-  }
-  return path.join(BUNDLED_DATA_DIR, filename);
-}
-
-function readLocalNotes(): NoteItem[] {
-  try {
-    const file = getReadFilePath('internal_notes.json');
-    if (!fs.existsSync(file)) return [];
-    return JSON.parse(fs.readFileSync(file, 'utf-8'));
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalNotes(notes: NoteItem[]) {
-  try {
-    const dir = ensureDataDir();
-    const targetFile = path.join(dir, 'internal_notes.json');
-    fs.writeFileSync(targetFile, JSON.stringify(notes, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('Local notes write skipped:', err);
-  }
-}
 
 /**
  * Fetch all note folders from Supabase (with defaults fallback)
@@ -67,8 +22,11 @@ export async function getFolders(): Promise<NoteFolder[]> {
         color: f.color
       }));
     }
+    if (error) {
+      console.error('Supabase getFolders error:', error.message);
+    }
   } catch (e) {
-    console.warn('Supabase getFolders fallback:', e);
+    console.error('Supabase getFolders exception:', e);
   }
 
   return DEFAULT_FOLDERS;
@@ -93,7 +51,7 @@ export async function getNotes(folderId?: string): Promise<NoteItem[]> {
 
     const { data, error } = await query;
     if (!error && data) {
-      const mapped: NoteItem[] = data.map((n: any) => ({
+      return data.map((n: any) => ({
         id: n.id,
         title: n.title,
         content: n.content,
@@ -106,19 +64,15 @@ export async function getNotes(folderId?: string): Promise<NoteItem[]> {
         created_at: n.created_at,
         updated_at: n.updated_at
       }));
-      // Sync local JSON as secondary cache
-      saveLocalNotes(mapped);
-      return mapped;
+    }
+    if (error) {
+      console.error('Supabase getNotes error:', error.message);
     }
   } catch (err) {
-    console.warn('Supabase getNotes fallback:', err);
+    console.error('Supabase getNotes exception:', err);
   }
 
-  const localNotes = readLocalNotes();
-  if (folderId && folderId !== 'all') {
-    return localNotes.filter(n => n.folder_id === folderId && !n.is_archived);
-  }
-  return localNotes.filter(n => !n.is_archived);
+  return [];
 }
 
 /**
@@ -227,7 +181,11 @@ export async function saveNote(noteData: Partial<NoteItem> & { title: string; co
         .select()
         .single();
 
-      if (!error && data) savedId = data.id;
+      if (!error && data) {
+        savedId = data.id;
+      } else if (error) {
+        console.error('Supabase update note error:', error.message);
+      }
     } else {
       payload.created_at = now;
       const { data, error } = await supabase
@@ -236,30 +194,22 @@ export async function saveNote(noteData: Partial<NoteItem> & { title: string; co
         .select()
         .single();
 
-      if (!error && data) savedId = data.id;
+      if (!error && data) {
+        savedId = data.id;
+      } else if (error) {
+        console.error('Supabase insert note error:', error.message);
+      }
     }
   } catch (e) {
-    console.warn('Supabase saveNote fallback:', e);
+    console.error('Supabase saveNote exception:', e);
   }
 
-  const finalNote: NoteItem = {
+  return {
     id: savedId || noteData.id || `note-${Date.now()}`,
     ...payload,
     created_at: noteData.created_at || now,
     updated_at: now
   };
-
-  // Keep local JSON in sync
-  const localNotes = readLocalNotes();
-  const idx = localNotes.findIndex(n => n.id === finalNote.id);
-  if (idx >= 0) {
-    localNotes[idx] = finalNote;
-  } else {
-    localNotes.unshift(finalNote);
-  }
-  saveLocalNotes(localNotes);
-
-  return finalNote;
 }
 
 /**
@@ -268,14 +218,16 @@ export async function saveNote(noteData: Partial<NoteItem> & { title: string; co
 export async function deleteNote(id: string): Promise<boolean> {
   const supabase = createServiceRoleClient();
   try {
-    await supabase.from('notes').delete().eq('id', id);
+    const { error } = await supabase.from('notes').delete().eq('id', id);
+    if (error) {
+      console.error('Supabase deleteNote error:', error.message);
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('Supabase deleteNote fallback:', e);
+    console.error('Supabase deleteNote exception:', e);
+    return false;
   }
-
-  const localNotes = readLocalNotes().filter(n => n.id !== id);
-  saveLocalNotes(localNotes);
-  return true;
 }
 
 export async function getNoteById(id: string): Promise<NoteItem | null> {
@@ -297,20 +249,21 @@ export async function getNoteById(id: string): Promise<NoteItem | null> {
         updated_at: data.updated_at
       };
     }
+    if (error) {
+      console.error('Supabase getNoteById error:', error.message);
+    }
   } catch (e) {
-    console.warn('Supabase getNoteById fallback:', e);
+    console.error('Supabase getNoteById exception:', e);
   }
 
-  const localNotes = readLocalNotes();
-  return localNotes.find(n => n.id === id) || null;
+  return null;
 }
 
 /**
  * Toggle pinned status of a note
  */
 export async function togglePinNote(id: string): Promise<NoteItem | null> {
-  const notes = await getNotes();
-  const note = notes.find(n => n.id === id);
+  const note = await getNoteById(id);
   if (!note) return null;
 
   return saveNote({
