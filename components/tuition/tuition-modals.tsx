@@ -1557,6 +1557,7 @@ interface RecordPaymentModalProps extends ModalProps {
     method: string;
     reference?: string;
     note?: string;
+    paidAt?: string;
   }) => void;
 }
 
@@ -1570,21 +1571,29 @@ export function RecordPaymentModal({
 }: RecordPaymentModalProps) {
   const [selectedTeacherId, setSelectedTeacherId] = useState(preselectedTeacherId || teachers[0]?.id || "");
   const [paymentType, setPaymentType] = useState<'CYCLE_SETTLEMENT' | 'ADVANCE_DEPOSIT' | 'CUSTOM'>('CYCLE_SETTLEMENT');
+  const [paidAtDate, setPaidAtDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [method, setMethod] = useState("Bank Transfer");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [customAmount, setCustomAmount] = useState("");
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+
+  const teacherUnpaidSessions = unpaidSessionsByTeacher[selectedTeacherId] || [];
+
+  useEffect(() => {
+    setSelectedSessionIds(teacherUnpaidSessions.map(s => s.id));
+  }, [selectedTeacherId, teacherUnpaidSessions.length]);
 
   if (!isOpen) return null;
 
   const currentTeacher = teachers.find(t => t.id === selectedTeacherId);
-  const teacherUnpaidSessions = unpaidSessionsByTeacher[selectedTeacherId] || [];
-  const totalUnpaidAmount = teacherUnpaidSessions.reduce((acc, curr) => acc + curr.fee, 0);
+  const selectedSessions = teacherUnpaidSessions.filter(s => selectedSessionIds.includes(s.id));
+  const selectedTotalAmount = selectedSessions.reduce((acc, curr) => acc + curr.fee, 0);
 
   const suggestedAmount = paymentType === 'CYCLE_SETTLEMENT'
-    ? totalUnpaidAmount
+    ? selectedTotalAmount
     : paymentType === 'ADVANCE_DEPOSIT'
-      ? ((currentTeacher?.hourlyRate || 30) * 1.5 * (currentTeacher?.paymentPolicy?.cycleSize || 4))
+      ? ((currentTeacher?.dailyRate ?? currentTeacher?.hourlyRate ?? 500) * (currentTeacher?.paymentPolicy?.cycleSize || 4))
       : parseFloat(customAmount) || 0;
 
   const finalAmount = customAmount ? parseFloat(customAmount) : suggestedAmount;
@@ -1593,25 +1602,29 @@ export function RecordPaymentModal({
     e.preventDefault();
     if (!selectedTeacherId || finalAmount <= 0) return;
 
+    const originalTime = new Date().toTimeString().slice(0, 8);
+    const resolvedPaidAt = paidAtDate ? `${paidAtDate}T${originalTime}` : new Date().toISOString();
+
     onRecordPayment({
       teacherId: selectedTeacherId,
-      sessionIds: paymentType === 'CYCLE_SETTLEMENT' ? teacherUnpaidSessions.map(s => s.id) : [],
+      sessionIds: paymentType === 'CYCLE_SETTLEMENT' ? selectedSessionIds : [],
       type: paymentType === 'ADVANCE_DEPOSIT' ? 'ADVANCE_DEPOSIT' : 'CYCLE_SETTLEMENT',
       amount: finalAmount,
       method,
       reference: reference.trim() || undefined,
       note: note.trim() || undefined,
+      paidAt: resolvedPaidAt,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-lg shadow-xl text-zinc-900 dark:text-zinc-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-lg shadow-xl text-zinc-900 dark:text-zinc-100 my-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
             <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">Record Payment</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Settle completed sessions or add advance cycle funds</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Settle classes, log historical payments, or deposit advance credit</p>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
             <X className="w-5 h-5" />
@@ -1639,21 +1652,21 @@ export function RecordPaymentModal({
             <label className="text-xs font-medium uppercase tracking-wider text-zinc-600 dark:text-zinc-400 block mb-1.5">
               Payment Intention
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setPaymentType('CYCLE_SETTLEMENT');
                   setCustomAmount("");
                 }}
-                className={`p-3 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'CYCLE_SETTLEMENT'
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'CYCLE_SETTLEMENT'
                     ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
                   }`}
               >
-                <div className="font-semibold">Settle Unpaid Classes</div>
+                <div className="font-semibold text-xs">Settle Classes</div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {teacherUnpaidSessions.length} classes pending (৳{totalUnpaidAmount.toFixed(2)})
+                  {teacherUnpaidSessions.length} pending
                 </div>
               </button>
 
@@ -1663,18 +1676,86 @@ export function RecordPaymentModal({
                   setPaymentType('ADVANCE_DEPOSIT');
                   setCustomAmount("");
                 }}
-                className={`p-3 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'ADVANCE_DEPOSIT'
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'ADVANCE_DEPOSIT'
                     ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
                   }`}
               >
-                <div className="font-semibold">Add Advance / Prepay</div>
+                <div className="font-semibold text-xs">Add Advance</div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Deposit credit for future classes
+                  Deposit credit
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentType('CUSTOM');
+                  setCustomAmount("");
+                }}
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'CUSTOM'
+                    ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
+                    : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
+                  }`}
+              >
+                <div className="font-semibold text-xs">Direct History</div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Standalone entry
                 </div>
               </button>
             </div>
           </div>
+
+          {paymentType === 'CYCLE_SETTLEMENT' && (
+            <div>
+              {teacherUnpaidSessions.length > 0 ? (
+                <div className="space-y-1.5 border border-zinc-200 dark:border-zinc-800 p-2.5 max-h-40 overflow-y-auto bg-zinc-50/50 dark:bg-zinc-950/50">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-zinc-500 pb-1 border-b border-zinc-200 dark:border-zinc-800">
+                    <span>Select Classes to Settle ({selectedSessionIds.length}/{teacherUnpaidSessions.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedSessionIds.length === teacherUnpaidSessions.length) {
+                          setSelectedSessionIds([]);
+                        } else {
+                          setSelectedSessionIds(teacherUnpaidSessions.map(s => s.id));
+                        }
+                      }}
+                      className="text-zinc-700 dark:text-zinc-300 hover:underline cursor-pointer"
+                    >
+                      {selectedSessionIds.length === teacherUnpaidSessions.length ? "Deselect All" : "Select All"}
+                    </button>
+                  </div>
+                  {teacherUnpaidSessions.map(s => {
+                    const isSelected = selectedSessionIds.includes(s.id);
+                    const sessionDate = new Date(s.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <label key={s.id} className="flex items-center justify-between text-xs py-1 px-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer rounded">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedSessionIds(prev =>
+                                prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                              );
+                            }}
+                            className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-0"
+                          />
+                          <span>{sessionDate} - ৳{s.fee.toFixed(2)}</span>
+                        </div>
+                        <span className="text-[11px] text-zinc-400 capitalize">{s.status.toLowerCase()}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+                  All classes for this teacher are currently marked as paid. You can record advance funds or an unlinked payment history entry above.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1682,17 +1763,31 @@ export function RecordPaymentModal({
               <input
                 type="number"
                 step="0.01"
+                min="0.01"
                 required
                 placeholder={suggestedAmount.toFixed(2)}
                 value={customAmount}
                 onChange={e => setCustomAmount(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2  text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 block">
                 {customAmount ? "Custom amount" : `Default: ৳${suggestedAmount.toFixed(2)}`}
               </span>
             </div>
 
+            <div>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Payment Date *</label>
+              <input
+                type="date"
+                required
+                value={paidAtDate}
+                onChange={e => setPaidAtDate(e.target.value)}
+                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Payment Method</label>
               <select
@@ -1707,24 +1802,24 @@ export function RecordPaymentModal({
                 <option>Other</option>
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Transaction Reference (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. TXN-998234 or receipt number"
-              value={reference}
-              onChange={e => setReference(e.target.value)}
-              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm  focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
-            />
+            <div>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Transaction Reference</label>
+              <input
+                type="text"
+                placeholder="e.g. TXN-998234 or receipt #"
+                value={reference}
+                onChange={e => setReference(e.target.value)}
+                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+              />
+            </div>
           </div>
 
           <div>
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Note (Optional)</label>
             <input
               type="text"
-              placeholder="e.g. Paid for 4 Calculus classes in September"
+              placeholder="e.g. Paid for Calculus classes"
               value={note}
               onChange={e => setNote(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"

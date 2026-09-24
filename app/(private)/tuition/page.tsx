@@ -28,6 +28,10 @@ import {
   dbDeleteSession,
   dbAddSessionNote,
   dbCreatePayment,
+  dbUpdatePayment,
+  dbDeletePayment,
+  dbRevertSessionPayment,
+  dbRevertSessionsPayment,
   dbSaveEvent,
   dbDeleteEvent
 } from "@/lib/tuition-service";
@@ -44,6 +48,7 @@ import {
   ScheduleClassModal,
   EditClassSessionModal,
   RecordPaymentModal,
+  EditPaymentModal,
   DelayPaymentModal,
   AddEventModal,
   AddSubjectModal,
@@ -74,6 +79,7 @@ export default function TuitionPage() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduleInitialDate, setScheduleInitialDate] = useState<string | undefined>(undefined);
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentRecord | null>(null);
   const [preselectedPayTeacherId, setPreselectedPayTeacherId] = useState<string | undefined>(undefined);
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false);
   const [delayTeacherTarget, setDelayTeacherTarget] = useState<Teacher | null>(null);
@@ -494,8 +500,100 @@ export default function TuitionPage() {
     }
   };
 
-  // Action: Update Class Session (Edit literally everything from Calendar)
+  const handleDeleteClassPayment = async (sessionId: string) => {
+    const targetSession = sessions.find(s => s.id === sessionId);
+    if (!targetSession) return;
+
+    if (targetSession.paymentStatus === "UNPAID") {
+      toast.info("Class is already unpaid");
+      return;
+    }
+
+    let updatedTeacherToPersist: Teacher | null = null;
+    if (targetSession.paymentStatus === "COVERED_BY_ADVANCE") {
+      const teacher = teachers.find(t => t.id === targetSession.teacherId);
+      if (teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+          }
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => t.id === teacher.id ? ut : t));
+      }
+    }
+
+    const relatedPayments = payments.filter(p => p.sessionIds?.includes(sessionId));
+    let updatedPayments = [...payments];
+    const paymentsToDelete: string[] = [];
+    const paymentsToUpdate: PaymentRecord[] = [];
+
+    for (const pay of relatedPayments) {
+      const remainingSessionIds = pay.sessionIds.filter(id => id !== sessionId);
+      if (remainingSessionIds.length === 0) {
+        paymentsToDelete.push(pay.id);
+        updatedPayments = updatedPayments.filter(p => p.id !== pay.id);
+      } else {
+        const up: PaymentRecord = {
+          ...pay,
+          sessionIds: remainingSessionIds,
+          amount: Math.max(0, pay.amount - targetSession.fee),
+        };
+        paymentsToUpdate.push(up);
+        updatedPayments = updatedPayments.map(p => p.id === pay.id ? up : p);
+      }
+    }
+
+    if (relatedPayments.length > 0) {
+      updatePayments(updatedPayments);
+    }
+
+    const updatedSession: ClassSession = {
+      ...targetSession,
+      paymentStatus: "UNPAID",
+      paidAt: undefined,
+    };
+    updateSessions(sessions.map(s => s.id === sessionId ? updatedSession : s));
+    toast.success("Payment deleted for this class");
+
+    try {
+      await dbRevertSessionPayment(sessionId);
+      if (updatedTeacherToPersist) {
+        await dbSaveTeacher(updatedTeacherToPersist);
+      }
+      for (const pid of paymentsToDelete) {
+        await dbDeletePayment(pid);
+      }
+      for (const up of paymentsToUpdate) {
+        await dbUpdatePayment(up);
+      }
+    } catch (err) {
+      console.error("Failed to delete class payment in Supabase:", err);
+    }
+  };
+
   const handleUpdateSession = async (updatedSession: ClassSession) => {
+    const existing = sessions.find(s => s.id === updatedSession.id);
+    if (existing && (existing.paymentStatus === "PAID" || existing.paymentStatus === "COVERED_BY_ADVANCE") && updatedSession.paymentStatus === "UNPAID") {
+      await handleDeleteClassPayment(updatedSession.id);
+      const withSessionDetails: ClassSession = {
+        ...updatedSession,
+        paymentStatus: "UNPAID",
+        paidAt: undefined,
+      };
+      const updated = sessions.map(s => s.id === updatedSession.id ? withSessionDetails : s);
+      updateSessions(updated);
+      setEditingSession(null);
+      try {
+        await dbSaveSession(withSessionDetails);
+      } catch (err) {
+        console.error("Failed to update session in Supabase:", err);
+      }
+      return;
+    }
+
     const updated = sessions.map(s => s.id === updatedSession.id ? updatedSession : s);
     updateSessions(updated);
     setEditingSession(null);
@@ -586,7 +684,6 @@ export default function TuitionPage() {
     }
   };
 
-  // Action: Record payment modal submit (settlement or advance deposit)
   const handleRecordPayment = async (paymentData: {
     teacherId: string;
     sessionIds: string[];
@@ -595,15 +692,16 @@ export default function TuitionPage() {
     method: string;
     reference?: string;
     note?: string;
+    paidAt?: string;
   }) => {
-    const nowIso = new Date().toISOString();
+    const paymentTime = paymentData.paidAt || new Date().toISOString();
     const newPayment: PaymentRecord = {
       id: `pay-${Date.now()}`,
       teacherId: paymentData.teacherId,
       sessionIds: paymentData.sessionIds,
       type: paymentData.type,
       amount: paymentData.amount,
-      paidAt: nowIso,
+      paidAt: paymentTime,
       method: paymentData.method,
       reference: paymentData.reference,
       note: paymentData.note,
@@ -631,7 +729,7 @@ export default function TuitionPage() {
     } else {
       const updatedSessions = sessions.map(s => {
         if (paymentData.sessionIds.includes(s.id)) {
-          return { ...s, paymentStatus: "PAID" as PaymentStatus, paidAt: nowIso };
+          return { ...s, paymentStatus: "PAID" as PaymentStatus, paidAt: paymentTime };
         }
         return s;
       });
@@ -641,7 +739,6 @@ export default function TuitionPage() {
 
     updatePayments([newPayment, ...payments]);
 
-    // Supabase DB persist
     try {
       const savedPay = await dbCreatePayment(newPayment);
       if (savedPay) {
@@ -652,6 +749,70 @@ export default function TuitionPage() {
       }
     } catch (err) {
       console.error("Failed to persist payment to Supabase:", err);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    const targetPayment = payments.find(p => p.id === paymentId);
+    if (!targetPayment) return;
+
+    let updatedTeacherToPersist: Teacher | null = null;
+    if (targetPayment.type === "ADVANCE_DEPOSIT") {
+      const teacher = teachers.find(t => t.id === targetPayment.teacherId);
+      if (teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: Math.max(0, (teacher.paymentPolicy.advanceBalance || 0) - targetPayment.amount),
+          }
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => t.id === teacher.id ? ut : t));
+      }
+    }
+
+    if (targetPayment.sessionIds && targetPayment.sessionIds.length > 0) {
+      const updatedSessions = sessions.map(s => {
+        if (targetPayment.sessionIds.includes(s.id)) {
+          return {
+            ...s,
+            paymentStatus: "UNPAID" as PaymentStatus,
+            paidAt: undefined,
+          };
+        }
+        return s;
+      });
+      updateSessions(updatedSessions);
+    }
+
+    updatePayments(payments.filter(p => p.id !== paymentId));
+    setEditingPayment(null);
+    toast.info(`Deleted payment record of ৳${targetPayment.amount.toFixed(2)}`);
+
+    try {
+      await dbDeletePayment(paymentId);
+      if (updatedTeacherToPersist) {
+        await dbSaveTeacher(updatedTeacherToPersist);
+      }
+      if (targetPayment.sessionIds && targetPayment.sessionIds.length > 0) {
+        await dbRevertSessionsPayment(targetPayment.sessionIds);
+      }
+    } catch (err) {
+      console.error("Failed to delete payment from Supabase:", err);
+    }
+  };
+
+  const handleSavePayment = async (updatedPayment: PaymentRecord) => {
+    const updated = payments.map(p => p.id === updatedPayment.id ? updatedPayment : p);
+    updatePayments(updated);
+    setEditingPayment(null);
+    toast.success("Payment details updated");
+
+    try {
+      await dbUpdatePayment(updatedPayment);
+    } catch (err) {
+      console.error("Failed to update payment in Supabase:", err);
     }
   };
 
@@ -1039,6 +1200,7 @@ export default function TuitionPage() {
             onToggleFreeClass={handleToggleFreeClass}
             onUpdateStatus={handleUpdateSessionStatus}
             onMarkAsPaid={handleMarkSessionPaid}
+            onDeletePayment={handleDeleteClassPayment}
             onAddNote={handleAddSessionNote}
             onOpenDelayModal={(t) => {
               setDelayTeacherTarget(t);
@@ -1145,6 +1307,7 @@ export default function TuitionPage() {
           onSelectSession={(id) => setSelectedSessionId(id)}
           onEditSession={(s) => setEditingSession(s)}
           onDeleteSession={handleDeleteSession}
+          onDeleteClassPayment={handleDeleteClassPayment}
           onToggleAttendance={handleToggleAttendance}
           onToggleFreeClass={handleToggleFreeClass}
           onOpenScheduleModal={(d?: string) => {
@@ -1189,6 +1352,8 @@ export default function TuitionPage() {
             setPreselectedPayTeacherId(undefined);
             setIsRecordPaymentOpen(true);
           }}
+          onEditPayment={(p) => setEditingPayment(p)}
+          onDeletePayment={handleDeletePayment}
         />
       )}
 
@@ -1250,6 +1415,15 @@ export default function TuitionPage() {
         preselectedTeacherId={preselectedPayTeacherId}
         unpaidSessionsByTeacher={unpaidSessionsByTeacher}
         onRecordPayment={handleRecordPayment}
+      />
+
+      <EditPaymentModal
+        isOpen={!!editingPayment}
+        onClose={() => setEditingPayment(null)}
+        payment={editingPayment}
+        teachers={teachers}
+        onSave={handleSavePayment}
+        onDelete={handleDeletePayment}
       />
 
       <DelayPaymentModal

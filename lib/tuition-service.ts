@@ -437,6 +437,35 @@ export async function dbDeleteSession(id: string): Promise<boolean> {
   return !error;
 }
 
+export async function dbRevertSessionPayment(sessionId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('tuition_class_sessions')
+    .update({
+      payment_status: 'UNPAID',
+      paid_at: null,
+    })
+    .eq('id', sessionId);
+
+  if (error) console.error('dbRevertSessionPayment error:', error);
+  return !error;
+}
+
+export async function dbRevertSessionsPayment(sessionIds: string[]): Promise<boolean> {
+  if (!sessionIds || sessionIds.length === 0) return true;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('tuition_class_sessions')
+    .update({
+      payment_status: 'UNPAID',
+      paid_at: null,
+    })
+    .in('id', sessionIds);
+
+  if (error) console.error('dbRevertSessionsPayment error:', error);
+  return !error;
+}
+
 // -------------------------------------------------------------
 // 5. Session Notes Operations
 // -------------------------------------------------------------

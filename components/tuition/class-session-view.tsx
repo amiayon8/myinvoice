@@ -30,6 +30,7 @@ interface ClassSessionViewProps {
   onToggleFreeClass?: (sessionId: string, isFree: boolean) => void;
   onUpdateStatus: (sessionId: string, newStatus: ClassStatus) => void;
   onMarkAsPaid: (sessionId: string) => void;
+  onDeletePayment?: (sessionId: string) => void;
   onAddNote: (sessionId: string, content: string, isHomework: boolean) => void;
   onOpenDelayModal?: (teacher: Teacher) => void;
 }
@@ -44,6 +45,7 @@ export default function ClassSessionView({
   onToggleFreeClass,
   onUpdateStatus,
   onMarkAsPaid,
+  onDeletePayment,
   onAddNote,
   onOpenDelayModal
 }: ClassSessionViewProps) {
@@ -230,6 +232,22 @@ export default function ClassSessionView({
                   Set as Free Class
                 </button>
               )
+            )}
+
+            {isPaid && !isAbsent && !session.isFree && session.paymentStatus !== "FREE" && onDeletePayment && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete payment for this class? It will revert to unpaid.")) {
+                    onDeletePayment(session.id);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                title="Delete payment and revert class to unpaid"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Payment
+              </button>
             )}
 
             {!isPaid && !isAbsent && !session.isFree && session.paymentStatus !== "FREE" && (

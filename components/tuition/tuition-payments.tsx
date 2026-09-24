@@ -10,7 +10,7 @@ import {
   Clock,
   Download,
   Pencil,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { PaymentRecord, Teacher } from "@/types/tuition";
 
@@ -27,26 +27,31 @@ export default function TuitionPayments({
   teachers,
   onOpenRecordPayment,
   onEditPayment,
-  onDeletePayment
+  onDeletePayment,
 }: TuitionPaymentsProps) {
   const [search, setSearch] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("ALL");
 
-  const teacherMap = new Map(teachers.map(t => [t.id, t]));
+  const teacherMap = new Map(teachers.map((t) => [t.id, t]));
 
-  const filteredPayments = payments.filter(p => {
-    if (selectedTeacherId !== "ALL" && p.teacherId !== selectedTeacherId) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const teacher = teacherMap.get(p.teacherId);
-      const matchTeacher = teacher?.name.toLowerCase().includes(q);
-      const matchRef = p.reference?.toLowerCase().includes(q);
-      const matchNote = p.note?.toLowerCase().includes(q);
-      const matchMethod = p.method?.toLowerCase().includes(q);
-      return matchTeacher || matchRef || matchNote || matchMethod;
-    }
-    return true;
-  }).sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
+  const filteredPayments = payments
+    .filter((p) => {
+      if (selectedTeacherId !== "ALL" && p.teacherId !== selectedTeacherId)
+        return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const teacher = teacherMap.get(p.teacherId);
+        const matchTeacher = teacher?.name.toLowerCase().includes(q);
+        const matchRef = p.reference?.toLowerCase().includes(q);
+        const matchNote = p.note?.toLowerCase().includes(q);
+        const matchMethod = p.method?.toLowerCase().includes(q);
+        return matchTeacher || matchRef || matchNote || matchMethod;
+      }
+      return true;
+    })
+    .sort(
+      (a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime(),
+    );
 
   const totalDisbursed = payments.reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -55,8 +60,13 @@ export default function TuitionPayments({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <h2 className="text-xl font-medium tracking-tight text-zinc-900 dark:text-zinc-50">Payment & Settlement Ledger</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Comprehensive audit trail of cycle settlements and prepaid advance deposits</p>
+          <h2 className="text-xl font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
+            Payment & Settlement Ledger
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Comprehensive audit trail of cycle settlements and prepaid advance
+            deposits
+          </p>
         </div>
 
         <button
@@ -71,11 +81,15 @@ export default function TuitionPayments({
       {/* Aggregate Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div>
-          <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium block">Total Disbursed</span>
+          <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium block">
+            Total Disbursed
+          </span>
           <div className="text-3xl  font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mt-1">
             ৳{totalDisbursed.toFixed(2)}
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Across {payments.length} recorded payments</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Across {payments.length} recorded payments
+          </p>
         </div>
       </div>
 
@@ -83,15 +97,19 @@ export default function TuitionPayments({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Teacher:</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-medium">
+              Teacher:
+            </span>
             <select
               value={selectedTeacherId}
-              onChange={e => setSelectedTeacherId(e.target.value)}
+              onChange={(e) => setSelectedTeacherId(e.target.value)}
               className="border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
               <option value="ALL">All Teachers</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
@@ -102,7 +120,7 @@ export default function TuitionPayments({
               type="text"
               placeholder="Search reference, note, or method..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-8 pr-3 py-1 border border-zinc-300 dark:border-zinc-700 text-xs focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 w-56 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
@@ -124,34 +142,51 @@ export default function TuitionPayments({
             No payment records found matching the filter.
           </div>
         ) : (
-          filteredPayments.map(p => {
+          filteredPayments.map((p) => {
             const teacher = teacherMap.get(p.teacherId);
             const dateStr = new Date(p.paidAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
-              year: "numeric"
+              year: "numeric",
             });
 
             return (
-              <div key={p.id} className="grid grid-cols-12 px-4 py-3.5 text-xs items-center hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors">
+              <div
+                key={p.id}
+                className="grid grid-cols-12 px-4 py-3.5 text-xs items-center hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
+              >
                 <div className="col-span-3">
-                  <div className="font-medium text-zinc-900 dark:text-zinc-100">{teacher?.name || "Teacher"}</div>
-                  <div className=" text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">{dateStr}</div>
+                  <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {teacher?.name || "Teacher"}
+                  </div>
+                  <div className=" text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
+                    {dateStr}
+                  </div>
                 </div>
 
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <div className="font-medium text-zinc-800 dark:text-zinc-200">
-                    {p.type === "ADVANCE_DEPOSIT" ? "Advance Deposit" : p.type === "CYCLE_SETTLEMENT" ? "Cycle Settlement" : "Single Class"}
+                    {p.type === "ADVANCE_DEPOSIT"
+                      ? "Advance Deposit"
+                      : p.type === "CYCLE_SETTLEMENT"
+                        ? "Cycle Settlement"
+                        : "Single Class"}
                   </div>
-                  <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">{p.method}</div>
+                  <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
+                    {p.method}
+                  </div>
                 </div>
 
                 <div className="col-span-3 pr-4">
                   {p.reference && (
-                    <div className=" text-zinc-700 dark:text-zinc-300 text-[11px]">Ref: {p.reference}</div>
+                    <div className=" text-zinc-700 dark:text-zinc-300 text-[11px]">
+                      Ref: {p.reference}
+                    </div>
                   )}
                   {p.note && (
-                    <div className="text-zinc-600 dark:text-zinc-400 line-clamp-1">{p.note}</div>
+                    <div className="text-zinc-600 dark:text-zinc-400 line-clamp-1">
+                      {p.note}
+                    </div>
                   )}
                   {p.sessionIds.length > 0 && (
                     <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
@@ -178,7 +213,11 @@ export default function TuitionPayments({
                   {onDeletePayment && (
                     <button
                       onClick={() => {
-                        if (confirm(`Are you sure you want to permanently delete this payment of ৳${p.amount.toFixed(2)}? Covered classes will revert to unpaid and advance credits will be updated.`)) {
+                        if (
+                          confirm(
+                            `Are you sure you want to permanently delete this payment of ৳${p.amount.toFixed(2)}? Covered classes will revert to unpaid and advance credits will be updated.`,
+                          )
+                        ) {
                           onDeletePayment(p.id);
                         }
                       }}

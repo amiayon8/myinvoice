@@ -16,14 +16,14 @@ import {
   UserX,
   UserCheck,
   CalendarDays,
-  List
+  List,
 } from "lucide-react";
 import {
   ClassSession,
   CalendarEvent,
   Teacher,
   Subject,
-  RecurringSchedule
+  RecurringSchedule,
 } from "@/types/tuition";
 import { TEACHER_PALETTE, getTeacherSessionColor } from "@/lib/tuition-storage";
 
@@ -36,8 +36,12 @@ interface TuitionCalendarProps {
   onSelectSession: (sessionId: string) => void;
   onEditSession?: (session: ClassSession) => void;
   onDeleteSession?: (sessionId: string) => void;
-  onToggleAttendance?: (sessionId: string, newAttendance: 'PRESENT' | 'ABSENT') => void;
+  onToggleAttendance?: (
+    sessionId: string,
+    newAttendance: "PRESENT" | "ABSENT",
+  ) => void;
   onToggleFreeClass?: (sessionId: string, isFree: boolean) => void;
+  onDeleteClassPayment?: (sessionId: string) => void;
   onOpenScheduleModal: (targetDate?: string) => void;
   onOpenEventModal: () => void;
   onGenerateRecurringSessions: () => void;
@@ -65,39 +69,63 @@ export default function TuitionCalendar({
   onSelectSession,
   onEditSession,
   onDeleteSession,
+  onDeleteClassPayment,
   onToggleAttendance,
   onToggleFreeClass,
   onOpenScheduleModal,
   onOpenEventModal,
-  onGenerateRecurringSessions
+  onGenerateRecurringSessions,
 }: TuitionCalendarProps) {
   // Calendar navigation state
   const [viewDate, setViewDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
 
   // Filter state
-  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("ALL");
-  const [selectedTeacherFilter, setSelectedTeacherFilter] = useState<string>("ALL");
+  const [selectedSubjectFilter, setSelectedSubjectFilter] =
+    useState<string>("ALL");
+  const [selectedTeacherFilter, setSelectedTeacherFilter] =
+    useState<string>("ALL");
 
   // Selected date for day inspector
-  const [selectedDateKey, setSelectedDateKey] = useState<string>(() => toDateKey(new Date()));
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(() =>
+    toDateKey(new Date()),
+  );
 
   // Lookup maps
-  const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
-  const subjectMap = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+  const teacherMap = useMemo(
+    () => new Map(teachers.map((t) => [t.id, t])),
+    [teachers],
+  );
+  const subjectMap = useMemo(
+    () => new Map(subjects.map((s) => [s.id, s])),
+    [subjects],
+  );
 
   // Filtered lists
   const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
-      if (selectedSubjectFilter !== "ALL" && s.subjectId !== selectedSubjectFilter) return false;
-      if (selectedTeacherFilter !== "ALL" && s.teacherId !== selectedTeacherFilter) return false;
+    return sessions.filter((s) => {
+      if (
+        selectedSubjectFilter !== "ALL" &&
+        s.subjectId !== selectedSubjectFilter
+      )
+        return false;
+      if (
+        selectedTeacherFilter !== "ALL" &&
+        s.teacherId !== selectedTeacherFilter
+      )
+        return false;
       return true;
     });
   }, [sessions, selectedSubjectFilter, selectedTeacherFilter]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter(e => {
-      if (selectedSubjectFilter !== "ALL" && e.subjectId && e.subjectId !== selectedSubjectFilter) return false;
+    return events.filter((e) => {
+      if (
+        selectedSubjectFilter !== "ALL" &&
+        e.subjectId &&
+        e.subjectId !== selectedSubjectFilter
+      )
+        return false;
       return true;
     });
   }, [events, selectedSubjectFilter]);
@@ -105,7 +133,7 @@ export default function TuitionCalendar({
   // Map of sessions grouped by "YYYY-MM-DD"
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClassSession[]> = {};
-    filteredSessions.forEach(s => {
+    filteredSessions.forEach((s) => {
       const key = s.scheduledAt.split("T")[0];
       if (!map[key]) map[key] = [];
       map[key].push(s);
@@ -116,7 +144,7 @@ export default function TuitionCalendar({
   // Map of events grouped by "YYYY-MM-DD"
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    filteredEvents.forEach(e => {
+    filteredEvents.forEach((e) => {
       const key = e.startAt.split("T")[0];
       if (!map[key]) map[key] = [];
       map[key].push(e);
@@ -128,8 +156,10 @@ export default function TuitionCalendar({
   const currentMonthYear = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, "0")}`;
   const teacherMonthlyCount = useMemo(() => {
     const counts: Record<string, number> = {};
-    teachers.forEach(t => { counts[t.id] = 0; });
-    sessions.forEach(s => {
+    teachers.forEach((t) => {
+      counts[t.id] = 0;
+    });
+    sessions.forEach((s) => {
       if (s.scheduledAt.startsWith(currentMonthYear)) {
         counts[s.teacherId] = (counts[s.teacherId] || 0) + 1;
       }
@@ -139,11 +169,11 @@ export default function TuitionCalendar({
 
   // Month navigation handlers
   const handlePrevMonth = () => {
-    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
-    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const handleToday = () => {
@@ -237,14 +267,22 @@ export default function TuitionCalendar({
 
   const unifiedAgendaItems: CalendarItem[] = useMemo(() => {
     return [
-      ...filteredSessions.map(s => ({ type: "SESSION" as const, date: new Date(s.scheduledAt), data: s })),
-      ...filteredEvents.map(e => ({ type: "EVENT" as const, date: new Date(e.startAt), data: e }))
+      ...filteredSessions.map((s) => ({
+        type: "SESSION" as const,
+        date: new Date(s.scheduledAt),
+        data: s,
+      })),
+      ...filteredEvents.map((e) => ({
+        type: "EVENT" as const,
+        date: new Date(e.startAt),
+        data: e,
+      })),
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [filteredSessions, filteredEvents]);
 
   const agendaGroupedByDate = useMemo(() => {
     const grouped: Record<string, CalendarItem[]> = {};
-    unifiedAgendaItems.forEach(item => {
+    unifiedAgendaItems.forEach((item) => {
       const key = toDateKey(item.date);
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(item);
@@ -258,13 +296,17 @@ export default function TuitionCalendar({
   const availableSubjects = useMemo(() => {
     if (selectedTeacherFilter === "ALL") return subjects;
     const teacher = teacherMap.get(selectedTeacherFilter);
-    if (!teacher || !teacher.subjectIds || teacher.subjectIds.length === 0) return subjects;
-    return subjects.filter(s => teacher.subjectIds.includes(s.id));
+    if (!teacher || !teacher.subjectIds || teacher.subjectIds.length === 0)
+      return subjects;
+    return subjects.filter((s) => teacher.subjectIds.includes(s.id));
   }, [subjects, teacherMap, selectedTeacherFilter]);
 
   // Keep selectedSubjectFilter valid
   useEffect(() => {
-    if (selectedSubjectFilter !== "ALL" && !availableSubjects.some(s => s.id === selectedSubjectFilter)) {
+    if (
+      selectedSubjectFilter !== "ALL" &&
+      !availableSubjects.some((s) => s.id === selectedSubjectFilter)
+    ) {
       setSelectedSubjectFilter("ALL");
     }
   }, [availableSubjects, selectedSubjectFilter]);
@@ -313,19 +355,11 @@ export default function TuitionCalendar({
 
       {/* TEACHER COLOR LEGEND: Which color for whom */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800/80">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-              Teacher Color Legend
-            </span>
-            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
-              (Each teacher has 2 colors: Paid Class & Free Class)
-            </span>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800/80">
           {selectedTeacherFilter !== "ALL" && (
             <button
               onClick={() => setSelectedTeacherFilter("ALL")}
-              className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 underline cursor-pointer"
+              className="text-[11px] text-zinc-500 mb-6 hover:text-zinc-900 dark:hover:text-zinc-100 underline cursor-pointer"
             >
               Reset Filter (Show All Teachers)
             </button>
@@ -339,19 +373,24 @@ export default function TuitionCalendar({
             const freeColor = getTeacherSessionColor(teacher, true, index);
             const isSelected = selectedTeacherFilter === teacher.id;
             const countThisMonth = teacherMonthlyCount[teacher.id] || 0;
-            const primarySubject = subjects.find(s => teacher.subjectIds?.includes(s.id));
+            const primarySubject = subjects.find((s) =>
+              teacher.subjectIds?.includes(s.id),
+            );
 
             return (
               <button
                 key={teacher.id}
                 type="button"
-                onClick={() => setSelectedTeacherFilter(isSelected ? "ALL" : teacher.id)}
-                className={`flex items-center gap-2.5 p-2 text-left transition-all border cursor-pointer ${isSelected
-                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs"
-                  : selectedTeacherFilter !== "ALL"
-                    ? "opacity-40 border-zinc-200 dark:border-zinc-800 hover:opacity-100 bg-white dark:bg-zinc-900"
-                    : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50"
-                  }`}
+                onClick={() =>
+                  setSelectedTeacherFilter(isSelected ? "ALL" : teacher.id)
+                }
+                className={`flex items-center gap-2.5 p-2 text-left transition-all border cursor-pointer ${
+                  isSelected
+                    ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs"
+                    : selectedTeacherFilter !== "ALL"
+                      ? "opacity-40 border-zinc-200 dark:border-zinc-800 hover:opacity-100 bg-white dark:bg-zinc-900"
+                      : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50"
+                }`}
                 title={`Filter by ${teacher.name} (Paid: ${paidColor}, Free: ${freeColor})`}
               >
                 {/* Visual Dual Swatches (Paid + Free) */}
@@ -396,17 +435,24 @@ export default function TuitionCalendar({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Filter className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Subject:</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-medium">
+              Subject:
+            </span>
             <select
               value={selectedSubjectFilter}
-              onChange={e => setSelectedSubjectFilter(e.target.value)}
+              onChange={(e) => setSelectedSubjectFilter(e.target.value)}
               className="border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
               <option value="ALL">
-                All Subjects {selectedTeacherFilter !== "ALL" ? `(${teacherMap.get(selectedTeacherFilter)?.name})` : ""}
+                All Subjects{" "}
+                {selectedTeacherFilter !== "ALL"
+                  ? `(${teacherMap.get(selectedTeacherFilter)?.name})`
+                  : ""}
               </option>
-              {availableSubjects.map(sub => (
-                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              {availableSubjects.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
               ))}
             </select>
           </div>
@@ -421,20 +467,22 @@ export default function TuitionCalendar({
         <div className="flex items-center gap-1 border border-zinc-300 dark:border-zinc-700 p-0.5 bg-zinc-50 dark:bg-zinc-900">
           <button
             onClick={() => setViewMode("month")}
-            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${viewMode === "month"
-              ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
+            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+              viewMode === "month"
+                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
           >
             <CalendarDays className="w-3.5 h-3.5" />
             Month Calendar (Donuts)
           </button>
           <button
             onClick={() => setViewMode("agenda")}
-            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${viewMode === "agenda"
-              ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
+            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+              viewMode === "agenda"
+                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            }`}
           >
             <List className="w-3.5 h-3.5" />
             Agenda View
@@ -451,7 +499,10 @@ export default function TuitionCalendar({
             <div className="p-4 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center gap-3">
                 <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                  {viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                  {viewDate.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </span>
                 <button
                   onClick={handleToday}
@@ -503,13 +554,15 @@ export default function TuitionCalendar({
                   <div
                     key={cell.dateKey}
                     onClick={() => setSelectedDateKey(cell.dateKey)}
-                    className={`min-h-[96px] sm:min-h-[105px] p-1.5 flex flex-col justify-between transition-colors cursor-pointer select-none relative ${cell.isCurrentMonth
-                      ? "bg-white dark:bg-zinc-900"
-                      : "bg-zinc-50/60 dark:bg-zinc-950/40 text-zinc-400 dark:text-zinc-600"
-                      } ${isSelected
+                    className={`min-h-[96px] sm:min-h-[105px] p-1.5 flex flex-col justify-between transition-colors cursor-pointer select-none relative ${
+                      cell.isCurrentMonth
+                        ? "bg-white dark:bg-zinc-900"
+                        : "bg-zinc-50/60 dark:bg-zinc-950/40 text-zinc-400 dark:text-zinc-600"
+                    } ${
+                      isSelected
                         ? "bg-zinc-100/70 dark:bg-zinc-800/60 ring-2 ring-zinc-900 dark:ring-zinc-100 ring-inset z-10"
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                      }`}
+                    }`}
                   >
                     {/* Top: Donut Ring with Day Number */}
                     <div className="flex items-start justify-between">
@@ -541,15 +594,24 @@ export default function TuitionCalendar({
                           {daySessions.slice(0, 2).map((s) => {
                             const teacher = teacherMap.get(s.teacherId);
                             const subject = subjectMap.get(s.subjectId);
-                            const isFree = s.isFree || s.paymentStatus === "FREE";
-                            const color = getTeacherSessionColor(teacher, isFree);
-                            const isDimmed = selectedTeacherFilter !== "ALL" && selectedTeacherFilter !== s.teacherId;
+                            const isFree =
+                              s.isFree || s.paymentStatus === "FREE";
+                            const color = getTeacherSessionColor(
+                              teacher,
+                              isFree,
+                            );
+                            const isDimmed =
+                              selectedTeacherFilter !== "ALL" &&
+                              selectedTeacherFilter !== s.teacherId;
 
                             return (
                               <div
                                 key={s.id}
-                                className={`flex items-center gap-1 text-[10px] truncate leading-tight ${isDimmed ? "opacity-30" : "text-zinc-700 dark:text-zinc-300"
-                                  }`}
+                                className={`flex items-center gap-1 text-[10px] truncate leading-tight ${
+                                  isDimmed
+                                    ? "opacity-30"
+                                    : "text-zinc-700 dark:text-zinc-300"
+                                }`}
                                 title={`${subject?.name || "Class"} (${isFree ? "Free" : "Paid"}) with ${teacher?.name}`}
                               >
                                 <span
@@ -557,7 +619,8 @@ export default function TuitionCalendar({
                                   style={{ backgroundColor: color }}
                                 />
                                 <span className="truncate ">
-                                  {subject?.name?.split(" ")[0] || "Class"} {isFree ? "(Free)" : ""}
+                                  {subject?.name?.split(" ")[0] || "Class"}{" "}
+                                  {isFree ? "(Free)" : ""}
                                 </span>
                               </div>
                             );
@@ -585,10 +648,10 @@ export default function TuitionCalendar({
             {/* Active Routine Reference Footer */}
             <div className="p-3 bg-zinc-50 dark:bg-zinc-900 text-xs flex flex-wrap items-center justify-between gap-2">
               <span className="text-zinc-500 dark:text-zinc-400">
-                Active Weekly Routines: <strong>{schedules.filter(s => s.isActive).length} scheduled</strong>
-              </span>
-              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Colors inside donut rings reflect the teacher&apos;s assigned color palette.
+                Active Weekly Routines:{" "}
+                <strong>
+                  {schedules.filter((s) => s.isActive).length} scheduled
+                </strong>
               </span>
             </div>
           </div>
@@ -617,16 +680,25 @@ export default function TuitionCalendar({
                 </div>
               </div>
               <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mt-1">
-                {selectedDateObj.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                {selectedDateObj.toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {selectedDateSessions.length} {selectedDateSessions.length === 1 ? "class" : "classes"} · {selectedDateEvents.length} {selectedDateEvents.length === 1 ? "event" : "events"}
+                {selectedDateSessions.length}{" "}
+                {selectedDateSessions.length === 1 ? "class" : "classes"} ·{" "}
+                {selectedDateEvents.length}{" "}
+                {selectedDateEvents.length === 1 ? "event" : "events"}
               </p>
             </div>
 
             {/* List of Sessions for Selected Date */}
             <div className="space-y-3">
-              {selectedDateSessions.length === 0 && selectedDateEvents.length === 0 ? (
+              {selectedDateSessions.length === 0 &&
+              selectedDateEvents.length === 0 ? (
                 <div className="py-8 text-center border border-dashed border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
                   <p>No classes or events scheduled on this date.</p>
                   <button
@@ -642,15 +714,21 @@ export default function TuitionCalendar({
                   {selectedDateSessions.map((session) => {
                     const teacher = teacherMap.get(session.teacherId);
                     const subject = subjectMap.get(session.subjectId);
-                    const isFree = session.isFree || session.paymentStatus === "FREE";
+                    const isFree =
+                      session.isFree || session.paymentStatus === "FREE";
                     const color = getTeacherSessionColor(teacher, isFree);
-                    const isPaid = session.paymentStatus === "PAID" || session.paymentStatus === "COVERED_BY_ADVANCE";
+                    const isPaid =
+                      session.paymentStatus === "PAID" ||
+                      session.paymentStatus === "COVERED_BY_ADVANCE";
 
                     return (
                       <div
                         key={session.id}
                         className="p-3 border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 space-y-2 relative"
-                        style={{ borderLeftColor: color, borderLeftWidth: "4px" }}
+                        style={{
+                          borderLeftColor: color,
+                          borderLeftWidth: "4px",
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -661,7 +739,8 @@ export default function TuitionCalendar({
                                   EXTRA
                                 </span>
                               )}
-                              {(session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT") && (
+                              {(session.status === "TEACHER_ABSENT" ||
+                                session.attendance === "ABSENT") && (
                                 <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 px-1.5 py-0.2 rounded">
                                   TEACHER ABSENT
                                 </span>
@@ -675,11 +754,13 @@ export default function TuitionCalendar({
                               <span>{teacher?.name}</span>
                             </div>
                           </div>
-                          {session.isFree || session.paymentStatus === "FREE" ? (
+                          {session.isFree ||
+                          session.paymentStatus === "FREE" ? (
                             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
                               FREE
                             </span>
-                          ) : (session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT") ? (
+                          ) : session.status === "TEACHER_ABSENT" ||
+                            session.attendance === "ABSENT" ? (
                             <span className=" text-sm font-semibold text-zinc-400 line-through">
                               ৳{session.fee.toFixed(2)}
                             </span>
@@ -692,21 +773,28 @@ export default function TuitionCalendar({
 
                         <div className="flex items-center justify-between text-xs pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
                           <span className=" text-zinc-500 dark:text-zinc-400">
-                            {new Date(session.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {new Date(session.scheduledAt).toLocaleTimeString(
+                              "en-US",
+                              { hour: "numeric", minute: "2-digit" },
+                            )}
                           </span>
 
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT" ? (
+                            {session.status === "TEACHER_ABSENT" ||
+                            session.attendance === "ABSENT" ? (
                               <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1 py-0.5 rounded">
                                 Absent
                               </span>
-                            ) : session.isFree || session.paymentStatus === "FREE" ? (
+                            ) : session.isFree ||
+                              session.paymentStatus === "FREE" ? (
                               <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1 py-0.5 rounded">
                                 Free Class
                               </span>
                             ) : isPaid ? (
                               <span className="text-[11px]  text-zinc-500 dark:text-zinc-400">
-                                {session.paymentStatus === "COVERED_BY_ADVANCE" ? "prepaid" : "paid"}
+                                {session.paymentStatus === "COVERED_BY_ADVANCE"
+                                  ? "prepaid"
+                                  : "paid"}
                               </span>
                             ) : session.status === "COMPLETED" ? (
                               <span className="text-[10px]  font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1 py-0.5 rounded">
@@ -718,10 +806,15 @@ export default function TuitionCalendar({
                               </span>
                             )}
 
-                            {onToggleFreeClass && session.attendance !== 'ABSENT' && session.status !== 'TEACHER_ABSENT' && (
-                              session.isFree || session.paymentStatus === 'FREE' ? (
+                            {onToggleFreeClass &&
+                              session.attendance !== "ABSENT" &&
+                              session.status !== "TEACHER_ABSENT" &&
+                              (session.isFree ||
+                              session.paymentStatus === "FREE" ? (
                                 <button
-                                  onClick={() => onToggleFreeClass(session.id, false)}
+                                  onClick={() =>
+                                    onToggleFreeClass(session.id, false)
+                                  }
                                   className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 hover:text-emerald-950 dark:hover:text-emerald-100 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer"
                                   title="Make this a standard payable class"
                                 >
@@ -729,14 +822,41 @@ export default function TuitionCalendar({
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => onToggleFreeClass(session.id, true)}
+                                  onClick={() =>
+                                    onToggleFreeClass(session.id, true)
+                                  }
                                   className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-1.5 py-0.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
                                   title="Set as free class (won't be counted for payment)"
                                 >
                                   Make Free
                                 </button>
-                              )
-                            )}
+                              ))}
+
+                            {onDeleteClassPayment &&
+                              session.attendance !== "ABSENT" &&
+                              session.status !== "TEACHER_ABSENT" &&
+                              !session.isFree &&
+                              session.paymentStatus !== "FREE" &&
+                              (session.paymentStatus === "PAID" ||
+                                session.paymentStatus ===
+                                  "COVERED_BY_ADVANCE") && (
+                                <button
+                                  onClick={() => {
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete payment for this class? It will revert to unpaid.",
+                                      )
+                                    ) {
+                                      onDeleteClassPayment(session.id);
+                                    }
+                                  }}
+                                  className="text-[11px] font-medium text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                  title="Delete payment and revert class to unpaid"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                  Delete Pay
+                                </button>
+                              )}
 
                             {onEditSession && (
                               <button
@@ -760,7 +880,11 @@ export default function TuitionCalendar({
                             {onDeleteSession && (
                               <button
                                 onClick={() => {
-                                  if (confirm("Are you sure you want to permanently delete this class session?")) {
+                                  if (
+                                    confirm(
+                                      "Are you sure you want to permanently delete this class session?",
+                                    )
+                                  ) {
                                     onDeleteSession(session.id);
                                   }
                                 }}
@@ -779,7 +903,9 @@ export default function TuitionCalendar({
 
                   {/* Events */}
                   {selectedDateEvents.map((ev) => {
-                    const sub = ev.subjectId ? subjectMap.get(ev.subjectId) : null;
+                    const sub = ev.subjectId
+                      ? subjectMap.get(ev.subjectId)
+                      : null;
                     return (
                       <div
                         key={ev.id}
@@ -790,7 +916,10 @@ export default function TuitionCalendar({
                             {ev.eventType.replace("_", " ")}
                           </span>
                           <span className=" text-xs text-zinc-500 dark:text-zinc-400">
-                            {new Date(ev.startAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {new Date(ev.startAt).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
                           </span>
                         </div>
                         <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
@@ -831,10 +960,11 @@ export default function TuitionCalendar({
         <div className="space-y-8">
           {agendaDateKeys.length === 0 ? (
             <div className="py-12 text-center text-sm text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
-              No classes or events found matching the criteria. Click &quot;Schedule Class&quot; or &quot;Generate Next 2 Weeks&quot;.
+              No classes or events found matching the criteria. Click
+              &quot;Schedule Class&quot; or &quot;Generate Next 2 Weeks&quot;.
             </div>
           ) : (
-            agendaDateKeys.map(dateKey => {
+            agendaDateKeys.map((dateKey) => {
               const items = agendaGroupedByDate[dateKey];
               const dateObj = new Date(dateKey + "T00:00:00");
               const isToday = toDateKey(new Date()) === dateKey;
@@ -843,8 +973,15 @@ export default function TuitionCalendar({
                 <div key={dateKey} className="space-y-2">
                   {/* Date Heading */}
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-semibold uppercase tracking-wider ${isToday ? "text-zinc-900 dark:text-zinc-100 underline" : "text-zinc-500 dark:text-zinc-400"}`}>
-                      {dateObj.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    <span
+                      className={`text-xs font-semibold uppercase tracking-wider ${isToday ? "text-zinc-900 dark:text-zinc-100 underline" : "text-zinc-500 dark:text-zinc-400"}`}
+                    >
+                      {dateObj.toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </span>
                     {isToday && (
                       <span className="text-[10px] bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-medium px-1.5 py-0.2">
@@ -859,23 +996,39 @@ export default function TuitionCalendar({
                     {items.map((item) => {
                       if (item.type === "EVENT") {
                         const ev = item.data;
-                        const sub = ev.subjectId ? subjectMap.get(ev.subjectId) : null;
+                        const sub = ev.subjectId
+                          ? subjectMap.get(ev.subjectId)
+                          : null;
                         return (
-                          <div key={ev.id} className="p-3.5 flex items-start justify-between bg-zinc-50/60 dark:bg-zinc-900/60">
+                          <div
+                            key={ev.id}
+                            className="p-3.5 flex items-start justify-between bg-zinc-50/60 dark:bg-zinc-900/60"
+                          >
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-[10px] uppercase tracking-wider text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 px-1 rounded">
                                   {ev.eventType.replace("_", " ")}
                                 </span>
-                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{ev.title}</span>
-                                {sub && <span className="text-xs text-zinc-500 dark:text-zinc-400">· {sub.name}</span>}
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                  {ev.title}
+                                </span>
+                                {sub && (
+                                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                    · {sub.name}
+                                  </span>
+                                )}
                               </div>
                               {ev.description && (
-                                <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{ev.description}</p>
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+                                  {ev.description}
+                                </p>
                               )}
                             </div>
                             <span className=" text-xs text-zinc-500 dark:text-zinc-400 shrink-0">
-                              {new Date(ev.startAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                              {new Date(ev.startAt).toLocaleTimeString(
+                                "en-US",
+                                { hour: "numeric", minute: "2-digit" },
+                              )}
                             </span>
                           </div>
                         );
@@ -884,9 +1037,12 @@ export default function TuitionCalendar({
                       const session = item.data;
                       const teacher = teacherMap.get(session.teacherId);
                       const subject = subjectMap.get(session.subjectId);
-                      const isFree = session.isFree || session.paymentStatus === "FREE";
+                      const isFree =
+                        session.isFree || session.paymentStatus === "FREE";
                       const color = getTeacherSessionColor(teacher, isFree);
-                      const isPaid = session.paymentStatus === "PAID" || session.paymentStatus === "COVERED_BY_ADVANCE";
+                      const isPaid =
+                        session.paymentStatus === "PAID" ||
+                        session.paymentStatus === "COVERED_BY_ADVANCE";
 
                       return (
                         <div
@@ -913,25 +1069,36 @@ export default function TuitionCalendar({
                                     EXTRA
                                   </span>
                                 )}
-                                {(session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT") && (
+                                {(session.status === "TEACHER_ABSENT" ||
+                                  session.attendance === "ABSENT") && (
                                   <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 px-1.5 py-0.2 rounded">
                                     TEACHER ABSENT
                                   </span>
                                 )}
                               </div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                <span className="">{new Date(session.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
-                                {session.notes?.length > 0 && ` · ${session.notes.length} notes`}
+                                <span className="">
+                                  {new Date(
+                                    session.scheduledAt,
+                                  ).toLocaleTimeString("en-US", {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                                {session.notes?.length > 0 &&
+                                  ` · ${session.notes.length} notes`}
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3">
-                            {session.isFree || session.paymentStatus === "FREE" ? (
+                            {session.isFree ||
+                            session.paymentStatus === "FREE" ? (
                               <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
                                 FREE
                               </span>
-                            ) : (session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT") ? (
+                            ) : session.status === "TEACHER_ABSENT" ||
+                              session.attendance === "ABSENT" ? (
                               <span className=" text-sm font-semibold text-zinc-400 line-through">
                                 ৳{session.fee.toFixed(2)}
                               </span>
@@ -941,17 +1108,21 @@ export default function TuitionCalendar({
                               </span>
                             )}
 
-                            {session.status === "TEACHER_ABSENT" || session.attendance === "ABSENT" ? (
+                            {session.status === "TEACHER_ABSENT" ||
+                            session.attendance === "ABSENT" ? (
                               <span className="text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1.5 py-0.5 rounded">
                                 Absent
                               </span>
-                            ) : session.isFree || session.paymentStatus === "FREE" ? (
+                            ) : session.isFree ||
+                              session.paymentStatus === "FREE" ? (
                               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
                                 Free Class
                               </span>
                             ) : isPaid ? (
                               <span className="text-xs  text-zinc-500 dark:text-zinc-400">
-                                {session.paymentStatus === "COVERED_BY_ADVANCE" ? "prepaid" : "paid"}
+                                {session.paymentStatus === "COVERED_BY_ADVANCE"
+                                  ? "prepaid"
+                                  : "paid"}
                               </span>
                             ) : session.status === "COMPLETED" ? (
                               <span className="text-xs  font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1.5 py-0.5 rounded">
@@ -963,22 +1134,63 @@ export default function TuitionCalendar({
                               </span>
                             )}
 
-                            {onToggleFreeClass && session.attendance !== 'ABSENT' && session.status !== 'TEACHER_ABSENT' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onToggleFreeClass(session.id, !(session.isFree || session.paymentStatus === 'FREE'));
-                                }}
-                                className={`text-[11px] font-medium px-2 py-0.5 border transition-colors cursor-pointer ${
-                                  session.isFree || session.paymentStatus === 'FREE'
-                                    ? "text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100"
-                                    : "text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700"
-                                }`}
-                                title={session.isFree ? "Revert to paid class" : "Set as free class (won't be counted for payment)"}
-                              >
-                                {session.isFree || session.paymentStatus === 'FREE' ? "Make Paid" : "Make Free"}
-                              </button>
-                            )}
+                            {onToggleFreeClass &&
+                              session.attendance !== "ABSENT" &&
+                              session.status !== "TEACHER_ABSENT" && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleFreeClass(
+                                      session.id,
+                                      !(
+                                        session.isFree ||
+                                        session.paymentStatus === "FREE"
+                                      ),
+                                    );
+                                  }}
+                                  className={`text-[11px] font-medium px-2 py-0.5 border transition-colors cursor-pointer ${
+                                    session.isFree ||
+                                    session.paymentStatus === "FREE"
+                                      ? "text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100"
+                                      : "text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700"
+                                  }`}
+                                  title={
+                                    session.isFree
+                                      ? "Revert to paid class"
+                                      : "Set as free class (won't be counted for payment)"
+                                  }
+                                >
+                                  {session.isFree ||
+                                  session.paymentStatus === "FREE"
+                                    ? "Make Paid"
+                                    : "Make Free"}
+                                </button>
+                              )}
+
+                            {onDeleteClassPayment &&
+                              session.attendance !== "ABSENT" &&
+                              session.status !== "TEACHER_ABSENT" &&
+                              !session.isFree &&
+                              session.paymentStatus !== "FREE" &&
+                              isPaid && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete payment for this class? It will revert to unpaid.",
+                                      )
+                                    ) {
+                                      onDeleteClassPayment(session.id);
+                                    }
+                                  }}
+                                  className="text-[11px] font-medium text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                  title="Delete payment and revert class to unpaid"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                  Delete Pay
+                                </button>
+                              )}
 
                             {onEditSession && (
                               <button
@@ -997,7 +1209,11 @@ export default function TuitionCalendar({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (confirm("Are you sure you want to permanently delete this class session?")) {
+                                  if (
+                                    confirm(
+                                      "Are you sure you want to permanently delete this class session?",
+                                    )
+                                  ) {
                                     onDeleteSession(session.id);
                                   }
                                 }}
@@ -1043,7 +1259,7 @@ function DateDonutRing({
   isToday,
   isSelected,
   isCurrentMonth,
-  activeTeacherId
+  activeTeacherId,
 }: DateDonutRingProps) {
   const count = sessions.length;
 
@@ -1051,14 +1267,15 @@ function DateDonutRing({
   if (count === 0) {
     return (
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isToday
-          ? "border-2 border-zinc-900 dark:border-zinc-100 font-bold text-zinc-900 dark:text-zinc-100"
-          : isSelected
-            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold"
-            : isCurrentMonth
-              ? "text-zinc-700 dark:text-zinc-300"
-              : "text-zinc-400 dark:text-zinc-600"
-          }`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+          isToday
+            ? "border-2 border-zinc-900 dark:border-zinc-100 font-bold text-zinc-900 dark:text-zinc-100"
+            : isSelected
+              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold"
+              : isCurrentMonth
+                ? "text-zinc-700 dark:text-zinc-300"
+                : "text-zinc-400 dark:text-zinc-600"
+        }`}
       >
         <span className=" text-xs">{dayNum}</span>
       </div>
@@ -1074,8 +1291,9 @@ function DateDonutRing({
 
   return (
     <div
-      className={`relative w-8 h-8 flex items-center justify-center rounded-full transition-transform ${isSelected ? "scale-110" : ""
-        }`}
+      className={`relative w-8 h-8 flex items-center justify-center rounded-full transition-transform ${
+        isSelected ? "scale-110" : ""
+      }`}
       title={`${count} class(es) on this day`}
     >
       <svg
@@ -1098,7 +1316,8 @@ function DateDonutRing({
           const teacher = teacherMap.get(session.teacherId);
           const isFree = session.isFree || session.paymentStatus === "FREE";
           const color = getTeacherSessionColor(teacher, isFree, idx);
-          const isHighlighted = activeTeacherId === "ALL" || activeTeacherId === session.teacherId;
+          const isHighlighted =
+            activeTeacherId === "ALL" || activeTeacherId === session.teacherId;
 
           const strokeDash = `${Math.max(1, slicePercent - gap)} ${100 - Math.max(1, slicePercent - gap)}`;
           const strokeOffset = -(idx * slicePercent);
@@ -1123,12 +1342,13 @@ function DateDonutRing({
 
       {/* Date number in center of the donut */}
       <span
-        className={`absolute  text-[11px] font-semibold select-none ${isToday
-          ? "text-zinc-950 dark:text-white underline decoration-zinc-900 dark:decoration-zinc-100 decoration-1 underline-offset-2"
-          : isSelected
-            ? "text-zinc-900 dark:text-zinc-100"
-            : "text-zinc-800 dark:text-zinc-200"
-          }`}
+        className={`absolute  text-[11px] font-semibold select-none ${
+          isToday
+            ? "text-zinc-950 dark:text-white underline decoration-zinc-900 dark:decoration-zinc-100 decoration-1 underline-offset-2"
+            : isSelected
+              ? "text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-800 dark:text-zinc-200"
+        }`}
       >
         {dayNum}
       </span>
