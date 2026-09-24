@@ -23,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const primaryLinks = [
     { id: "dashboard", label: "Dashboard", icon: "fa-chart-pie" },
+    { id: "tuition", label: "Tuition Log", icon: "fa-graduation-cap" },
     { id: "invoices", label: "Invoices", icon: "fa-file-invoice-dollar" },
     { id: "notes", label: "Notes", icon: "fa-note-sticky" },
     { id: "loans", label: "Loans", icon: "fa-hand-holding-dollar" },

@@ -22,6 +22,9 @@ interface DynamicPaymentCardsProps {
   currency?: string;
   totalDue?: number;
   initialMethods?: PaymentMethod[];
+  fullWidth?: boolean;
+  columns?: 1 | 2 | 3;
+  className?: string;
 }
 
 export function DynamicPaymentCards({
@@ -34,7 +37,12 @@ export function DynamicPaymentCards({
   currency = "৳",
   totalDue = 0,
   initialMethods,
+  fullWidth,
+  columns,
+  className = "",
 }: DynamicPaymentCardsProps) {
+  const isFullWidth = fullWidth ?? !!subscriptionId;
+  const cols = columns ?? (isFullWidth ? 3 : 2);
   const [methods, setMethods] = useState<PaymentMethod[]>(initialMethods || []);
   const [loading, setLoading] = useState(!initialMethods);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -150,11 +158,12 @@ export function DynamicPaymentCards({
 
   if (loading) {
     return (
-      <div className="w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse mb-6">
+      <div className={`w-full ${isFullWidth ? "" : "max-w-[800px]"} bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse mb-6 ${className}`}>
         <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4 mb-4"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""} gap-4`}>
           <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
           <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+          {cols === 3 && <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>}
         </div>
       </div>
     );
@@ -162,8 +171,15 @@ export function DynamicPaymentCards({
 
   if (methods.length === 0) return null;
 
+  const gridColsClass =
+    cols === 3
+      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      : cols === 1
+      ? "grid-cols-1"
+      : "grid-cols-1 md:grid-cols-2";
+
   return (
-    <div className="w-full max-w-[800px] mb-6 no-print space-y-4">
+    <div className={`w-full ${isFullWidth ? "" : "max-w-[800px]"} mb-6 no-print space-y-4 ${className}`}>
       {/* Header with Verification Request CTA */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 px-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-3">
@@ -194,7 +210,7 @@ export function DynamicPaymentCards({
       </div>
 
       {/* Dynamic Payment Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid ${gridColsClass} gap-4`}>
         {methods.map((method) => {
           const accentColor = method.color || "#6366f1";
 

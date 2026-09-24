@@ -251,6 +251,8 @@ export default function PublicSharedSubscriptionPage({
           totalDue={subscriptions.reduce((sum, s) => sum + (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1), 0)}
           isPaid={false}
           initialMethods={paymentMethods}
+          fullWidth={true}
+          columns={3}
         />
 
         {/* Cancellation Policy Banner */}

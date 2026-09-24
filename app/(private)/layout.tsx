@@ -36,7 +36,9 @@ export default function PrivateLayout({
 
   // Map active route to ViewType ID
   let currentView = 'dashboard';
-  if (pathname.startsWith('/invoices')) {
+  if (pathname.startsWith('/tuition')) {
+    currentView = 'tuition';
+  } else if (pathname.startsWith('/invoices')) {
     currentView = 'invoices';
   } else if (pathname.startsWith('/notes')) {
     currentView = 'notes';
@@ -64,6 +66,7 @@ export default function PrivateLayout({
 
   const handleViewChange = (view: string) => {
     if (view === 'dashboard') router.push('/dashboard');
+    else if (view === 'tuition') router.push('/tuition');
     else if (view === 'invoices') router.push('/invoices');
     else if (view === 'notes') router.push('/notes');
     else if (view === 'loans') router.push('/loans');
