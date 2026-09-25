@@ -1129,9 +1129,21 @@ export default function SubscriptionsDashboardPage() {
                             const totalCostPerMonth =
                               Number(sub.price_per_slot) *
                               Number(sub.slots_count);
-                            const balanceAmount = Math.round(
+                            const totalAmountPaid = Number(
+                              sub.total_amount_paid,
+                            );
+                            let balanceAmount = Math.round(
                               Math.abs(monthsRemaining) * totalCostPerMonth,
                             );
+                            if (
+                              !isNaN(totalAmountPaid) &&
+                              totalAmountPaid > 0
+                            ) {
+                              const consumedCash =
+                                monthsConsumed * totalCostPerMonth;
+                              const netCash = totalAmountPaid - consumedCash;
+                              balanceAmount = Math.round(Math.abs(netCash));
+                            }
 
                             const startMonthStr = getStartMonthStr(
                               sub.start_date,

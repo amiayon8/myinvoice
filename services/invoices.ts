@@ -391,3 +391,15 @@ export async function updateInvoiceToken(
   return data;
 }
 
+export async function deleteInvoiceToken(tokenId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('invoice_access_tokens')
+    .delete()
+    .eq('id', tokenId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/invoices');
+  revalidatePath('/links');
+}
+

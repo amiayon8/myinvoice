@@ -100,19 +100,21 @@ export default async function PublicInvoicePage({
   const referrer = reqHeaders.get("referer") || null;
   const { browser, os, device } = parseUserAgent(userAgent);
 
-  supabase
-    .from("invoice_view_logs")
-    .insert({
-      token_id: tokenRecord.id,
-      invoice_id: tokenRecord.invoice_id,
-      ip_address: ip,
-      user_agent: userAgent,
-      browser,
-      os,
-      device,
-      referrer,
-    })
-    .then(() => {});
+  if (ip && ip !== "::1") {
+    supabase
+      .from("invoice_view_logs")
+      .insert({
+        token_id: tokenRecord.id,
+        invoice_id: tokenRecord.invoice_id,
+        ip_address: ip,
+        user_agent: userAgent,
+        browser,
+        os,
+        device,
+        referrer,
+      })
+      .then(() => {});
+  }
 
   const { data: parentInvoice, error: invError } = await supabase
     .from("invoices")

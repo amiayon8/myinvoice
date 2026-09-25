@@ -24,6 +24,10 @@ interface DynamicPaymentCardsProps {
   fullWidth?: boolean;
   columns?: 1 | 2 | 3;
   className?: string;
+  id?: string;
+  defaultNotes?: string;
+  externalModalOpen?: boolean;
+  onExternalModalClose?: () => void;
 }
 
 export function DynamicPaymentCards({
@@ -39,6 +43,10 @@ export function DynamicPaymentCards({
   fullWidth,
   columns,
   className = "",
+  id,
+  defaultNotes = "",
+  externalModalOpen = false,
+  onExternalModalClose,
 }: DynamicPaymentCardsProps) {
   const isFullWidth = fullWidth ?? Boolean(subscriptionId);
   const cols = columns ?? (isFullWidth ? 3 : 2);
@@ -109,10 +117,22 @@ export function DynamicPaymentCards({
   const handleOpenModal = (methodId?: string) => {
     if (methodId) setSelectedMethodId(methodId);
     setPaidAmount(totalDue > 0 ? totalDue.toString() : "");
+    if (defaultNotes) setNotes(defaultNotes);
     setSubmitSuccess(false);
     setSubmitError(null);
     setModalOpen(true);
   };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    onExternalModalClose?.();
+  };
+
+  useEffect(() => {
+    if (externalModalOpen) {
+      handleOpenModal();
+    }
+  }, [externalModalOpen]);
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,6 +210,7 @@ export function DynamicPaymentCards({
 
   return (
     <div
+      id={id}
       className={`w-full ${isFullWidth ? "" : "max-w-[210mm]"} border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 text-zinc-900 dark:text-zinc-100 font-sans ${className}`}
     >
       <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800 mb-4">
@@ -323,8 +344,8 @@ export function DynamicPaymentCards({
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-zinc-900 dark:text-zinc-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-zinc-900 dark:text-zinc-100 shadow-xl">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
               <div>
                 <h4 className="text-sm font-semibold tracking-tight">
@@ -338,8 +359,8 @@ export function DynamicPaymentCards({
               </div>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
-                className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                onClick={handleCloseModal}
+                className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -360,8 +381,8 @@ export function DynamicPaymentCards({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="mt-3 px-4 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                    onClick={handleCloseModal}
+                    className="mt-3 px-4 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors cursor-pointer"
                   >
                     Done
                   </button>
@@ -379,13 +400,13 @@ export function DynamicPaymentCards({
                   )}
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
                       Payment Method
                     </label>
                     <select
                       value={selectedMethodId}
                       onChange={(e) => setSelectedMethodId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 cursor-pointer"
                     >
                       {methods.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -396,7 +417,7 @@ export function DynamicPaymentCards({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
                       Transaction ID / Reference
                     </label>
                     <input
@@ -405,12 +426,12 @@ export function DynamicPaymentCards({
                       placeholder="e.g. 9J87AKL12"
                       value={trxId}
                       onChange={(e) => setTrxId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
                       Sender Account / Phone Number
                     </label>
                     <input
@@ -419,12 +440,12 @@ export function DynamicPaymentCards({
                       placeholder="e.g. 017XXXXXXXX"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
                       Amount Paid ({currency})
                     </label>
                     <input
@@ -433,12 +454,12 @@ export function DynamicPaymentCards({
                       placeholder="0.00"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
                       Notes (Optional)
                     </label>
                     <textarea
@@ -446,22 +467,22 @@ export function DynamicPaymentCards({
                       placeholder="Additional details or transfer remarks"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-none font-sans"
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-none font-sans"
                     />
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                     <button
                       type="button"
-                      onClick={() => setModalOpen(false)}
-                      className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                      onClick={handleCloseModal}
+                      className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       {submitting && (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

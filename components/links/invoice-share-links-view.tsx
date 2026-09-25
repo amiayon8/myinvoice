@@ -9,6 +9,9 @@ import {
   Plus,
   ExternalLink,
   Filter,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react";
 
 export type InvoicePaymentStatus = "PAID" | "PENDING" | "OVERDUE";
@@ -31,6 +34,11 @@ interface InvoiceShareLinksViewProps {
   onCreateLink?: (
     newLink: Omit<InvoiceShareLink, "id">,
   ) => Promise<void> | void;
+  onEditLink?: (
+    id: string,
+    updates: Partial<InvoiceShareLink>,
+  ) => Promise<void> | void;
+  onDeleteLink?: (id: string) => Promise<void> | void;
 }
 
 const DEFAULT_INVOICE_LINKS: InvoiceShareLink[] = [
@@ -91,6 +99,8 @@ export function InvoiceShareLinksView({
   onMarkAsPaid,
   onSendReminder,
   onCreateLink,
+  onEditLink,
+  onDeleteLink,
 }: InvoiceShareLinksViewProps) {
   const [links, setLinks] = useState<InvoiceShareLink[]>(initialLinks);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -105,6 +115,53 @@ export function InvoiceShareLinksView({
   const [amountDue, setAmountDue] = useState("");
   const [currency, setCurrency] = useState("$");
   const [dueDate, setDueDate] = useState("");
+
+  const [editingLink, setEditingLink] = useState<InvoiceShareLink | null>(null);
+  const [editRecipientName, setEditRecipientName] = useState("");
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState("");
+  const [editAmountDue, setEditAmountDue] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editStatus, setEditStatus] = useState<InvoicePaymentStatus>("PENDING");
+
+  const handleOpenEdit = (link: InvoiceShareLink) => {
+    setEditingLink(link);
+    setEditRecipientName(link.recipientName);
+    setEditInvoiceNumber(link.invoiceNumber);
+    setEditAmountDue(link.amountDue.toString());
+    setEditDueDate(link.dueDate === "Open" ? "" : link.dueDate);
+    setEditStatus(link.status);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLink) return;
+
+    const updates: Partial<InvoiceShareLink> = {
+      recipientName: editRecipientName.trim() || editingLink.recipientName,
+      invoiceNumber: editInvoiceNumber.trim() || editingLink.invoiceNumber,
+      amountDue: parseFloat(editAmountDue) || editingLink.amountDue,
+      dueDate: editDueDate || "Open",
+      status: editStatus,
+    };
+
+    if (onEditLink) {
+      await onEditLink(editingLink.id, updates);
+    }
+
+    setLinks((prev) =>
+      prev.map((l) => (l.id === editingLink.id ? { ...l, ...updates } : l)),
+    );
+    setEditingLink(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this invoice share link?"))
+      return;
+    if (onDeleteLink) {
+      await onDeleteLink(id);
+    }
+    setLinks((prev) => prev.filter((l) => l.id !== id));
+  };
 
   const handleCopy = async (id: string, url: string) => {
     try {
@@ -258,7 +315,6 @@ export function InvoiceShareLinksView({
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
                 <th className="py-3 pr-4 font-normal">Member</th>
-                <th className="py-3 px-4 font-normal">Amount Due</th>
                 <th className="py-3 px-4 font-normal">Invoice URL</th>
                 <th className="py-3 px-4 font-normal">Due Date</th>
                 <th className="py-3 px-4 font-normal">Status</th>
@@ -287,11 +343,6 @@ export function InvoiceShareLinksView({
                           {item.invoiceNumber}
                         </span>
                       </div>
-                    </td>
-
-                    <td className="py-3.5 px-4  font-medium text-zinc-900 dark:text-zinc-100">
-                      {item.currency}
-                      {item.amountDue.toFixed(2)}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -337,13 +388,31 @@ export function InvoiceShareLinksView({
                     </td>
 
                     <td className="py-3.5 pl-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleCopy(item.id, item.url)}
-                          className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                         >
                           {copiedId === item.id ? "Copied" : "Copy"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(item)}
+                          className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                          title="Edit Link"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                          title="Delete Link"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
 
                         <a
@@ -463,6 +532,112 @@ export function InvoiceShareLinksView({
                   className="px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                 >
                   Create Payment Link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {editingLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold tracking-tight">
+                Edit Invoice Payment Link
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingLink(null)}
+                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Recipient Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editRecipientName}
+                  onChange={(e) => setEditRecipientName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Invoice Number
+                </label>
+                <input
+                  type="text"
+                  value={editInvoiceNumber}
+                  onChange={(e) => setEditInvoiceNumber(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Amount Due
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={editAmountDue}
+                    onChange={(e) => setEditAmountDue(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) =>
+                      setEditStatus(e.target.value as InvoicePaymentStatus)
+                    }
+                    className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 cursor-pointer"
+                  >
+                    <option value="PENDING">Pending</option>
+                    <option value="OVERDUE">Overdue</option>
+                    <option value="PAID">Paid</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingLink(null)}
+                  className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

@@ -396,6 +396,42 @@ export async function revokeShareLink(id: string) {
   revalidatePath('/subscriptions');
 }
 
+export async function updateSubscriptionShareLink(
+  id: string,
+  updates: { label?: string; type?: string; expiresAt?: string | null; neverExpires?: boolean }
+) {
+  const supabase = await createClient();
+  const dbUpdates: any = {};
+  if (updates.label !== undefined) dbUpdates.label = updates.label;
+  if (updates.type !== undefined) dbUpdates.type = updates.type;
+  if (updates.expiresAt !== undefined) dbUpdates.expires_at = updates.expiresAt;
+  if (updates.neverExpires !== undefined) dbUpdates.never_expires = updates.neverExpires;
+
+  const { data, error } = await supabase
+    .from('subscription_share_links')
+    .update(dbUpdates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/subscriptions');
+  revalidatePath('/links');
+  return data;
+}
+
+export async function deleteSubscriptionShareLink(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('subscription_share_links')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/subscriptions');
+  revalidatePath('/links');
+}
+
 // Fetch view logs for subscription share links
 export async function getSubscriptionViewLogs() {
   const supabase = await createClient();

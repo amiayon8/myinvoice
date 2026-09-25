@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, Plus, ExternalLink, Trash2 } from "lucide-react";
+import {
+  Copy,
+  Check,
+  Plus,
+  ExternalLink,
+  Trash2,
+  Pencil,
+  X,
+} from "lucide-react";
 
 export interface SubscriptionShareLink {
   id: string;
@@ -18,6 +26,10 @@ interface SubscriptionShareLinksViewProps {
   initialLinks?: SubscriptionShareLink[];
   onCreateLink?: (
     newLink: Omit<SubscriptionShareLink, "id">,
+  ) => Promise<void> | void;
+  onEditLink?: (
+    id: string,
+    updates: Partial<SubscriptionShareLink>,
   ) => Promise<void> | void;
   onDeleteLink?: (id: string) => Promise<void> | void;
 }
@@ -58,6 +70,7 @@ const DEFAULT_SUBSCRIPTION_LINKS: SubscriptionShareLink[] = [
 export function SubscriptionShareLinksView({
   initialLinks = DEFAULT_SUBSCRIPTION_LINKS,
   onCreateLink,
+  onEditLink,
   onDeleteLink,
 }: SubscriptionShareLinksViewProps) {
   const [links, setLinks] = useState<SubscriptionShareLink[]>(initialLinks);
@@ -70,6 +83,53 @@ export function SubscriptionShareLinksView({
   const [occupiedSlots, setOccupiedSlots] = useState("1");
   const [expiresAt, setExpiresAt] = useState("");
   const [neverExpires, setNeverExpires] = useState(true);
+
+  const [editingLink, setEditingLink] = useState<SubscriptionShareLink | null>(
+    null,
+  );
+  const [editServiceName, setEditServiceName] = useState("");
+  const [editPlanName, setEditPlanName] = useState("");
+  const [editTotalSlots, setEditTotalSlots] = useState("4");
+  const [editOccupiedSlots, setEditOccupiedSlots] = useState("1");
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+  const [editNeverExpires, setEditNeverExpires] = useState(true);
+
+  const handleOpenEdit = (link: SubscriptionShareLink) => {
+    setEditingLink(link);
+    setEditServiceName(link.serviceName);
+    setEditPlanName(link.planName || "");
+    setEditTotalSlots(link.totalSlots.toString());
+    setEditOccupiedSlots(link.occupiedSlots.toString());
+    setEditExpiresAt(link.expiresAt || "");
+    setEditNeverExpires(!link.expiresAt);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLink) return;
+
+    const updates: Partial<SubscriptionShareLink> = {
+      serviceName: editServiceName.trim() || editingLink.serviceName,
+      planName: editPlanName.trim() || undefined,
+      totalSlots: Math.max(1, parseInt(editTotalSlots, 10) || 1),
+      occupiedSlots: Math.max(0, parseInt(editOccupiedSlots, 10) || 0),
+      expiresAt: editNeverExpires ? null : editExpiresAt || null,
+      isExpired: editNeverExpires
+        ? false
+        : editExpiresAt
+          ? new Date(editExpiresAt).getTime() < Date.now()
+          : false,
+    };
+
+    if (onEditLink) {
+      await onEditLink(editingLink.id, updates);
+    }
+
+    setLinks((prev) =>
+      prev.map((l) => (l.id === editingLink.id ? { ...l, ...updates } : l)),
+    );
+    setEditingLink(null);
+  };
 
   const handleCopy = async (id: string, url: string) => {
     try {
@@ -176,7 +236,6 @@ export function SubscriptionShareLinksView({
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
                 <th className="py-3 pr-4 font-normal">Service</th>
-                <th className="py-3 px-4 font-normal">Slots</th>
                 <th className="py-3 px-4 font-normal">Shareable URL</th>
                 <th className="py-3 px-4 font-normal">Expiry</th>
                 <th className="py-3 pl-4 text-right font-normal">Actions</th>
@@ -211,18 +270,6 @@ export function SubscriptionShareLinksView({
                           </span>
                         )}
                       </div>
-                    </td>
-
-                    <td className="py-3.5 px-4  text-zinc-600 dark:text-zinc-400">
-                      {isFull ? (
-                        <span className="text-zinc-400 dark:text-zinc-500">
-                          Full ({link.totalSlots}/{link.totalSlots})
-                        </span>
-                      ) : (
-                        <span>
-                          {availableSlots} of {link.totalSlots} remaining
-                        </span>
-                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -263,6 +310,14 @@ export function SubscriptionShareLinksView({
 
                     <td className="py-3.5 pl-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(link)}
+                          className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                          title="Edit Link"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
                         <a
                           href={link.url}
                           target="_blank"
@@ -408,6 +463,133 @@ export function SubscriptionShareLinksView({
                   className="px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                 >
                   Create Share Link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {editingLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold tracking-tight">
+                Edit Subscription Share Link
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingLink(null)}
+                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Service / Group Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editServiceName}
+                  onChange={(e) => setEditServiceName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Plan Tier (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editPlanName}
+                  onChange={(e) => setEditPlanName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-sans"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Total Slots
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editTotalSlots}
+                    onChange={(e) => setEditTotalSlots(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                    Occupied Slots
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editOccupiedSlots}
+                    onChange={(e) => setEditOccupiedSlots(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                  Link Expiration
+                </label>
+                <div className="flex items-center gap-4 mb-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editExpirationOption"
+                      checked={editNeverExpires}
+                      onChange={() => setEditNeverExpires(true)}
+                      className="accent-zinc-900 dark:accent-zinc-100"
+                    />
+                    <span>Never expires</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editExpirationOption"
+                      checked={!editNeverExpires}
+                      onChange={() => setEditNeverExpires(false)}
+                      className="accent-zinc-900 dark:accent-zinc-100"
+                    />
+                    <span>Set date</span>
+                  </label>
+                </div>
+                {!editNeverExpires && (
+                  <input
+                    type="date"
+                    required
+                    value={editExpiresAt}
+                    onChange={(e) => setEditExpiresAt(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingLink(null)}
+                  className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

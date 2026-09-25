@@ -16,37 +16,63 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     .single();
 
   if (linkError || !linkRecord) {
-    return NextResponse.json({ success: false, error: "Share link not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Share link not found" },
+      { status: 404 },
+    );
   }
 
   if (linkRecord.revoked_at) {
-    return NextResponse.json({ success: false, error: "Share link has been revoked" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Share link has been revoked" },
+      { status: 403 },
+    );
   }
 
   if (!linkRecord.never_expires && linkRecord.expires_at) {
     if (new Date(linkRecord.expires_at) < new Date()) {
-      return NextResponse.json({ success: false, error: "Share link has expired" }, { status: 410 });
+      return NextResponse.json(
+        { success: false, error: "Share link has expired" },
+        { status: 410 },
+      );
     }
   }
 
   const userAgent = request.headers.get("user-agent") || undefined;
   const forwardedFor = request.headers.get("x-forwarded-for");
-  const ipAddress = forwardedFor ? forwardedFor.split(",")[0].trim() : undefined;
+  const ipAddress = forwardedFor
+    ? forwardedFor.split(",")[0].trim()
+    : undefined;
+  if (ipAddress && ipAddress !== "::1") {
+    void supabase.from("tuition_view_logs").insert({
+      token_id: linkRecord.id,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+  }
 
-  void supabase.from("tuition_view_logs").insert({
-    token_id: linkRecord.id,
-    ip_address: ipAddress,
-    user_agent: userAgent,
-  });
-
-  const [subjectsRes, teachersRes, schedulesRes, sessionsRes, notesRes, eventsRes, paymentsRes] = await Promise.all([
+  const [
+    subjectsRes,
+    teachersRes,
+    schedulesRes,
+    sessionsRes,
+    notesRes,
+    eventsRes,
+    paymentsRes,
+  ] = await Promise.all([
     supabase.from("tuition_subjects").select("*").order("name"),
     supabase.from("tuition_teachers").select("*").order("name"),
     supabase.from("tuition_schedules").select("*").order("day_of_week"),
-    supabase.from("tuition_class_sessions").select("*").order("scheduled_at", { ascending: false }),
+    supabase
+      .from("tuition_class_sessions")
+      .select("*")
+      .order("scheduled_at", { ascending: false }),
     supabase.from("tuition_session_notes").select("*").order("created_at"),
     supabase.from("tuition_calendar_events").select("*").order("start_at"),
-    supabase.from("tuition_payments").select("*").order("paid_at", { ascending: false }),
+    supabase
+      .from("tuition_payments")
+      .select("*")
+      .order("paid_at", { ascending: false }),
   ]);
 
   const rawSubjects = subjectsRes.data || [];
@@ -92,24 +118,44 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   let filteredEvents = rawEvents;
 
   if (allowedTeacherIds) {
-    filteredTeachers = rawTeachers.filter((t: any) => allowedTeacherIds!.includes(t.id));
-    filteredSessions = rawSessions.filter((s: any) => allowedTeacherIds!.includes(s.teacher_id));
-    filteredSchedules = rawSchedules.filter((sch: any) => allowedTeacherIds!.includes(sch.teacher_id));
+    filteredTeachers = rawTeachers.filter((t: any) =>
+      allowedTeacherIds!.includes(t.id),
+    );
+    filteredSessions = rawSessions.filter((s: any) =>
+      allowedTeacherIds!.includes(s.teacher_id),
+    );
+    filteredSchedules = rawSchedules.filter((sch: any) =>
+      allowedTeacherIds!.includes(sch.teacher_id),
+    );
     const relevantSubjectIds = new Set<string>();
     filteredTeachers.forEach((t: any) => {
-      (t.subject_ids || []).forEach((sid: string) => relevantSubjectIds.add(sid));
+      (t.subject_ids || []).forEach((sid: string) =>
+        relevantSubjectIds.add(sid),
+      );
     });
     if (relevantSubjectIds.size > 0) {
-      filteredSubjects = rawSubjects.filter((sub: any) => relevantSubjectIds.has(sub.id));
+      filteredSubjects = rawSubjects.filter((sub: any) =>
+        relevantSubjectIds.has(sub.id),
+      );
     }
   } else if (allowedSubjectIds) {
-    filteredSubjects = rawSubjects.filter((s: any) => allowedSubjectIds!.includes(s.id));
-    filteredSessions = rawSessions.filter((s: any) => allowedSubjectIds!.includes(s.subject_id));
-    filteredSchedules = rawSchedules.filter((sch: any) => allowedSubjectIds!.includes(sch.subject_id));
-    filteredTeachers = rawTeachers.filter((t: any) =>
-      (t.subject_ids || []).some((sid: string) => allowedSubjectIds!.includes(sid))
+    filteredSubjects = rawSubjects.filter((s: any) =>
+      allowedSubjectIds!.includes(s.id),
     );
-    filteredEvents = rawEvents.filter((e: any) => !e.subject_id || allowedSubjectIds!.includes(e.subject_id));
+    filteredSessions = rawSessions.filter((s: any) =>
+      allowedSubjectIds!.includes(s.subject_id),
+    );
+    filteredSchedules = rawSchedules.filter((sch: any) =>
+      allowedSubjectIds!.includes(sch.subject_id),
+    );
+    filteredTeachers = rawTeachers.filter((t: any) =>
+      (t.subject_ids || []).some((sid: string) =>
+        allowedSubjectIds!.includes(sid),
+      ),
+    );
+    filteredEvents = rawEvents.filter(
+      (e: any) => !e.subject_id || allowedSubjectIds!.includes(e.subject_id),
+    );
   }
 
   const mappedSubjects = filteredSubjects.map((s: any) => ({
@@ -187,10 +233,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   let filteredPayments = rawPayments;
   if (allowedTeacherIds) {
-    filteredPayments = rawPayments.filter((p: any) => allowedTeacherIds!.includes(p.teacher_id));
+    filteredPayments = rawPayments.filter((p: any) =>
+      allowedTeacherIds!.includes(p.teacher_id),
+    );
   } else if (allowedSubjectIds) {
     const teacherIdsForSubjects = filteredTeachers.map((t: any) => t.id);
-    filteredPayments = rawPayments.filter((p: any) => teacherIdsForSubjects.includes(p.teacher_id));
+    filteredPayments = rawPayments.filter((p: any) =>
+      teacherIdsForSubjects.includes(p.teacher_id),
+    );
   }
 
   const mappedPayments = filteredPayments.map((p: any) => ({
@@ -236,44 +286,93 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .single();
 
   if (linkError || !linkRecord) {
-    return NextResponse.json({ success: false, error: "Share link not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Share link not found" },
+      { status: 404 },
+    );
   }
 
   if (linkRecord.revoked_at) {
-    return NextResponse.json({ success: false, error: "Share link has been revoked" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Share link has been revoked" },
+      { status: 403 },
+    );
   }
 
   if (!linkRecord.never_expires && linkRecord.expires_at) {
     if (new Date(linkRecord.expires_at) < new Date()) {
-      return NextResponse.json({ success: false, error: "Share link has expired" }, { status: 410 });
+      return NextResponse.json(
+        { success: false, error: "Share link has expired" },
+        { status: 410 },
+      );
     }
   }
 
   if (linkRecord.allow_record_class === false) {
-    return NextResponse.json({ success: false, error: "Recording classes is not enabled for this share link" }, { status: 403 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Recording classes is not enabled for this share link",
+      },
+      { status: 403 },
+    );
   }
 
   const body = await request.json();
   const { teacherId, subjectId, scheduledAt, durationMin, notes } = body;
 
   if (!teacherId || !subjectId || !scheduledAt) {
-    return NextResponse.json({ success: false, error: "Missing required fields: teacher, subject, or date/time" }, { status: 400 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Missing required fields: teacher, subject, or date/time",
+      },
+      { status: 400 },
+    );
   }
 
   const type = linkRecord.type;
   const linkParams = linkRecord.params || {};
 
-  if (type === "teacher" && linkParams.teacherId && linkParams.teacherId !== teacherId) {
-    return NextResponse.json({ success: false, error: "Unauthorized teacher selection for this link" }, { status: 403 });
+  if (
+    type === "teacher" &&
+    linkParams.teacherId &&
+    linkParams.teacherId !== teacherId
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized teacher selection for this link" },
+      { status: 403 },
+    );
   }
-  if (type === "teachers" && Array.isArray(linkParams.teacherIds) && !linkParams.teacherIds.includes(teacherId)) {
-    return NextResponse.json({ success: false, error: "Unauthorized teacher selection for this link" }, { status: 403 });
+  if (
+    type === "teachers" &&
+    Array.isArray(linkParams.teacherIds) &&
+    !linkParams.teacherIds.includes(teacherId)
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized teacher selection for this link" },
+      { status: 403 },
+    );
   }
-  if (type === "subject" && linkParams.subjectId && linkParams.subjectId !== subjectId) {
-    return NextResponse.json({ success: false, error: "Unauthorized subject selection for this link" }, { status: 403 });
+  if (
+    type === "subject" &&
+    linkParams.subjectId &&
+    linkParams.subjectId !== subjectId
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized subject selection for this link" },
+      { status: 403 },
+    );
   }
-  if (type === "subjects" && Array.isArray(linkParams.subjectIds) && !linkParams.subjectIds.includes(subjectId)) {
-    return NextResponse.json({ success: false, error: "Unauthorized subject selection for this link" }, { status: 403 });
+  if (
+    type === "subjects" &&
+    Array.isArray(linkParams.subjectIds) &&
+    !linkParams.subjectIds.includes(subjectId)
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized subject selection for this link" },
+      { status: 403 },
+    );
   }
 
   const { data: teacher, error: teacherError } = await supabase
@@ -283,7 +382,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .single();
 
   if (teacherError || !teacher) {
-    return NextResponse.json({ success: false, error: "Teacher not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Teacher not found" },
+      { status: 404 },
+    );
   }
 
   const fee = Number(teacher.daily_rate ?? teacher.hourly_rate ?? 500);
@@ -310,7 +412,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .single();
 
   if (sessionError || !sessionData) {
-    return NextResponse.json({ success: false, error: sessionError?.message || "Failed to record session" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: sessionError?.message || "Failed to record session",
+      },
+      { status: 500 },
+    );
   }
 
   let noteRecord = null;

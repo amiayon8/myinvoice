@@ -9,7 +9,15 @@ import {
   InvoiceShareLinksView,
   InvoiceShareLink,
 } from "@/components/links/invoice-share-links-view";
-import { listAllInvoiceTokens, updateInvoiceToken } from "@/services/invoices";
+import {
+  listAllInvoiceTokens,
+  updateInvoiceToken,
+  deleteInvoiceToken,
+} from "@/services/invoices";
+import {
+  updateSubscriptionShareLink,
+  deleteSubscriptionShareLink,
+} from "@/services/subscriptions";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -124,6 +132,68 @@ export default function ShareLinksPage() {
     toast.success("Payment reminder sent to member");
   };
 
+  const handleEditInvoiceLink = async (
+    id: string,
+    updates: Partial<InvoiceShareLink>,
+  ) => {
+    try {
+      await updateInvoiceToken(id, {
+        label: updates.recipientName,
+        expiresAt:
+          updates.dueDate && updates.dueDate !== "Open"
+            ? `${updates.dueDate}T23:59:59`
+            : null,
+        neverExpires: !updates.dueDate || updates.dueDate === "Open",
+      });
+      setInvoiceLinks((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+      );
+      toast.success("Invoice payment link updated");
+    } catch {
+      toast.error("Failed to update invoice payment link");
+    }
+  };
+
+  const handleDeleteInvoiceLink = async (id: string) => {
+    try {
+      await deleteInvoiceToken(id);
+      setInvoiceLinks((prev) => prev.filter((l) => l.id !== id));
+      toast.success("Invoice payment link deleted");
+    } catch {
+      toast.error("Failed to delete invoice payment link");
+    }
+  };
+
+  const handleEditSubscriptionLink = async (
+    id: string,
+    updates: Partial<SubscriptionShareLink>,
+  ) => {
+    try {
+      await updateSubscriptionShareLink(id, {
+        label: updates.serviceName,
+        type: updates.planName,
+        expiresAt: updates.expiresAt ? `${updates.expiresAt}T23:59:59` : null,
+        neverExpires: !updates.expiresAt,
+      });
+      setSubscriptionLinks((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+      );
+      toast.success("Subscription share link updated");
+    } catch {
+      toast.error("Failed to update subscription share link");
+    }
+  };
+
+  const handleDeleteSubscriptionLink = async (id: string) => {
+    try {
+      await deleteSubscriptionShareLink(id);
+      setSubscriptionLinks((prev) => prev.filter((l) => l.id !== id));
+      toast.success("Subscription share link deleted");
+    } catch {
+      toast.error("Failed to delete subscription share link");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <div className="max-w-5xl mx-auto px-6 py-12">
@@ -170,12 +240,16 @@ export default function ShareLinksPage() {
               initialLinks={
                 subscriptionLinks.length > 0 ? subscriptionLinks : undefined
               }
+              onEditLink={handleEditSubscriptionLink}
+              onDeleteLink={handleDeleteSubscriptionLink}
             />
           ) : (
             <InvoiceShareLinksView
               initialLinks={invoiceLinks.length > 0 ? invoiceLinks : undefined}
               onMarkAsPaid={handleMarkAsPaid}
               onSendReminder={handleSendReminder}
+              onEditLink={handleEditInvoiceLink}
+              onDeleteLink={handleDeleteInvoiceLink}
             />
           )}
         </main>
