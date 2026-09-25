@@ -162,9 +162,6 @@ export default function PublicSharedSubscriptionPage({
               ></i>
             </button>
             <div className="text-left md:text-right bg-slate-800/50 px-4 py-2 border border-slate-700/40 rounded-xl max-w-sm flex-1 md:flex-none">
-              <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest">
-                Shared Portal
-              </span>
               <span className="block text-xs font-bold text-slate-200 mt-0.5 truncate">
                 {scope.label || "Subscriptions Overview"}
               </span>
@@ -244,11 +241,19 @@ export default function PublicSharedSubscriptionPage({
 
         {/* Dynamic Payment Information & Verification Request */}
         <DynamicPaymentCards
-          clientId={scope?.clientId || (scope?.type === "client" ? scope?.clientId : null)}
+          clientId={
+            scope?.clientId ||
+            (scope?.type === "client" ? scope?.clientId : null)
+          }
           clientName={scope?.label}
           subscriptionId={subscriptions[0]?.id}
           currency="৳"
-          totalDue={subscriptions.reduce((sum, s) => sum + (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1), 0)}
+          totalDue={subscriptions.reduce(
+            (sum, s) =>
+              sum +
+              (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1),
+            0,
+          )}
           isPaid={false}
           initialMethods={paymentMethods}
           fullWidth={true}
@@ -268,7 +273,8 @@ export default function PublicSharedSubscriptionPage({
               1-Month Advance Notification
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              To cancel or request subscription modifications, please notify us at least{" "}
+              To cancel or request subscription modifications, please notify us
+              at least{" "}
               <span className="font-black text-indigo-600 dark:text-indigo-400">
                 1 month in advance
               </span>{" "}
@@ -534,16 +540,23 @@ export default function PublicSharedSubscriptionPage({
                                     {isKicked
                                       ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
                                       : (() => {
-                                          const monthsPaidNum = Number(sub.months_paid || 0);
-                                          const fullMonthsPaid = Math.floor(monthsPaidNum);
-                                          const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
+                                          const monthsPaidNum = Number(
+                                            sub.months_paid || 0,
+                                          );
+                                          const fullMonthsPaid =
+                                            Math.floor(monthsPaidNum);
+                                          const partialPaid =
+                                            Number(sub.total_amount_paid || 0) %
+                                            totalCostPerMonth;
 
                                           let remainsVal = 0;
                                           if (monthsRemaining < -0.01) {
                                             remainsVal = balanceAmount;
                                           } else if (monthsRemaining > 0.01) {
                                             if (partialPaid > 0.01) {
-                                              remainsVal = Math.round(totalCostPerMonth - partialPaid);
+                                              remainsVal = Math.round(
+                                                totalCostPerMonth - partialPaid,
+                                              );
                                             } else {
                                               remainsVal = 0;
                                             }
@@ -551,11 +564,13 @@ export default function PublicSharedSubscriptionPage({
                                             remainsVal = 0;
                                           }
 
-                                          const nextMonthIndex = fullMonthsPaid + 1;
-                                          const nextMonthName = getPaidUpToMonthStr(
-                                            sub.start_date,
-                                            nextMonthIndex
-                                          );
+                                          const nextMonthIndex =
+                                            fullMonthsPaid + 1;
+                                          const nextMonthName =
+                                            getPaidUpToMonthStr(
+                                              sub.start_date,
+                                              nextMonthIndex,
+                                            );
                                           return `${remainsVal} remains. Next for ${nextMonthName}`;
                                         })()}
                                   </span>

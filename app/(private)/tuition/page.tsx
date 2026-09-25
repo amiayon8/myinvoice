@@ -33,8 +33,12 @@ import {
   dbRevertSessionPayment,
   dbRevertSessionsPayment,
   dbSaveEvent,
-  dbDeleteEvent
+  dbDeleteEvent,
+  dbApproveSession,
+  dbRejectSession,
 } from "@/lib/tuition-service";
+import TuitionShareModal from "@/components/tuition/tuition-share-modal";
+import { Share2 } from "lucide-react";
 
 import TuitionDashboard from "@/components/tuition/tuition-dashboard";
 import TuitionCalendar from "@/components/tuition/tuition-calendar";
@@ -85,6 +89,42 @@ export default function TuitionPage() {
   const [delayTeacherTarget, setDelayTeacherTarget] = useState<Teacher | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  const handleApproveSession = async (sessionId: string) => {
+    try {
+      const ok = await dbApproveSession(sessionId);
+      if (ok) {
+        toast.success("Class session approved");
+        const updated = sessions.map((s) =>
+          s.id === sessionId ? { ...s, approvalStatus: "APPROVED" as const } : s
+        );
+        updateSessions(updated);
+      } else {
+        toast.error("Failed to approve session");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve session");
+    }
+  };
+
+  const handleRejectSession = async (sessionId: string) => {
+    if (!confirm("Are you sure you want to reject this class session?")) return;
+    try {
+      const ok = await dbRejectSession(sessionId);
+      if (ok) {
+        toast.success("Class session rejected");
+        const updated = sessions.map((s) =>
+          s.id === sessionId ? { ...s, approvalStatus: "REJECTED" as const } : s
+        );
+        updateSessions(updated);
+      } else {
+        toast.error("Failed to reject session");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject session");
+    }
+  };
 
   // Sync to storage helper (defined early for async routines)
   const updateSessions = (newSessions: ClassSession[]) => {
@@ -1202,6 +1242,8 @@ export default function TuitionPage() {
             onMarkAsPaid={handleMarkSessionPaid}
             onDeletePayment={handleDeleteClassPayment}
             onAddNote={handleAddSessionNote}
+            onApproveSession={handleApproveSession}
+            onRejectSession={handleRejectSession}
             onOpenDelayModal={(t) => {
               setDelayTeacherTarget(t);
               setIsDelayModalOpen(true);
@@ -1276,6 +1318,14 @@ export default function TuitionPage() {
             Analytics & Reports
           </button>
         </div>
+
+        <button
+          onClick={() => setIsShareModalOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          Share Links
+        </button>
       </div>
 
       {/* Main Tab Views */}
@@ -1317,6 +1367,9 @@ export default function TuitionPage() {
           }}
           onOpenEventModal={() => setIsAddEventOpen(true)}
           onGenerateRecurringSessions={handleGenerateRecurringSessions}
+          onOpenShareModal={() => setIsShareModalOpen(true)}
+          onApproveSession={handleApproveSession}
+          onRejectSession={handleRejectSession}
         />
       )}
 
@@ -1445,6 +1498,13 @@ export default function TuitionPage() {
         isOpen={isAddSubjectOpen}
         onClose={() => setIsAddSubjectOpen(false)}
         onSave={handleSaveSubject}
+      />
+
+      <TuitionShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        teachers={teachers}
+        subjects={subjects}
       />
     </div>
   );

@@ -33,6 +33,8 @@ interface ClassSessionViewProps {
   onDeletePayment?: (sessionId: string) => void;
   onAddNote: (sessionId: string, content: string, isHomework: boolean) => void;
   onOpenDelayModal?: (teacher: Teacher) => void;
+  onApproveSession?: (sessionId: string) => void;
+  onRejectSession?: (sessionId: string) => void;
 }
 
 export default function ClassSessionView({
@@ -47,7 +49,9 @@ export default function ClassSessionView({
   onMarkAsPaid,
   onDeletePayment,
   onAddNote,
-  onOpenDelayModal
+  onOpenDelayModal,
+  onApproveSession,
+  onRejectSession,
 }: ClassSessionViewProps) {
   const [newNote, setNewNote] = useState("");
   const [isHomeworkNote, setIsHomeworkNote] = useState(false);
@@ -112,6 +116,42 @@ export default function ClassSessionView({
           <span className="text-xs text-zinc-400 dark:text-zinc-500">ID: {session.id}</span>
         </div>
       </div>
+
+      {session.approvalStatus === "PENDING" && (
+        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                Pending Admin Approval
+              </h4>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                This class was recorded by {session.recordedBy === "TEACHER" ? "the teacher" : "a teacher"} and requires review before being approved.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onApproveSession && (
+              <button
+                onClick={() => onApproveSession(session.id)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
+              >
+                Approve Class
+              </button>
+            )}
+            {onRejectSession && (
+              <button
+                onClick={() => onRejectSession(session.id)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/60 hover:bg-rose-200 border border-rose-300 dark:border-rose-800 rounded-lg transition-colors cursor-pointer"
+              >
+                Reject Class
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">

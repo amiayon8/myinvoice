@@ -17,6 +17,8 @@ import {
   UserCheck,
   CalendarDays,
   List,
+  Share2,
+  Clock3,
 } from "lucide-react";
 import {
   ClassSession,
@@ -45,6 +47,9 @@ interface TuitionCalendarProps {
   onOpenScheduleModal: (targetDate?: string) => void;
   onOpenEventModal: () => void;
   onGenerateRecurringSessions: () => void;
+  onOpenShareModal?: () => void;
+  onApproveSession?: (sessionId: string) => void;
+  onRejectSession?: (sessionId: string) => void;
 }
 
 // Helper to get fallback teacher color if missing
@@ -75,6 +80,9 @@ export default function TuitionCalendar({
   onOpenScheduleModal,
   onOpenEventModal,
   onGenerateRecurringSessions,
+  onOpenShareModal,
+  onApproveSession,
+  onRejectSession,
 }: TuitionCalendarProps) {
   // Calendar navigation state
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -350,8 +358,32 @@ export default function TuitionCalendar({
             <Plus className="w-3.5 h-3.5" />
             Add Event
           </button>
+
+          {onOpenShareModal && (
+            <button
+              onClick={onOpenShareModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share Calendar
+            </button>
+          )}
         </div>
       </div>
+
+      {sessions.some((s) => s.approvalStatus === "PENDING") && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 px-4 py-3 rounded-lg flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+              <strong>
+                {sessions.filter((s) => s.approvalStatus === "PENDING").length} class session(s)
+              </strong>{" "}
+              recorded by teachers require admin review and approval.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* TEACHER COLOR LEGEND: Which color for whom */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
@@ -780,7 +812,36 @@ export default function TuitionCalendar({
                           </span>
 
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {session.status === "TEACHER_ABSENT" ||
+                            {session.approvalStatus === "PENDING" ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <Clock3 className="w-2.5 h-2.5" />
+                                  Pending Approval
+                                </span>
+                                {onApproveSession && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onApproveSession(session.id);
+                                    }}
+                                    className="text-[10px] font-medium text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded cursor-pointer"
+                                  >
+                                    Approve
+                                  </button>
+                                )}
+                                {onRejectSession && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onRejectSession(session.id);
+                                    }}
+                                    className="text-[10px] font-medium text-rose-800 dark:text-rose-300 px-1.5 py-0.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 rounded cursor-pointer"
+                                  >
+                                    Reject
+                                  </button>
+                                )}
+                              </div>
+                            ) : session.status === "TEACHER_ABSENT" ||
                             session.attendance === "ABSENT" ? (
                               <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1 py-0.5 rounded">
                                 Absent
@@ -1064,6 +1125,11 @@ export default function TuitionCalendar({
                                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
                                   · {teacher?.name}
                                 </span>
+                                {session.approvalStatus === "PENDING" && (
+                                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                    <Clock3 className="w-2.5 h-2.5" /> PENDING
+                                  </span>
+                                )}
                                 {session.isExtra && (
                                   <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.2 rounded">
                                     EXTRA
@@ -1106,6 +1172,29 @@ export default function TuitionCalendar({
                               <span className=" text-sm text-zinc-900 dark:text-zinc-100">
                                 ৳{session.fee.toFixed(2)}
                               </span>
+                            )}
+
+                            {session.approvalStatus === "PENDING" && onApproveSession && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onApproveSession(session.id);
+                                }}
+                                className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 hover:text-emerald-950 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded transition-colors cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {session.approvalStatus === "PENDING" && onRejectSession && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRejectSession(session.id);
+                                }}
+                                className="text-[11px] font-medium text-rose-800 dark:text-rose-300 hover:text-rose-950 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 rounded transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
                             )}
 
                             {session.status === "TEACHER_ABSENT" ||

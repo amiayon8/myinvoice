@@ -9,7 +9,9 @@ import {
   SessionNote,
   ClassStatus,
   PaymentStatus,
-  PaymentPolicyType
+  PaymentPolicyType,
+  TuitionShareLink,
+  TuitionShareType
 } from '@/types/tuition';
 
 /**
@@ -126,6 +128,9 @@ export async function fetchTuitionData(): Promise<{
       paymentStatus: (s.is_free ? 'FREE' : s.payment_status) as PaymentStatus,
       notes: notesBySession[s.id] || [],
       paidAt: s.paid_at || undefined,
+      approvalStatus: (s.approval_status || 'APPROVED') as 'PENDING' | 'APPROVED' | 'REJECTED',
+      recordedBy: (s.recorded_by || 'ADMIN') as 'ADMIN' | 'TEACHER',
+      rejectionReason: s.rejection_reason || undefined,
     }));
 
     // Map Payments
@@ -351,6 +356,9 @@ export async function dbSaveSession(session: Partial<ClassSession>): Promise<Cla
     status: session.status || 'SCHEDULED',
     payment_status: paymentStatus,
     paid_at: session.paidAt || null,
+    approval_status: session.approvalStatus || 'APPROVED',
+    recorded_by: session.recordedBy || 'ADMIN',
+    rejection_reason: session.rejectionReason || null,
   };
 
   if (session.id && isUuid(session.id)) {
@@ -379,6 +387,9 @@ export async function dbSaveSession(session: Partial<ClassSession>): Promise<Cla
       paymentStatus: (data.is_free ? 'FREE' : data.payment_status) as PaymentStatus,
       notes: session.notes || [],
       paidAt: data.paid_at,
+      approvalStatus: (data.approval_status || 'APPROVED') as 'PENDING' | 'APPROVED' | 'REJECTED',
+      recordedBy: (data.recorded_by || 'ADMIN') as 'ADMIN' | 'TEACHER',
+      rejectionReason: data.rejection_reason || undefined,
     };
   } else {
     const { data, error } = await supabase
@@ -405,6 +416,9 @@ export async function dbSaveSession(session: Partial<ClassSession>): Promise<Cla
       paymentStatus: (data.is_free ? 'FREE' : data.payment_status) as PaymentStatus,
       notes: [],
       paidAt: data.paid_at,
+      approvalStatus: (data.approval_status || 'APPROVED') as 'PENDING' | 'APPROVED' | 'REJECTED',
+      recordedBy: (data.recorded_by || 'ADMIN') as 'ADMIN' | 'TEACHER',
+      rejectionReason: data.rejection_reason || undefined,
     };
   }
 }
@@ -658,5 +672,125 @@ export async function dbDeleteEvent(id: string): Promise<boolean> {
   const supabase = createClient();
   const { error } = await supabase.from('tuition_calendar_events').delete().eq('id', id);
   if (error) console.error('dbDeleteEvent error:', error);
+  return !error;
+}
+
+export async function dbApproveSession(sessionId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('tuition_class_sessions')
+    .update({ approval_status: 'APPROVED', rejection_reason: null })
+    .eq('id', sessionId);
+  if (error) console.error('dbApproveSession error:', error);
+  return !error;
+}
+
+export async function dbRejectSession(sessionId: string, reason?: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('tuition_class_sessions')
+    .update({ approval_status: 'REJECTED', rejection_reason: reason || null })
+    .eq('id', sessionId);
+  if (error) console.error('dbRejectSession error:', error);
+  return !error;
+}
+
+export async function getTuitionShareLinks(): Promise<TuitionShareLink[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('tuition_share_links')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('getTuitionShareLinks error:', error);
+    return [];
+  }
+
+  const linkIds = (data || []).map((l: any) => l.id);
+  let countMap: Record<string, number> = {};
+  if (linkIds.length > 0) {
+    const { data: viewCounts } = await supabase
+      .from('tuition_view_logs')
+      .select('token_id')
+      .in('token_id', linkIds);
+    (viewCounts || []).forEach((v: any) => {
+      countMap[v.token_id] = (countMap[v.token_id] || 0) + 1;
+    });
+  }
+
+  return (data || []).map((l: any) => ({
+    id: l.id,
+    token: l.token,
+    label: l.label,
+    type: l.type as TuitionShareType,
+    params: l.params || {},
+    expiresAt: l.expires_at,
+    neverExpires: Boolean(l.never_expires),
+    allowRecordClass: l.allow_record_class !== false,
+    createdAt: l.created_at,
+    revokedAt: l.revoked_at,
+    viewCount: countMap[l.id] || 0,
+  }));
+}
+
+export async function createTuitionShareLink(
+  label: string,
+  type: TuitionShareType,
+  params: any,
+  neverExpires: boolean,
+  daysExpiry: number = 30,
+  allowRecordClass: boolean = true
+): Promise<TuitionShareLink | null> {
+  const supabase = createClient();
+  const expiresAt = neverExpires
+    ? null
+    : (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + (daysExpiry || 30));
+        return d.toISOString();
+      })();
+
+  const { data, error } = await supabase
+    .from('tuition_share_links')
+    .insert({
+      label: label || null,
+      type,
+      params,
+      never_expires: neverExpires,
+      expires_at: expiresAt,
+      allow_record_class: allowRecordClass,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createTuitionShareLink error:', error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    token: data.token,
+    label: data.label,
+    type: data.type,
+    params: data.params || {},
+    expiresAt: data.expires_at,
+    neverExpires: data.never_expires,
+    allowRecordClass: data.allow_record_class,
+    createdAt: data.created_at,
+    revokedAt: data.revoked_at,
+    viewCount: 0,
+  };
+}
+
+export async function revokeTuitionShareLink(id: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('tuition_share_links')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) console.error('revokeTuitionShareLink error:', error);
   return !error;
 }

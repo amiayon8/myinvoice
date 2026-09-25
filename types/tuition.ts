@@ -76,6 +76,30 @@ export interface ClassSession {
   notes: SessionNote[];
   paymentId?: string;
   paidAt?: string;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  recordedBy?: 'ADMIN' | 'TEACHER';
+  rejectionReason?: string;
+}
+
+export type TuitionShareType = 'teacher' | 'teachers' | 'subject' | 'subjects' | 'all';
+
+export interface TuitionShareLink {
+  id: string;
+  token: string;
+  label: string | null;
+  type: TuitionShareType;
+  params: {
+    teacherId?: string;
+    teacherIds?: string[];
+    subjectId?: string;
+    subjectIds?: string[];
+  };
+  expiresAt: string | null;
+  neverExpires: boolean;
+  allowRecordClass: boolean;
+  createdAt: string;
+  revokedAt: string | null;
+  viewCount?: number;
 }
 
 export interface PaymentRecord {

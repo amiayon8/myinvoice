@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
   if (
     url.pathname.startsWith('/invoices/token/') ||
     url.pathname.startsWith('/subscriptions/share/') ||
+    url.pathname.startsWith('/tuition/share/') ||
     url.pathname.startsWith('/management/api/') ||
     url.pathname.startsWith('/api/')
   ) {
