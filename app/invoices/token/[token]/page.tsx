@@ -7,6 +7,8 @@ import { DynamicPaymentCards } from "@/components/dynamic-payment-cards";
 import { getPaymentMethodsForClient } from "@/lib/payment-methods-service";
 import { CompanyProfile } from "@/types";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import Link from "next/link";
+import { Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface PublicInvoicePageProps {
   params: Promise<{ token: string }>;
@@ -67,7 +69,6 @@ export default async function PublicInvoicePage({
   const reqHeaders = await headers();
   const supabase = createServiceRoleClient();
 
-  // Validate token directly (no internal HTTP call — works reliably on Vercel serverless)
   const { data: tokenRecord, error: tokenError } = await supabase
     .from("invoice_access_tokens")
     .select("id, invoice_id, expires_at, never_expires, is_public, revoked_at")
@@ -76,24 +77,20 @@ export default async function PublicInvoicePage({
 
   if (tokenError || !tokenRecord) return notFound();
 
-  // Check revoked
   if (tokenRecord.revoked_at) {
     return <InvalidPage reason="revoked" />;
   }
 
-  // Check public flag
   if (!tokenRecord.is_public) {
     return <InvalidPage reason="expired" />;
   }
 
-  // Check expiry (skip if never_expires)
   if (!tokenRecord.never_expires && tokenRecord.expires_at) {
-    if (new Date(tokenRecord.expires_at) < new Date()) {
+    if (new Date(tokenRecord.expires_at).getTime() < Date.now()) {
       return <InvalidPage reason="expired" />;
     }
   }
 
-  // Log the view asynchronously (don't await — don't block render)
   const userAgent = reqHeaders.get("user-agent") || "";
   const ip =
     reqHeaders.get("x-forwarded-for")?.split(",")[0].trim() ||
@@ -103,7 +100,6 @@ export default async function PublicInvoicePage({
   const referrer = reqHeaders.get("referer") || null;
   const { browser, os, device } = parseUserAgent(userAgent);
 
-  // Fire-and-forget view log insertion
   supabase
     .from("invoice_view_logs")
     .insert({
@@ -118,7 +114,6 @@ export default async function PublicInvoicePage({
     })
     .then(() => {});
 
-  // Fetch parent template invoice
   const { data: parentInvoice, error: invError } = await supabase
     .from("invoices")
     .select(
@@ -129,7 +124,6 @@ export default async function PublicInvoicePage({
 
   if (invError || !parentInvoice) return notFound();
 
-  // If template is recurring, fetch generated instances
   let childBills: any[] = [];
   if (parentInvoice.is_recurring) {
     const { data: mappingLogs } = await supabase
@@ -149,7 +143,6 @@ export default async function PublicInvoicePage({
     }
   }
 
-  // Resolve active invoice to show (parent or specific child bill)
   let activeInvoice = parentInvoice;
   if (selectedBillId && parentInvoice.is_recurring) {
     const matchedBill = childBills.find((b: any) => b.id === selectedBillId);
@@ -162,7 +155,6 @@ export default async function PublicInvoicePage({
     }
   }
 
-  // Fetch payments for active invoice
   const { data: payments } = await supabase
     .from("invoice_payments")
     .select("id, amount, payment_date, payment_method, notes")
@@ -207,28 +199,60 @@ export default async function PublicInvoicePage({
 
   const isPaid = previewData.status === "paid";
   const dueAmount = Math.max(0, totalAmount - totalPaid);
-  const paymentMethods = await getPaymentMethodsForClient(parentInvoice.client_id);
+  const paymentMethods = await getPaymentMethodsForClient(
+    parentInvoice.client_id,
+  );
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#020617] flex flex-col items-center pt-12 p-4 pb-0 print:p-0 print:bg-white">
-      <PublicHeader token={token} />
-      {/* Generated child bills section */}
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center pt-8 p-4 pb-16 print:p-0 print:bg-white text-zinc-900 dark:text-zinc-100 font-sans">
+      <PublicHeader
+        token={token}
+        invoiceNumber={activeInvoice.invoice_number}
+      />
+
+      {activeInvoice.id !== parentInvoice.id && (
+        <div className="mb-6 w-full max-w-[210mm] border border-zinc-200 dark:border-zinc-800 p-3.5 flex items-center justify-between text-xs no-print bg-white dark:bg-zinc-900">
+          <span className="text-zinc-600 dark:text-zinc-400">
+            Viewing recurring bill #{activeInvoice.invoice_number}
+          </span>
+          <Link
+            href={`/invoices/token/${token}`}
+            className="text-xs font-medium underline text-zinc-900 dark:text-zinc-100 hover:text-zinc-600 dark:hover:text-zinc-300"
+          >
+            Back to main invoice
+          </Link>
+        </div>
+      )}
+      <ResponsiveInvoiceWrapper>
+        <div className="border border-zinc-200 dark:border-zinc-800 overflow-hidden print:border-none">
+          <InvoicePreview
+            data={previewData}
+            company={parentInvoice.company as CompanyProfile}
+          />
+        </div>
+      </ResponsiveInvoiceWrapper>
+
       {parentInvoice.is_recurring && childBills.length > 0 && (
-        <div className="mt-12 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print">
-          <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>{" "}
-            Generated Invoices
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
-              <thead className="bg-slate-50 dark:bg-slate-950/50 font-black text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="px-4 py-3">Invoice Number</th>
-                  <th className="px-4 py-3">Billing Date</th>
-                  <th className="px-4 py-3 text-right">Total Amount</th>
+        <div className="mb-6 w-full max-w-[210mm] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 no-print">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+            <h3 className="text-xs font-semibold tracking-tight uppercase text-zinc-500">
+              Recurring Billing History
+            </h3>
+            <span className=" text-xs text-zinc-400">
+              {childBills.length} records
+            </span>
+          </div>
+
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                  <th className="py-2.5 pr-4 font-normal">Invoice</th>
+                  <th className="py-2.5 px-4 font-normal">Billing Date</th>
+                  <th className="py-2.5 pl-4 text-right font-normal">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                 {childBills.map((bill) => {
                   const billSubtotal =
                     bill.items?.reduce(
@@ -243,33 +267,26 @@ export default async function PublicInvoicePage({
                   return (
                     <tr
                       key={bill.id}
-                      className={`transition-colors ${
+                      className={
                         isCurrent
-                          ? "bg-indigo-50/50 dark:bg-indigo-950/15 font-bold text-slate-900 dark:text-white"
-                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/20"
-                      }`}
+                          ? "bg-zinc-100/70 dark:bg-zinc-800/40"
+                          : "hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
+                      }
                     >
-                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-300">
-                        #{bill.invoice_number}
-                      </td>
-                      <td className="px-4 py-3">
-                        <a
+                      <td className="py-2.5 pr-4">
+                        <Link
                           href={`/invoices/token/${token}?bill=${bill.id}`}
-                          className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline font-bold"
+                          className=" font-medium hover:underline text-zinc-900 dark:text-zinc-100"
                         >
-                          {new Date(bill.date).toLocaleDateString(undefined, {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </a>
+                          #{bill.invoice_number}
+                        </Link>
                       </td>
-                      <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">
+                      <td className="py-2.5 px-4  text-zinc-500 dark:text-zinc-400">
+                        {new Date(bill.date).toISOString().split("T")[0]}
+                      </td>
+                      <td className="py-2.5 pl-4 text-right  text-zinc-900 dark:text-zinc-100">
                         {bill.currency}
-                        {billTotal.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {billTotal.toFixed(2)}
                       </td>
                     </tr>
                   );
@@ -280,76 +297,62 @@ export default async function PublicInvoicePage({
         </div>
       )}
 
-      {/* Info Banner when viewing child bill */}
-      {activeInvoice.id !== parentInvoice.id && (
-        <div className="mb-6 w-full max-w-[800px] bg-indigo-50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/50 rounded-xl p-4 flex justify-between items-center text-xs font-semibold text-indigo-700 dark:text-indigo-400 no-print animate-slide-in">
-          <span>
-            <i className="fa-solid fa-circle-info mr-2"></i> Viewing recurring
-            invoice #{activeInvoice.invoice_number}
-          </span>
-          <a
-            href={`/invoices/token/${token}`}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-          >
-            View Parent Invoice
-          </a>
-        </div>
-      )}
-
-      {/* Payment History section */}
+      <div className="w-full max-w-[210mm] mb-6 no-print">
+        <DynamicPaymentCards
+          clientId={activeInvoice.client_id}
+          clientName={activeInvoice.client?.name}
+          invoiceId={activeInvoice.id}
+          invoiceNumber={activeInvoice.invoice_number}
+          isPaid={isPaid}
+          currency={activeInvoice.currency || "৳"}
+          totalDue={dueAmount}
+          initialMethods={paymentMethods}
+        />
+      </div>
       {payments && payments.length > 0 && (
-        <div className="mb-6 w-full max-w-[800px] bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md no-print animate-slide-in">
-          <h2 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-receipt text-emerald-500"></i> Payment
-            History
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-500 dark:text-slate-400">
-              <thead className="bg-slate-50 dark:bg-slate-950/50 font-black text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Reference/Notes</th>
-                  <th className="px-4 py-3 text-right">Amount Paid</th>
+        <div className="mb-6 w-full max-w-[210mm] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 no-print">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+            <h3 className="text-xs font-semibold tracking-tight uppercase text-zinc-500">
+              Payment Record
+            </h3>
+            <span className=" text-xs text-zinc-400">
+              Total Paid: {activeInvoice.currency}
+              {totalPaid.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                  <th className="py-2.5 pr-4 font-normal">Date</th>
+                  <th className="py-2.5 px-4 font-normal">Method</th>
+                  <th className="py-2.5 px-4 font-normal">Reference</th>
+                  <th className="py-2.5 pl-4 text-right font-normal">
+                    Amount Paid
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                 {payments.map((pay: any) => (
                   <tr
                     key={pay.id}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors"
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
                   >
-                    <td className="px-4 py-3 text-slate-900 dark:text-slate-300 font-semibold">
-                      {new Date(pay.payment_date).toLocaleDateString(
-                        undefined,
-                        {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        },
-                      )}
+                    <td className="py-2.5 pr-4  text-zinc-600 dark:text-zinc-400">
+                      {new Date(pay.payment_date).toISOString().split("T")[0]}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                        {pay.payment_method
-                          ? pay.payment_method.replace("_", " ")
-                          : "N/A"}
-                      </span>
+                    <td className="py-2.5 px-4 text-zinc-700 dark:text-zinc-300">
+                      {pay.payment_method
+                        ? pay.payment_method.replace("_", " ")
+                        : "Direct"}
                     </td>
-                    <td
-                      className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-[200px] truncate"
-                      title={pay.notes || undefined}
-                    >
-                      {pay.notes || (
-                        <span className="italic text-slate-400">No notes</span>
-                      )}
+                    <td className="py-2.5 px-4  text-zinc-500 dark:text-zinc-400">
+                      {pay.notes || "Recorded"}
                     </td>
-                    <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">
+                    <td className="py-2.5 pl-4 text-right  font-medium text-zinc-900 dark:text-zinc-100">
                       {activeInvoice.currency}
-                      {pay.amount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {Number(pay.amount).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -359,41 +362,16 @@ export default async function PublicInvoicePage({
         </div>
       )}
 
-      {/* Dynamic Payment Information & Verification Request */}
-      <DynamicPaymentCards
-        clientId={activeInvoice.client_id}
-        clientName={activeInvoice.client?.name}
-        invoiceId={activeInvoice.id}
-        invoiceNumber={activeInvoice.invoice_number}
-        isPaid={isPaid}
-        currency={activeInvoice.currency || "৳"}
-        totalDue={dueAmount}
-        initialMethods={paymentMethods}
-      />
-
-      <ResponsiveInvoiceWrapper>
-        <div className="shadow-2xl rounded-lg overflow-hidden print:shadow-none print:rounded-none">
-          <InvoicePreview
-            data={previewData}
-            company={parentInvoice.company as CompanyProfile}
-          />
-        </div>
-      </ResponsiveInvoiceWrapper>
-
-      <footer className="text-center py-8 w-full border-t bg-foreground text-background  mt-12 space-y-2">
-        <p className="text-sm mt-1">
+      <footer className="text-center py-8 w-full mt-12 text-xs text-zinc-400 dark:text-zinc-500 border-t border-zinc-200 dark:border-zinc-800 no-print">
+        <p className="mb-2">Invoice #{activeInvoice.invoice_number}</p>
+        <p>
           Developed by{" "}
           <a
-            href="https://www.thenicedev.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary font-bold hover:underline"
+            className="text-black dark:text-white hover:underline"
+            href="https://www.thenicedev.xyz"
           >
             The Nice Developer
           </a>
-        </p>
-        <p className="font-bold text-sm ">
-          © {new Date().getFullYear()} My Invoice. All Rights Reserved
         </p>
       </footer>
     </div>
@@ -403,20 +381,18 @@ export default async function PublicInvoicePage({
 function InvalidPage({ reason }: { reason: "revoked" | "expired" }) {
   const isRevoked = reason === "revoked";
   return (
-    <div className="flex flex-col justify-center items-center bg-slate-50 dark:bg-[#020617] min-h-screen text-center p-6 font-sans">
-      <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 max-w-md w-full space-y-4">
-        <div className={isRevoked ? "text-orange-500" : "text-red-500"}>
-          <i
-            className={`fa-solid ${isRevoked ? "fa-ban" : "fa-circle-exclamation"} text-5xl`}
-          ></i>
+    <div className="flex flex-col justify-center items-center bg-zinc-50 dark:bg-zinc-950 min-h-screen text-center p-6 font-sans text-zinc-900 dark:text-zinc-100">
+      <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 max-w-sm w-full space-y-3">
+        <div className="flex justify-center text-zinc-400 dark:text-zinc-500">
+          <AlertCircle className="w-8 h-8" />
         </div>
-        <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-          {isRevoked ? "Link Revoked" : "Access Expired"}
+        <h1 className="text-sm font-semibold tracking-tight uppercase">
+          {isRevoked ? "Link Revoked" : "Link Expired"}
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+        <p className="text-zinc-500 dark:text-zinc-400 text-xs leading-relaxed">
           {isRevoked
-            ? "This invoice sharing link has been revoked by the issuer."
-            : "This invoice sharing link has expired or is no longer active. Please contact the issuer to request a new link."}
+            ? "This invoice link has been revoked by the issuer."
+            : "This invoice link has expired. Request an updated link from the issuer."}
         </p>
       </div>
     </div>

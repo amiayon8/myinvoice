@@ -629,7 +629,7 @@ export function EntityMentionModal({
                             <h4 className="font-extrabold text-xs text-white">
                               @{org.org_name}
                             </h4>
-                            <p className="text-[10px] font-mono text-zinc-400">
+                            <p className="text-[10px]  text-zinc-400">
                               OrgID: {org.org_id} ({org.status})
                             </p>
                           </div>
@@ -653,7 +653,7 @@ export function EntityMentionModal({
                       Default Business WhatsApp
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 font-mono">
+                  <p className="text-xs text-zinc-400 ">
                     Phone: +8801870828373 (Official Support)
                   </p>
                   <p className="text-[11px] text-zinc-500">
@@ -671,7 +671,7 @@ export function EntityMentionModal({
                       Default Instagram Profile
                     </span>
                   </div>
-                  <p className="text-xs text-pink-400 font-mono">@thenicedev</p>
+                  <p className="text-xs text-pink-400 ">@thenicedev</p>
                   <p className="text-[11px] text-zinc-500">
                     Generates profile link:{" "}
                     <code>https://instagram.com/thenicedev</code>
@@ -693,7 +693,7 @@ export function EntityMentionModal({
                       placeholder="e.g. 8801870828373 or +1234567890"
                       value={manualValue}
                       onChange={(e) => setManualValue(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs font-mono font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs  font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
@@ -738,7 +738,7 @@ export function EntityMentionModal({
                         onChange={(e) =>
                           setManualValue(e.target.value.replace("@", ""))
                         }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs font-mono font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs  font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
                   </div>
@@ -821,7 +821,7 @@ export function EntityMentionModal({
                       placeholder="e.g. attendx_campus_dhaka"
                       value={manualValue}
                       onChange={(e) => setManualValue(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs  text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </>

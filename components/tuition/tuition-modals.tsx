@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Calendar, Clock, DollarSign, User, BookOpen, AlertCircle, Trash2, Pencil } from "lucide-react";
+import {
+  X,
+  Calendar,
+  Clock,
+  DollarSign,
+  User,
+  BookOpen,
+  AlertCircle,
+  Trash2,
+  Pencil,
+} from "lucide-react";
 import {
   Subject,
   Teacher,
@@ -10,9 +20,13 @@ import {
   ClassSession,
   PaymentRecord,
   ClassStatus,
-  PaymentStatus
+  PaymentStatus,
 } from "@/types/tuition";
-import { TEACHER_PALETTE, TEACHER_FREE_PALETTE, getTeacherSessionColor } from "@/lib/tuition-storage";
+import {
+  TEACHER_PALETTE,
+  TEACHER_FREE_PALETTE,
+  getTeacherSessionColor,
+} from "@/lib/tuition-storage";
 
 interface ModalProps {
   isOpen: boolean;
@@ -35,10 +49,12 @@ export function AddTeacherModal({
   subjects,
   onSave,
   existingTeacher,
-  onQuickAddSubject
+  onQuickAddSubject,
 }: AddTeacherModalProps) {
   // Modal step/tab: "info" | "policy" | "routine"
-  const [activeTab, setActiveTab] = useState<"info" | "policy" | "routine">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "policy" | "routine">(
+    "info",
+  );
 
   // Form state
   const [name, setName] = useState("");
@@ -50,14 +66,12 @@ export function AddTeacherModal({
   const [freeClassColor, setFreeClassColor] = useState(TEACHER_FREE_PALETTE[0]);
 
   // Payment policy state
-  const [policyType, setPolicyType] = useState<PaymentPolicyType>("AFTER_N_CLASSES");
+  const [policyType, setPolicyType] =
+    useState<PaymentPolicyType>("AFTER_N_CLASSES");
   const [cycleSize, setCycleSize] = useState("4");
   const [advanceBalance, setAdvanceBalance] = useState("0");
 
-  // Weekday Routine state
-  const [weekdays, setWeekdays] = useState<number[]>([1, 3, 5]); // default Mon, Wed, Fri
-  const [defaultTime, setDefaultTime] = useState("16:00");
-  const [defaultDurationMin, setDefaultDurationMin] = useState("60");
+  const [weekdays, setWeekdays] = useState<number[]>([1, 3, 5]);
   const [defaultSubjectId, setDefaultSubjectId] = useState("");
 
   // Inline subject creator
@@ -73,18 +87,31 @@ export function AddTeacherModal({
         setPhone(existingTeacher.phone || "");
         setEmail(existingTeacher.email || "");
         setDailyRate(
-          (existingTeacher.dailyRate ?? existingTeacher.hourlyRate)?.toString() || "500"
+          (
+            existingTeacher.dailyRate ?? existingTeacher.hourlyRate
+          )?.toString() || "500",
         );
-        setSelectedSubjectIds(existingTeacher.subjectIds ? [...existingTeacher.subjectIds] : []);
+        setSelectedSubjectIds(
+          existingTeacher.subjectIds ? [...existingTeacher.subjectIds] : [],
+        );
         setColor(existingTeacher.color || TEACHER_PALETTE[0]);
-        setFreeClassColor(existingTeacher.freeClassColor || getTeacherSessionColor(existingTeacher, true));
+        setFreeClassColor(
+          existingTeacher.freeClassColor ||
+            getTeacherSessionColor(existingTeacher, true),
+        );
         setPolicyType(existingTeacher.paymentPolicy?.type || "AFTER_N_CLASSES");
-        setCycleSize(existingTeacher.paymentPolicy?.cycleSize?.toString() || "4");
-        setAdvanceBalance(existingTeacher.paymentPolicy?.advanceBalance?.toString() || "0");
+        setCycleSize(
+          existingTeacher.paymentPolicy?.cycleSize?.toString() || "4",
+        );
+        setAdvanceBalance(
+          existingTeacher.paymentPolicy?.advanceBalance?.toString() || "0",
+        );
         setWeekdays(existingTeacher.weekdays || []);
-        setDefaultTime(existingTeacher.defaultTime || "16:00");
-        setDefaultDurationMin(existingTeacher.defaultDurationMin?.toString() || "60");
-        setDefaultSubjectId(existingTeacher.defaultSubjectId || existingTeacher.subjectIds?.[0] || "");
+        setDefaultSubjectId(
+          existingTeacher.defaultSubjectId ||
+            existingTeacher.subjectIds?.[0] ||
+            "",
+        );
       } else {
         // Reset for new teacher
         setName("");
@@ -98,9 +125,7 @@ export function AddTeacherModal({
         setPolicyType("AFTER_N_CLASSES");
         setCycleSize("4");
         setAdvanceBalance("0");
-        setWeekdays([1, 3, 5]); // default Mon, Wed, Fri
-        setDefaultTime("16:00");
-        setDefaultDurationMin("60");
+        setWeekdays([1, 3, 5]);
         setDefaultSubjectId(subjects[0]?.id || "");
       }
       setNewSubjectInput("");
@@ -135,16 +160,15 @@ export function AddTeacherModal({
         delayReason: existingTeacher?.paymentPolicy?.delayReason,
       },
       weekdays,
-      defaultTime,
-      defaultDurationMin: parseInt(defaultDurationMin, 10) || 60,
+      defaultDurationMin: 60,
       defaultSubjectId: defaultSubjectId || selectedSubjectIds[0] || undefined,
     });
     onClose();
   };
 
   const toggleSubject = (id: string) => {
-    setSelectedSubjectIds(prev =>
-      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    setSelectedSubjectIds((prev) =>
+      prev.includes(id) ? prev.filter((sId) => sId !== id) : [...prev, id],
     );
   };
 
@@ -165,7 +189,7 @@ export function AddTeacherModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-xs p-4 overflow-y-auto">
       <div
         className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-xl shadow-2xl text-zinc-900 dark:text-zinc-100 my-8 transition-all"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Title & Tabs */}
         <div className="px-6 pt-5 pb-0 border-b border-zinc-200 dark:border-zinc-800">
@@ -189,10 +213,14 @@ export function AddTeacherModal({
               </div>
               <div>
                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                  {existingTeacher ? `Edit: ${existingTeacher.name}` : "Add New Teacher"}
+                  {existingTeacher
+                    ? `Edit: ${existingTeacher.name}`
+                    : "Add New Teacher"}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {existingTeacher ? "Update profile details, dual class colors, and settlement policy" : "Register a private tutor with dual class colors, daily rate, and payment rules"}
+                  {existingTeacher
+                    ? "Update profile details, dual class colors, and settlement policy"
+                    : "Register a private tutor with dual class colors, daily rate, and payment rules"}
                 </p>
               </div>
             </div>
@@ -210,30 +238,33 @@ export function AddTeacherModal({
             <button
               type="button"
               onClick={() => setActiveTab("info")}
-              className={`pb-3 border-b-2 transition-colors cursor-pointer shrink-0 ${activeTab === "info"
+              className={`pb-3 border-b-2 transition-colors cursor-pointer shrink-0 ${
+                activeTab === "info"
                   ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
-                }`}
+              }`}
             >
               1. Profile & Rate
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("policy")}
-              className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${activeTab === "policy"
+              className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === "policy"
                   ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
-                }`}
+              }`}
             >
               2. Payment Terms
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("routine")}
-              className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${activeTab === "routine"
+              className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === "routine"
                   ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-semibold"
                   : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
-                }`}
+              }`}
             >
               3. Scheduled Weekdays
               {weekdays.length > 0 && (
@@ -260,7 +291,7 @@ export function AddTeacherModal({
                   autoFocus
                   placeholder="e.g. Dr. Paul Robinson"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
                 />
               </div>
@@ -269,7 +300,8 @@ export function AddTeacherModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                    Rate Per Day / Session (৳) <span className="text-rose-500">*</span>
+                    Rate Per Day / Session (৳){" "}
+                    <span className="text-rose-500">*</span>
                   </label>
                   <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
                     Amount charged per class day
@@ -278,7 +310,9 @@ export function AddTeacherModal({
 
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-2 text-xs  text-zinc-400">৳</span>
+                    <span className="absolute left-3 top-2 text-xs  text-zinc-400">
+                      ৳
+                    </span>
                     <input
                       type="number"
                       step="1"
@@ -286,7 +320,7 @@ export function AddTeacherModal({
                       required
                       placeholder="500"
                       value={dailyRate}
-                      onChange={e => setDailyRate(e.target.value)}
+                      onChange={(e) => setDailyRate(e.target.value)}
                       className="w-full pl-7 pr-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100  text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
                     />
                   </div>
@@ -294,16 +328,19 @@ export function AddTeacherModal({
 
                 {/* Quick Presets */}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mr-1">Quick presets:</span>
-                  {ratePresets.map(preset => (
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mr-1">
+                    Quick presets:
+                  </span>
+                  {ratePresets.map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setDailyRate(preset.toString())}
-                      className={`px-2 py-0.5 text-[11px]  border transition-colors cursor-pointer ${dailyRate === preset.toString()
+                      className={`px-2 py-0.5 text-[11px]  border transition-colors cursor-pointer ${
+                        dailyRate === preset.toString()
                           ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold"
                           : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        }`}
+                      }`}
                     >
                       ৳{preset}
                     </button>
@@ -321,7 +358,7 @@ export function AddTeacherModal({
                     type="tel"
                     placeholder="017XXXXXXXX"
                     value={phone}
-                    onChange={e => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 "
                   />
                 </div>
@@ -333,7 +370,7 @@ export function AddTeacherModal({
                     type="email"
                     placeholder="teacher@example.com"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
                   />
                 </div>
@@ -347,7 +384,8 @@ export function AddTeacherModal({
                       Teacher Class Colors
                     </span>
                     <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Every teacher has 2 distinct colors on calendar rings: Default Paid Class & Free Class
+                      Every teacher has 2 distinct colors on calendar rings:
+                      Default Paid Class & Free Class
                     </span>
                   </div>
                 </div>
@@ -356,10 +394,13 @@ export function AddTeacherModal({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
                       Default Paid Class Color
                     </label>
-                    <span className="text-[11px] font-mono text-zinc-400">{color}</span>
+                    <span className="text-[11px]  text-zinc-400">{color}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {TEACHER_PALETTE.map((palColor, idx) => (
@@ -389,7 +430,7 @@ export function AddTeacherModal({
                       <input
                         type="color"
                         value={color}
-                        onChange={e => setColor(e.target.value)}
+                        onChange={(e) => setColor(e.target.value)}
                         className="w-5 h-5 rounded border border-zinc-300 dark:border-zinc-700 p-0 cursor-pointer bg-transparent"
                         title="Custom Paid Color"
                       />
@@ -401,10 +442,15 @@ export function AddTeacherModal({
                 <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: freeClassColor }} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: freeClassColor }}
+                      />
                       Free / Complimentary Class Color
                     </label>
-                    <span className="text-[11px] font-mono text-zinc-400">{freeClassColor}</span>
+                    <span className="text-[11px]  text-zinc-400">
+                      {freeClassColor}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {TEACHER_FREE_PALETTE.map((palColor) => (
@@ -429,7 +475,7 @@ export function AddTeacherModal({
                       <input
                         type="color"
                         value={freeClassColor}
-                        onChange={e => setFreeClassColor(e.target.value)}
+                        onChange={(e) => setFreeClassColor(e.target.value)}
                         className="w-5 h-5 rounded border border-zinc-300 dark:border-zinc-700 p-0 cursor-pointer bg-transparent"
                         title="Custom Free Color"
                       />
@@ -456,17 +502,18 @@ export function AddTeacherModal({
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {subjects.map(sub => {
+                  {subjects.map((sub) => {
                     const isSelected = selectedSubjectIds.includes(sub.id);
                     return (
                       <button
                         type="button"
                         key={sub.id}
                         onClick={() => toggleSubject(sub.id)}
-                        className={`px-2.5 py-1 text-xs border transition-colors cursor-pointer flex items-center gap-1.5 ${isSelected
+                        className={`px-2.5 py-1 text-xs border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
                             ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-medium"
                             : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600 bg-white dark:bg-zinc-950"
-                          }`}
+                        }`}
                       >
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
@@ -477,7 +524,9 @@ export function AddTeacherModal({
                     );
                   })}
                   {subjects.length === 0 && (
-                    <span className="text-xs text-zinc-400 italic">No subjects registered yet.</span>
+                    <span className="text-xs text-zinc-400 italic">
+                      No subjects registered yet.
+                    </span>
                   )}
                 </div>
 
@@ -488,8 +537,10 @@ export function AddTeacherModal({
                       type="text"
                       placeholder="Subject name (e.g. Higher Math, Biology)"
                       value={newSubjectInput}
-                      onChange={e => setNewSubjectInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleCreateSubject(e); }}
+                      onChange={(e) => setNewSubjectInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCreateSubject(e);
+                      }}
                       className="flex-1 px-2.5 py-1 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-900"
                     />
                     <button
@@ -501,7 +552,10 @@ export function AddTeacherModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setIsCreatingSubject(false); setNewSubjectInput(""); }}
+                      onClick={() => {
+                        setIsCreatingSubject(false);
+                        setNewSubjectInput("");
+                      }}
                       className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                     >
                       Cancel
@@ -524,16 +578,18 @@ export function AddTeacherModal({
                   <button
                     type="button"
                     onClick={() => setPolicyType("AFTER_N_CLASSES")}
-                    className={`p-3 text-left border transition-all cursor-pointer ${policyType === "AFTER_N_CLASSES"
+                    className={`p-3 text-left border transition-all cursor-pointer ${
+                      policyType === "AFTER_N_CLASSES"
                         ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs ring-1 ring-zinc-900 dark:ring-zinc-100"
                         : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
-                      }`}
+                    }`}
                   >
                     <div className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 mb-1">
                       Pay After N Classes
                     </div>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
-                      Most popular. Pay the teacher after every batch of classes (e.g. 4 or 8 classes).
+                      Most popular. Pay the teacher after every batch of classes
+                      (e.g. 4 or 8 classes).
                     </p>
                   </button>
 
@@ -541,16 +597,18 @@ export function AddTeacherModal({
                   <button
                     type="button"
                     onClick={() => setPolicyType("ADVANCE_CYCLE")}
-                    className={`p-3 text-left border transition-all cursor-pointer ${policyType === "ADVANCE_CYCLE"
+                    className={`p-3 text-left border transition-all cursor-pointer ${
+                      policyType === "ADVANCE_CYCLE"
                         ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs ring-1 ring-zinc-900 dark:ring-zinc-100"
                         : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
-                      }`}
+                    }`}
                   >
                     <div className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 mb-1">
                       Pay in Advance
                     </div>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
-                      Upfront prepayment. Classes automatically deduct from available credit.
+                      Upfront prepayment. Classes automatically deduct from
+                      available credit.
                     </p>
                   </button>
 
@@ -558,16 +616,18 @@ export function AddTeacherModal({
                   <button
                     type="button"
                     onClick={() => setPolicyType("PER_CLASS")}
-                    className={`p-3 text-left border transition-all cursor-pointer ${policyType === "PER_CLASS"
+                    className={`p-3 text-left border transition-all cursor-pointer ${
+                      policyType === "PER_CLASS"
                         ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs ring-1 ring-zinc-900 dark:ring-zinc-100"
                         : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-950"
-                      }`}
+                    }`}
                   >
                     <div className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 mb-1">
                       Pay Per Class
                     </div>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
-                      Settle individually right after each class session finishes.
+                      Settle individually right after each class session
+                      finishes.
                     </p>
                   </button>
                 </div>
@@ -591,19 +651,20 @@ export function AddTeacherModal({
                       min="1"
                       max="30"
                       value={cycleSize}
-                      onChange={e => setCycleSize(e.target.value)}
+                      onChange={(e) => setCycleSize(e.target.value)}
                       className="w-24 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-1.5  text-sm focus:outline-none focus:border-zinc-900"
                     />
                     <div className="flex items-center gap-1 flex-wrap">
-                      {cyclePresets.map(preset => (
+                      {cyclePresets.map((preset) => (
                         <button
                           key={preset}
                           type="button"
                           onClick={() => setCycleSize(preset.toString())}
-                          className={`px-2 py-1 text-xs  border transition-colors cursor-pointer ${cycleSize === preset.toString()
+                          className={`px-2 py-1 text-xs  border transition-colors cursor-pointer ${
+                            cycleSize === preset.toString()
                               ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold"
                               : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-400"
-                            }`}
+                          }`}
                         >
                           {preset} classes
                         </button>
@@ -611,7 +672,13 @@ export function AddTeacherModal({
                     </div>
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    An alert will appear when {cycleSize} classes are completed without payment (estimated batch total: ৳{((parseFloat(dailyRate) || 0) * (parseInt(cycleSize, 10) || 1)).toFixed(2)}).
+                    An alert will appear when {cycleSize} classes are completed
+                    without payment (estimated batch total: ৳
+                    {(
+                      (parseFloat(dailyRate) || 0) *
+                      (parseInt(cycleSize, 10) || 1)
+                    ).toFixed(2)}
+                    ).
                   </p>
                 </div>
               )}
@@ -628,7 +695,7 @@ export function AddTeacherModal({
                         min="1"
                         max="30"
                         value={cycleSize}
-                        onChange={e => setCycleSize(e.target.value)}
+                        onChange={(e) => setCycleSize(e.target.value)}
                         className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-1.5  text-sm focus:outline-none focus:border-zinc-900"
                       />
                     </div>
@@ -641,13 +708,14 @@ export function AddTeacherModal({
                         min="0"
                         step="10"
                         value={advanceBalance}
-                        onChange={e => setAdvanceBalance(e.target.value)}
+                        onChange={(e) => setAdvanceBalance(e.target.value)}
                         className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-1.5  text-sm focus:outline-none focus:border-zinc-900"
                       />
                     </div>
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Each class completed with this teacher automatically consumes credit from the advance balance until depleted.
+                    Each class completed with this teacher automatically
+                    consumes credit from the advance balance until depleted.
                   </p>
                 </div>
               )}
@@ -655,7 +723,9 @@ export function AddTeacherModal({
               {policyType === "PER_CLASS" && (
                 <div className="p-3.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
                   <p>
-                    Each class fee (৳{dailyRate || "0"}) becomes immediately due upon completion and can be settled individually with a single click.
+                    Each class fee (৳{dailyRate || "0"}) becomes immediately due
+                    upon completion and can be settled individually with a
+                    single click.
                   </p>
                 </div>
               )}
@@ -670,7 +740,8 @@ export function AddTeacherModal({
                   Active Teaching Weekdays
                 </label>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">
-                  Classes on these weekdays will automatically appear scheduled on the calendar.
+                  Classes on these weekdays will automatically appear scheduled
+                  on the calendar.
                 </p>
                 <div className="grid grid-cols-7 gap-1.5">
                   {[
@@ -681,15 +752,17 @@ export function AddTeacherModal({
                     { label: "Thu", day: 4 },
                     { label: "Fri", day: 5 },
                     { label: "Sat", day: 6 },
-                  ].map(w => {
+                  ].map((w) => {
                     const isSelected = weekdays.includes(w.day);
                     return (
                       <button
                         key={w.day}
                         type="button"
                         onClick={() => {
-                          setWeekdays(prev =>
-                            prev.includes(w.day) ? prev.filter(d => d !== w.day) : [...prev, w.day]
+                          setWeekdays((prev) =>
+                            prev.includes(w.day)
+                              ? prev.filter((d) => d !== w.day)
+                              : [...prev, w.day],
                           );
                         }}
                         className={`py-2 text-xs font-medium border text-center transition-all cursor-pointer ${
@@ -705,17 +778,6 @@ export function AddTeacherModal({
                 </div>
               </div>
 
-              <div className="pt-1">
-                <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
-                  Default Class Time
-                </label>
-                <input
-                  type="time"
-                  value={defaultTime}
-                  onChange={e => setDefaultTime(e.target.value)}
-                  className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-1.5 text-sm font-mono focus:outline-none focus:border-zinc-900"
-                />
-              </div>
 
               <div>
                 <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
@@ -723,13 +785,19 @@ export function AddTeacherModal({
                 </label>
                 <select
                   value={defaultSubjectId}
-                  onChange={e => setDefaultSubjectId(e.target.value)}
+                  onChange={(e) => setDefaultSubjectId(e.target.value)}
                   className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
                 >
                   {subjects
-                    .filter(s => selectedSubjectIds.length === 0 || selectedSubjectIds.includes(s.id))
-                    .map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                    .filter(
+                      (s) =>
+                        selectedSubjectIds.length === 0 ||
+                        selectedSubjectIds.includes(s.id),
+                    )
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
                     ))}
                 </select>
               </div>
@@ -740,10 +808,18 @@ export function AddTeacherModal({
                   <Clock className="w-3.5 h-3.5 text-zinc-500" />
                   Automatic Progression & Historical Protection
                 </div>
-                <p>• Weekday classes are automatically scheduled ahead on your calendar.</p>
-                <p>• When each scheduled day passes, the class automatically marks as completed.</p>
+                <p>
+                  • Weekday classes are automatically scheduled ahead on your
+                  calendar.
+                </p>
+                <p>
+                  • When each scheduled day passes, the class automatically
+                  marks as completed.
+                </p>
                 <p className="text-zinc-900 dark:text-zinc-200 font-medium">
-                  • Changing weekdays here updates only upcoming schedules. Already completed classes remain completely intact and unaffected.
+                  • Changing weekdays here updates only upcoming schedules.
+                  Already completed classes remain completely intact and
+                  unaffected.
                 </p>
               </div>
             </div>
@@ -822,11 +898,21 @@ export interface ScheduleClassModalProps extends ModalProps {
   onSave: (sessionData: Partial<ClassSession>) => void;
 }
 
-export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initialDate, onSave }: ScheduleClassModalProps) {
+export function ScheduleClassModal({
+  isOpen,
+  onClose,
+  teachers,
+  subjects,
+  initialDate,
+  onSave,
+}: ScheduleClassModalProps) {
   const [teacherId, setTeacherId] = useState(teachers[0]?.id || "");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
-  const [date, setDate] = useState(() => (initialDate && typeof initialDate === 'string' && initialDate.length === 10) ? initialDate : new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState("16:00");
+  const [date, setDate] = useState(() =>
+    initialDate && typeof initialDate === "string" && initialDate.length === 10
+      ? initialDate
+      : new Date().toISOString().split("T")[0],
+  );
   const [status, setStatus] = useState<ClassStatus>("SCHEDULED");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("UNPAID");
   const [customFee, setCustomFee] = useState("");
@@ -834,24 +920,28 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
   const [isExtra, setIsExtra] = useState(false);
   const [attendance, setAttendance] = useState<"PRESENT" | "ABSENT">("PRESENT");
 
-  // Sync defaults when modal opens or initialDate/teachers change
   useEffect(() => {
     if (isOpen) {
-      if (initialDate && typeof initialDate === 'string' && initialDate.length === 10) {
+      if (
+        initialDate &&
+        typeof initialDate === "string" &&
+        initialDate.length === 10
+      ) {
         setDate(initialDate);
       } else {
         setDate(new Date().toISOString().split("T")[0]);
       }
-      const activeTeacher = teachers.find(t => t.id === teacherId) || teachers[0];
+      const activeTeacher =
+        teachers.find((t) => t.id === teacherId) || teachers[0];
       if (activeTeacher) {
         setTeacherId(activeTeacher.id);
-        if (activeTeacher.defaultTime) {
-          setTime(activeTeacher.defaultTime);
-        }
-        const availSubs = activeTeacher.subjectIds?.length 
-          ? subjects.filter(s => activeTeacher.subjectIds.includes(s.id)) 
+        const availSubs = activeTeacher.subjectIds?.length
+          ? subjects.filter((s) => activeTeacher.subjectIds.includes(s.id))
           : subjects;
-        if (activeTeacher.defaultSubjectId && availSubs.some(s => s.id === activeTeacher.defaultSubjectId)) {
+        if (
+          activeTeacher.defaultSubjectId &&
+          availSubs.some((s) => s.id === activeTeacher.defaultSubjectId)
+        ) {
           setSubjectId(activeTeacher.defaultSubjectId);
         } else if (availSubs.length > 0) {
           setSubjectId(availSubs[0].id);
@@ -868,22 +958,31 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
 
   if (!isOpen) return null;
 
-  const currentTeacher = teachers.find(t => t.id === teacherId);
+  const currentTeacher = teachers.find((t) => t.id === teacherId);
   // Show ONLY this teacher's subjects
   const teacherSubjects = currentTeacher?.subjectIds?.length
-    ? subjects.filter(s => currentTeacher.subjectIds.includes(s.id))
+    ? subjects.filter((s) => currentTeacher.subjectIds.includes(s.id))
     : subjects;
 
-  const defaultRate = currentTeacher ? Number(currentTeacher.dailyRate ?? currentTeacher.hourlyRate ?? 500) : 500;
+  const defaultRate = currentTeacher
+    ? Number(currentTeacher.dailyRate ?? currentTeacher.hourlyRate ?? 500)
+    : 500;
   const isAbsent = attendance === "ABSENT";
-  const calculatedFee = isAbsent || isFree ? 0 : (customFee !== "" ? parseFloat(customFee) : defaultRate);
+  const calculatedFee =
+    isAbsent || isFree
+      ? 0
+      : customFee !== ""
+        ? parseFloat(customFee)
+        : defaultRate;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!teacherId || !subjectId) return;
 
-    const scheduledAt = `${date}T${time}:00`;
-    const hasAdvance = currentTeacher?.paymentPolicy?.type === "ADVANCE_CYCLE" && (currentTeacher?.paymentPolicy?.advanceBalance || 0) >= calculatedFee;
+    const scheduledAt = `${date}T12:00:00`;
+    const hasAdvance =
+      currentTeacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
+      (currentTeacher?.paymentPolicy?.advanceBalance || 0) >= calculatedFee;
 
     let sessionStatus: ClassStatus = status;
     let finalPayStatus: PaymentStatus = paymentStatus;
@@ -893,7 +992,11 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
       finalPayStatus = "WAIVED";
     } else if (isFree) {
       finalPayStatus = "FREE";
-    } else if (status === "COMPLETED" && paymentStatus === "UNPAID" && hasAdvance) {
+    } else if (
+      status === "COMPLETED" &&
+      paymentStatus === "UNPAID" &&
+      hasAdvance
+    ) {
       finalPayStatus = "COVERED_BY_ADVANCE";
     }
 
@@ -902,7 +1005,7 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
       subjectId,
       scheduledAt,
       durationMin: 60,
-      fee: isFree || isAbsent ? 0 : (calculatedFee || 0),
+      fee: isFree || isAbsent ? 0 : calculatedFee || 0,
       isFree,
       isExtra,
       attendance,
@@ -918,10 +1021,17 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-md shadow-xl text-zinc-900 dark:text-zinc-100 my-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Schedule Class Session</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Routine, extra, or free trial tutoring session</p>
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Schedule Class Session
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Routine, extra, or free trial tutoring session
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -929,18 +1039,22 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           {/* Teacher Selection */}
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Teacher</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Teacher
+            </label>
             <select
               value={teacherId}
-              onChange={e => {
+              onChange={(e) => {
                 const newTId = e.target.value;
                 setTeacherId(newTId);
-                const t = teachers.find(item => item.id === newTId);
-                if (t?.defaultTime) {
-                  setTime(t.defaultTime);
-                }
-                const avail = t?.subjectIds?.length ? subjects.filter(s => t.subjectIds.includes(s.id)) : subjects;
-                if (t?.defaultSubjectId && avail.some(s => s.id === t.defaultSubjectId)) {
+                const t = teachers.find((item) => item.id === newTId);
+                const avail = t?.subjectIds?.length
+                  ? subjects.filter((s) => t.subjectIds.includes(s.id))
+                  : subjects;
+                if (
+                  t?.defaultSubjectId &&
+                  avail.some((s) => s.id === t.defaultSubjectId)
+                ) {
                   setSubjectId(t.defaultSubjectId);
                 } else if (avail.length > 0) {
                   setSubjectId(avail[0].id);
@@ -948,8 +1062,10 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
               }}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name} (৳{t.dailyRate ?? t.hourlyRate}/day)</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} (৳{t.dailyRate ?? t.hourlyRate}/day)
+                </option>
               ))}
             </select>
           </div>
@@ -961,42 +1077,35 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
                 Subject (Taught by {currentTeacher?.name || "Teacher"})
               </label>
               {currentTeacher?.subjectIds?.length === 0 && (
-                <span className="text-[11px] text-amber-600 dark:text-amber-400">All subjects shown</span>
+                <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                  All subjects shown
+                </span>
               )}
             </div>
             <select
               value={subjectId}
-              onChange={e => setSubjectId(e.target.value)}
+              onChange={(e) => setSubjectId(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
-              {teacherSubjects.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {teacherSubjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Date</label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Start Time</label>
-              <input
-                type="time"
-                required
-                value={time}
-                onChange={e => setTime(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 font-mono"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+            />
           </div>
 
           {/* Class Lifecycle Status: Scheduled vs Already Completed */}
@@ -1041,12 +1150,18 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
               </label>
               <select
                 value={paymentStatus}
-                onChange={e => setPaymentStatus(e.target.value as PaymentStatus)}
+                onChange={(e) =>
+                  setPaymentStatus(e.target.value as PaymentStatus)
+                }
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               >
-                <option value="UNPAID">Unpaid (Add to teacher's cycle / pending balance)</option>
+                <option value="UNPAID">
+                  Unpaid (Add to teacher's cycle / pending balance)
+                </option>
                 <option value="PAID">Paid in Full (Already settled)</option>
-                <option value="COVERED_BY_ADVANCE">Covered by Prepaid Advance</option>
+                <option value="COVERED_BY_ADVANCE">
+                  Covered by Prepaid Advance
+                </option>
               </select>
             </div>
           )}
@@ -1083,11 +1198,13 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
           </div>
 
           {/* Extra Class Toggle Card */}
-          <div className={`p-3 border transition-colors ${
-            isExtra 
-              ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30' 
-              : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40'
-          }`}>
+          <div
+            className={`p-3 border transition-colors ${
+              isExtra
+                ? "border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30"
+                : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40"
+            }`}
+          >
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <div className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
@@ -1105,18 +1222,20 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
               <input
                 type="checkbox"
                 checked={isExtra}
-                onChange={e => setIsExtra(e.target.checked)}
+                onChange={(e) => setIsExtra(e.target.checked)}
                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
             </label>
           </div>
 
           {/* Free Class Toggle Card */}
-          <div className={`p-3 border transition-colors ${
-            isFree 
-              ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/30' 
-              : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40'
-          }`}>
+          <div
+            className={`p-3 border transition-colors ${
+              isFree
+                ? "border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/30"
+                : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40"
+            }`}
+          >
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <div className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
@@ -1135,7 +1254,7 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
                 type="checkbox"
                 checked={isFree}
                 disabled={isAbsent}
-                onChange={e => setIsFree(e.target.checked)}
+                onChange={(e) => setIsFree(e.target.checked)}
                 className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
             </label>
@@ -1144,7 +1263,8 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
           {/* Fee Input */}
           <div>
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
-              Fee (৳) {isAbsent ? "(Absent: ৳0)" : isFree ? "(Free)" : "(Per Day)"}
+              Fee (৳){" "}
+              {isAbsent ? "(Absent: ৳0)" : isFree ? "(Free)" : "(Per Day)"}
             </label>
             <input
               type="number"
@@ -1153,20 +1273,26 @@ export function ScheduleClassModal({ isOpen, onClose, teachers, subjects, initia
               disabled={isFree || isAbsent}
               placeholder={isFree || isAbsent ? "0.00" : defaultRate.toString()}
               value={isFree || isAbsent ? "0" : customFee}
-              onChange={e => setCustomFee(e.target.value)}
-              className={`w-full border px-3 py-2 font-mono text-sm focus:outline-none ${
+              onChange={(e) => setCustomFee(e.target.value)}
+              className={`w-full border px-3 py-2  text-sm focus:outline-none ${
                 isFree || isAbsent
-                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-zinc-700 cursor-not-allowed" 
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
                   : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-400"
               }`}
             />
           </div>
 
-          {currentTeacher?.paymentPolicy?.type === "ADVANCE_CYCLE" && !isFree && !isAbsent && (
-            <div className="p-3 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
-              Teacher has <span className="font-semibold text-zinc-900 dark:text-zinc-100">৳{currentTeacher.paymentPolicy.advanceBalance.toFixed(2)}</span> prepaid advance credit.
-            </div>
-          )}
+          {currentTeacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
+            !isFree &&
+            !isAbsent && (
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
+                Teacher has{" "}
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  ৳{currentTeacher.paymentPolicy.advanceBalance.toFixed(2)}
+                </span>{" "}
+                prepaid advance credit.
+              </div>
+            )}
 
           <div className="flex justify-end gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
             <button
@@ -1207,12 +1333,11 @@ export function EditClassSessionModal({
   teachers,
   subjects,
   onSave,
-  onDelete
+  onDelete,
 }: EditClassSessionModalProps) {
   const [teacherId, setTeacherId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("16:00");
   const [fee, setFee] = useState("500");
   const [status, setStatus] = useState<ClassStatus>("SCHEDULED");
   const [attendance, setAttendance] = useState<"PRESENT" | "ABSENT">("PRESENT");
@@ -1224,12 +1349,14 @@ export function EditClassSessionModal({
     if (isOpen && session) {
       setTeacherId(session.teacherId);
       setSubjectId(session.subjectId);
-      const [d, t] = session.scheduledAt.split("T");
+      const [d] = session.scheduledAt.split("T");
       setDate(d || new Date().toISOString().split("T")[0]);
-      setTime(t?.slice(0, 5) || "16:00");
       setFee(session.fee?.toString() || "0");
       setStatus(session.status);
-      setAttendance(session.attendance || (session.status === "TEACHER_ABSENT" ? "ABSENT" : "PRESENT"));
+      setAttendance(
+        session.attendance ||
+          (session.status === "TEACHER_ABSENT" ? "ABSENT" : "PRESENT"),
+      );
       setIsFree(Boolean(session.isFree || session.paymentStatus === "FREE"));
       setIsExtra(Boolean(session.isExtra));
       setPaymentStatus(session.paymentStatus);
@@ -1238,18 +1365,18 @@ export function EditClassSessionModal({
 
   if (!isOpen || !session) return null;
 
-  const currentTeacher = teachers.find(t => t.id === teacherId);
+  const currentTeacher = teachers.find((t) => t.id === teacherId);
   // Show only this teacher's subjects
   const teacherSubjects = currentTeacher?.subjectIds?.length
-    ? subjects.filter(s => currentTeacher.subjectIds.includes(s.id))
+    ? subjects.filter((s) => currentTeacher.subjectIds.includes(s.id))
     : subjects;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!teacherId || !subjectId) return;
 
-    const scheduledAt = `${date}T${time}:00`;
-    const numFee = isFree || attendance === "ABSENT" ? 0 : (parseFloat(fee) || 0);
+    const scheduledAt = `${date}T12:00:00`;
+    const numFee = isFree || attendance === "ABSENT" ? 0 : parseFloat(fee) || 0;
 
     let finalStatus = status;
     let finalPayStatus = paymentStatus;
@@ -1280,7 +1407,9 @@ export function EditClassSessionModal({
   };
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to permanently delete this class session?")) {
+    if (
+      confirm("Are you sure you want to permanently delete this class session?")
+    ) {
       if (onDelete) onDelete(session.id);
       onClose();
     }
@@ -1291,10 +1420,17 @@ export function EditClassSessionModal({
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-lg shadow-2xl text-zinc-900 dark:text-zinc-100 my-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Edit Class Session</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Modify schedule, teacher, attendance, status or fee</p>
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Edit Class Session
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Modify schedule, teacher, attendance, status or fee
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1302,22 +1438,31 @@ export function EditClassSessionModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           {/* Teacher Selection */}
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Teacher</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Teacher
+            </label>
             <select
               value={teacherId}
-              onChange={e => {
+              onChange={(e) => {
                 const newTId = e.target.value;
                 setTeacherId(newTId);
-                const t = teachers.find(item => item.id === newTId);
-                const avail = t?.subjectIds?.length ? subjects.filter(s => t.subjectIds.includes(s.id)) : subjects;
-                if (avail.length > 0 && !avail.some(s => s.id === subjectId)) {
+                const t = teachers.find((item) => item.id === newTId);
+                const avail = t?.subjectIds?.length
+                  ? subjects.filter((s) => t.subjectIds.includes(s.id))
+                  : subjects;
+                if (
+                  avail.length > 0 &&
+                  !avail.some((s) => s.id === subjectId)
+                ) {
                   setSubjectId(avail[0].id);
                 }
               }}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
             >
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
@@ -1329,37 +1474,28 @@ export function EditClassSessionModal({
             </label>
             <select
               value={subjectId}
-              onChange={e => setSubjectId(e.target.value)}
+              onChange={(e) => setSubjectId(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
             >
-              {teacherSubjects.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {teacherSubjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Date</label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Start Time</label>
-              <input
-                type="time"
-                required
-                value={time}
-                onChange={e => setTime(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 font-mono"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
+            />
           </div>
 
           {/* Attendance Toggle: Present vs Absent */}
@@ -1404,10 +1540,12 @@ export function EditClassSessionModal({
           {/* Session Progress Status & Payment Status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Class Status</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Class Status
+              </label>
               <select
                 value={status}
-                onChange={e => {
+                onChange={(e) => {
                   const s = e.target.value as ClassStatus;
                   setStatus(s);
                   if (s === "TEACHER_ABSENT") {
@@ -1427,10 +1565,14 @@ export function EditClassSessionModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Payment Status</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Payment Status
+              </label>
               <select
                 value={paymentStatus}
-                onChange={e => setPaymentStatus(e.target.value as PaymentStatus)}
+                onChange={(e) =>
+                  setPaymentStatus(e.target.value as PaymentStatus)
+                }
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
               >
                 <option value="UNPAID">Unpaid</option>
@@ -1445,40 +1587,52 @@ export function EditClassSessionModal({
           {/* Toggles: Extra Class & Free Class */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Extra Class Toggle */}
-            <div className={`p-2.5 border transition-colors ${
-              isExtra 
-                ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30' 
-                : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40'
-            }`}>
+            <div
+              className={`p-2.5 border transition-colors ${
+                isExtra
+                  ? "border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/30"
+                  : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40"
+              }`}
+            >
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
-                  <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block">Extra Class</span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Bonus / unscheduled</span>
+                  <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block">
+                    Extra Class
+                  </span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Bonus / unscheduled
+                  </span>
                 </div>
                 <input
                   type="checkbox"
                   checked={isExtra}
-                  onChange={e => setIsExtra(e.target.checked)}
+                  onChange={(e) => setIsExtra(e.target.checked)}
                   className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
               </label>
             </div>
 
             {/* Free Class Toggle */}
-            <div className={`p-2.5 border transition-colors ${
-              isFree 
-                ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/30' 
-                : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40'
-            }`}>
+            <div
+              className={`p-2.5 border transition-colors ${
+                isFree
+                  ? "border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/30"
+                  : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40"
+              }`}
+            >
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
-                  <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block">Free / Trial</span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">৳0.00 fee</span>
+                  <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block">
+                    Free / Trial
+                  </span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    ৳0.00 fee
+                  </span>
                 </div>
                 <input
                   type="checkbox"
                   checked={isFree}
-                  onChange={e => {
+                  onChange={(e) => {
                     const checked = e.target.checked;
                     setIsFree(checked);
                     if (checked) {
@@ -1503,8 +1657,8 @@ export function EditClassSessionModal({
               min="0"
               disabled={isFree || attendance === "ABSENT"}
               value={fee}
-              onChange={e => setFee(e.target.value)}
-              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 font-mono text-sm focus:outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:dark:bg-zinc-800 disabled:text-zinc-400"
+              onChange={(e) => setFee(e.target.value)}
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2  text-sm focus:outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:dark:bg-zinc-800 disabled:text-zinc-400"
             />
           </div>
 
@@ -1518,7 +1672,9 @@ export function EditClassSessionModal({
               >
                 Delete Class
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
 
             <div className="flex items-center gap-2">
               <button
@@ -1552,7 +1708,7 @@ interface RecordPaymentModalProps extends ModalProps {
   onRecordPayment: (payment: {
     teacherId: string;
     sessionIds: string[];
-    type: 'PER_CLASS' | 'CYCLE_SETTLEMENT' | 'ADVANCE_DEPOSIT';
+    type: "PER_CLASS" | "CYCLE_SETTLEMENT" | "ADVANCE_DEPOSIT";
     amount: number;
     method: string;
     reference?: string;
@@ -1567,34 +1723,48 @@ export function RecordPaymentModal({
   teachers,
   preselectedTeacherId,
   unpaidSessionsByTeacher,
-  onRecordPayment
+  onRecordPayment,
 }: RecordPaymentModalProps) {
-  const [selectedTeacherId, setSelectedTeacherId] = useState(preselectedTeacherId || teachers[0]?.id || "");
-  const [paymentType, setPaymentType] = useState<'CYCLE_SETTLEMENT' | 'ADVANCE_DEPOSIT' | 'CUSTOM'>('CYCLE_SETTLEMENT');
-  const [paidAtDate, setPaidAtDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState(
+    preselectedTeacherId || teachers[0]?.id || "",
+  );
+  const [paymentType, setPaymentType] = useState<
+    "CYCLE_SETTLEMENT" | "ADVANCE_DEPOSIT" | "CUSTOM"
+  >("CYCLE_SETTLEMENT");
+  const [paidAtDate, setPaidAtDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [method, setMethod] = useState("Bank Transfer");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [customAmount, setCustomAmount] = useState("");
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
-  const teacherUnpaidSessions = unpaidSessionsByTeacher[selectedTeacherId] || [];
+  const teacherUnpaidSessions =
+    unpaidSessionsByTeacher[selectedTeacherId] || [];
 
   useEffect(() => {
-    setSelectedSessionIds(teacherUnpaidSessions.map(s => s.id));
+    setSelectedSessionIds(teacherUnpaidSessions.map((s) => s.id));
   }, [selectedTeacherId, teacherUnpaidSessions.length]);
 
   if (!isOpen) return null;
 
-  const currentTeacher = teachers.find(t => t.id === selectedTeacherId);
-  const selectedSessions = teacherUnpaidSessions.filter(s => selectedSessionIds.includes(s.id));
-  const selectedTotalAmount = selectedSessions.reduce((acc, curr) => acc + curr.fee, 0);
+  const currentTeacher = teachers.find((t) => t.id === selectedTeacherId);
+  const selectedSessions = teacherUnpaidSessions.filter((s) =>
+    selectedSessionIds.includes(s.id),
+  );
+  const selectedTotalAmount = selectedSessions.reduce(
+    (acc, curr) => acc + curr.fee,
+    0,
+  );
 
-  const suggestedAmount = paymentType === 'CYCLE_SETTLEMENT'
-    ? selectedTotalAmount
-    : paymentType === 'ADVANCE_DEPOSIT'
-      ? ((currentTeacher?.dailyRate ?? currentTeacher?.hourlyRate ?? 500) * (currentTeacher?.paymentPolicy?.cycleSize || 4))
-      : parseFloat(customAmount) || 0;
+  const suggestedAmount =
+    paymentType === "CYCLE_SETTLEMENT"
+      ? selectedTotalAmount
+      : paymentType === "ADVANCE_DEPOSIT"
+        ? (currentTeacher?.dailyRate ?? currentTeacher?.hourlyRate ?? 500) *
+          (currentTeacher?.paymentPolicy?.cycleSize || 4)
+        : parseFloat(customAmount) || 0;
 
   const finalAmount = customAmount ? parseFloat(customAmount) : suggestedAmount;
 
@@ -1603,12 +1773,17 @@ export function RecordPaymentModal({
     if (!selectedTeacherId || finalAmount <= 0) return;
 
     const originalTime = new Date().toTimeString().slice(0, 8);
-    const resolvedPaidAt = paidAtDate ? `${paidAtDate}T${originalTime}` : new Date().toISOString();
+    const resolvedPaidAt = paidAtDate
+      ? `${paidAtDate}T${originalTime}`
+      : new Date().toISOString();
 
     onRecordPayment({
       teacherId: selectedTeacherId,
-      sessionIds: paymentType === 'CYCLE_SETTLEMENT' ? selectedSessionIds : [],
-      type: paymentType === 'ADVANCE_DEPOSIT' ? 'ADVANCE_DEPOSIT' : 'CYCLE_SETTLEMENT',
+      sessionIds: paymentType === "CYCLE_SETTLEMENT" ? selectedSessionIds : [],
+      type:
+        paymentType === "ADVANCE_DEPOSIT"
+          ? "ADVANCE_DEPOSIT"
+          : "CYCLE_SETTLEMENT",
       amount: finalAmount,
       method,
       reference: reference.trim() || undefined,
@@ -1623,27 +1798,38 @@ export function RecordPaymentModal({
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-lg shadow-xl text-zinc-900 dark:text-zinc-100 my-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">Record Payment</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Settle classes, log historical payments, or deposit advance credit</p>
+            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+              Record Payment
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Settle classes, log historical payments, or deposit advance credit
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Teacher</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Teacher
+            </label>
             <select
               value={selectedTeacherId}
-              onChange={e => {
+              onChange={(e) => {
                 setSelectedTeacherId(e.target.value);
                 setCustomAmount("");
               }}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
@@ -1656,13 +1842,14 @@ export function RecordPaymentModal({
               <button
                 type="button"
                 onClick={() => {
-                  setPaymentType('CYCLE_SETTLEMENT');
+                  setPaymentType("CYCLE_SETTLEMENT");
                   setCustomAmount("");
                 }}
-                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'CYCLE_SETTLEMENT'
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${
+                  paymentType === "CYCLE_SETTLEMENT"
                     ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
-                  }`}
+                }`}
               >
                 <div className="font-semibold text-xs">Settle Classes</div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -1673,13 +1860,14 @@ export function RecordPaymentModal({
               <button
                 type="button"
                 onClick={() => {
-                  setPaymentType('ADVANCE_DEPOSIT');
+                  setPaymentType("ADVANCE_DEPOSIT");
                   setCustomAmount("");
                 }}
-                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'ADVANCE_DEPOSIT'
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${
+                  paymentType === "ADVANCE_DEPOSIT"
                     ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
-                  }`}
+                }`}
               >
                 <div className="font-semibold text-xs">Add Advance</div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -1690,13 +1878,14 @@ export function RecordPaymentModal({
               <button
                 type="button"
                 onClick={() => {
-                  setPaymentType('CUSTOM');
+                  setPaymentType("CUSTOM");
                   setCustomAmount("");
                 }}
-                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${paymentType === 'CUSTOM'
+                className={`p-2.5 text-left border text-xs transition-colors cursor-pointer ${
+                  paymentType === "CUSTOM"
                     ? "border-zinc-900 bg-zinc-100 font-medium text-zinc-900 dark:border-zinc-100 dark:bg-zinc-800 dark:text-zinc-100"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
-                  }`}
+                }`}
               >
                 <div className="font-semibold text-xs">Direct History</div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -1706,52 +1895,79 @@ export function RecordPaymentModal({
             </div>
           </div>
 
-          {paymentType === 'CYCLE_SETTLEMENT' && (
+          {paymentType === "CYCLE_SETTLEMENT" && (
             <div>
               {teacherUnpaidSessions.length > 0 ? (
                 <div className="space-y-1.5 border border-zinc-200 dark:border-zinc-800 p-2.5 max-h-40 overflow-y-auto bg-zinc-50/50 dark:bg-zinc-950/50">
                   <div className="flex items-center justify-between text-[11px] font-medium text-zinc-500 pb-1 border-b border-zinc-200 dark:border-zinc-800">
-                    <span>Select Classes to Settle ({selectedSessionIds.length}/{teacherUnpaidSessions.length})</span>
+                    <span>
+                      Select Classes to Settle ({selectedSessionIds.length}/
+                      {teacherUnpaidSessions.length})
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
-                        if (selectedSessionIds.length === teacherUnpaidSessions.length) {
+                        if (
+                          selectedSessionIds.length ===
+                          teacherUnpaidSessions.length
+                        ) {
                           setSelectedSessionIds([]);
                         } else {
-                          setSelectedSessionIds(teacherUnpaidSessions.map(s => s.id));
+                          setSelectedSessionIds(
+                            teacherUnpaidSessions.map((s) => s.id),
+                          );
                         }
                       }}
                       className="text-zinc-700 dark:text-zinc-300 hover:underline cursor-pointer"
                     >
-                      {selectedSessionIds.length === teacherUnpaidSessions.length ? "Deselect All" : "Select All"}
+                      {selectedSessionIds.length ===
+                      teacherUnpaidSessions.length
+                        ? "Deselect All"
+                        : "Select All"}
                     </button>
                   </div>
-                  {teacherUnpaidSessions.map(s => {
+                  {teacherUnpaidSessions.map((s) => {
                     const isSelected = selectedSessionIds.includes(s.id);
-                    const sessionDate = new Date(s.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const sessionDate = new Date(
+                      s.scheduledAt,
+                    ).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
                     return (
-                      <label key={s.id} className="flex items-center justify-between text-xs py-1 px-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer rounded">
+                      <label
+                        key={s.id}
+                        className="flex items-center justify-between text-xs py-1 px-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-850 cursor-pointer rounded"
+                      >
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {
-                              setSelectedSessionIds(prev =>
-                                prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                              setSelectedSessionIds((prev) =>
+                                prev.includes(s.id)
+                                  ? prev.filter((id) => id !== s.id)
+                                  : [...prev, s.id],
                               );
                             }}
                             className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-0"
                           />
-                          <span>{sessionDate} - ৳{s.fee.toFixed(2)}</span>
+                          <span>
+                            {sessionDate} - ৳{s.fee.toFixed(2)}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-zinc-400 capitalize">{s.status.toLowerCase()}</span>
+                        <span className="text-[11px] text-zinc-400 capitalize">
+                          {s.status.toLowerCase()}
+                        </span>
                       </label>
                     );
                   })}
                 </div>
               ) : (
                 <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
-                  All classes for this teacher are currently marked as paid. You can record advance funds or an unlinked payment history entry above.
+                  All classes for this teacher are currently marked as paid. You
+                  can record advance funds or an unlinked payment history entry
+                  above.
                 </div>
               )}
             </div>
@@ -1759,7 +1975,9 @@ export function RecordPaymentModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Amount (৳) *</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Amount (৳) *
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -1767,21 +1985,25 @@ export function RecordPaymentModal({
                 required
                 placeholder={suggestedAmount.toFixed(2)}
                 value={customAmount}
-                onChange={e => setCustomAmount(e.target.value)}
+                onChange={(e) => setCustomAmount(e.target.value)}
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 block">
-                {customAmount ? "Custom amount" : `Default: ৳${suggestedAmount.toFixed(2)}`}
+                {customAmount
+                  ? "Custom amount"
+                  : `Default: ৳${suggestedAmount.toFixed(2)}`}
               </span>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Payment Date *</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Payment Date *
+              </label>
               <input
                 type="date"
                 required
                 value={paidAtDate}
-                onChange={e => setPaidAtDate(e.target.value)}
+                onChange={(e) => setPaidAtDate(e.target.value)}
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
             </div>
@@ -1789,10 +2011,12 @@ export function RecordPaymentModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Payment Method</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Payment Method
+              </label>
               <select
                 value={method}
-                onChange={e => setMethod(e.target.value)}
+                onChange={(e) => setMethod(e.target.value)}
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               >
                 <option>Bank Transfer</option>
@@ -1804,24 +2028,28 @@ export function RecordPaymentModal({
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Transaction Reference</label>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+                Transaction Reference
+              </label>
               <input
                 type="text"
                 placeholder="e.g. TXN-998234 or receipt #"
                 value={reference}
-                onChange={e => setReference(e.target.value)}
+                onChange={(e) => setReference(e.target.value)}
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Note (Optional)</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Note (Optional)
+            </label>
             <input
               type="text"
               placeholder="e.g. Paid for Calculus classes"
               value={note}
-              onChange={e => setNote(e.target.value)}
+              onChange={(e) => setNote(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
           </div>
@@ -1863,7 +2091,7 @@ export function EditPaymentModal({
   payment,
   teachers,
   onSave,
-  onDelete
+  onDelete,
 }: EditPaymentModalProps) {
   const [amount, setAmount] = useState("");
   const [paidAtDate, setPaidAtDate] = useState("");
@@ -1875,7 +2103,11 @@ export function EditPaymentModal({
   useEffect(() => {
     if (isOpen && payment) {
       setAmount(payment.amount.toString());
-      setPaidAtDate(payment.paidAt ? payment.paidAt.split("T")[0] : new Date().toISOString().split("T")[0]);
+      setPaidAtDate(
+        payment.paidAt
+          ? payment.paidAt.split("T")[0]
+          : new Date().toISOString().split("T")[0],
+      );
       setMethod(payment.method || "Cash");
       setType(payment.type || "CYCLE_SETTLEMENT");
       setReference(payment.reference || "");
@@ -1885,7 +2117,7 @@ export function EditPaymentModal({
 
   if (!isOpen || !payment) return null;
 
-  const currentTeacher = teachers.find(t => t.id === payment.teacherId);
+  const currentTeacher = teachers.find((t) => t.id === payment.teacherId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1894,9 +2126,10 @@ export function EditPaymentModal({
 
     let finalPaidAt = payment.paidAt;
     if (paidAtDate) {
-      const originalTime = payment.paidAt && payment.paidAt.includes("T")
-        ? payment.paidAt.split("T")[1]
-        : "12:00:00";
+      const originalTime =
+        payment.paidAt && payment.paidAt.includes("T")
+          ? payment.paidAt.split("T")[1]
+          : "12:00:00";
       finalPaidAt = `${paidAtDate}T${originalTime}`;
     }
 
@@ -1913,7 +2146,11 @@ export function EditPaymentModal({
   };
 
   const handleDelete = () => {
-    if (confirm(`Are you sure you want to permanently delete this payment of ৳${payment.amount.toFixed(2)}? Any linked classes will revert to unpaid and advance credits will be updated.`)) {
+    if (
+      confirm(
+        `Are you sure you want to permanently delete this payment of ৳${payment.amount.toFixed(2)}? Any linked classes will revert to unpaid and advance credits will be updated.`,
+      )
+    ) {
       if (onDelete) onDelete(payment.id);
       onClose();
     }
@@ -1924,10 +2161,17 @@ export function EditPaymentModal({
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-lg shadow-xl text-zinc-900 dark:text-zinc-100 my-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Edit Payment Record</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Modify settlement amounts, payment dates, or payment details</p>
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Edit Payment Record
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Modify settlement amounts, payment dates, or payment details
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1957,11 +2201,15 @@ export function EditPaymentModal({
             </label>
             <select
               value={type}
-              onChange={e => setType(e.target.value as PaymentRecord["type"])}
+              onChange={(e) => setType(e.target.value as PaymentRecord["type"])}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
-              <option value="CYCLE_SETTLEMENT">Cycle Settlement (Settles regular classes)</option>
-              <option value="ADVANCE_DEPOSIT">Advance Deposit (Prepaid tutor balance)</option>
+              <option value="CYCLE_SETTLEMENT">
+                Cycle Settlement (Settles regular classes)
+              </option>
+              <option value="ADVANCE_DEPOSIT">
+                Advance Deposit (Prepaid tutor balance)
+              </option>
               <option value="SINGLE_CLASS">Single Class Payment</option>
             </select>
           </div>
@@ -1978,8 +2226,8 @@ export function EditPaymentModal({
                 min="1"
                 required
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 font-mono text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2  text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
             </div>
             <div>
@@ -1990,7 +2238,7 @@ export function EditPaymentModal({
                 type="date"
                 required
                 value={paidAtDate}
-                onChange={e => setPaidAtDate(e.target.value)}
+                onChange={(e) => setPaidAtDate(e.target.value)}
                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
               />
             </div>
@@ -2003,7 +2251,7 @@ export function EditPaymentModal({
             </label>
             <select
               value={method}
-              onChange={e => setMethod(e.target.value)}
+              onChange={(e) => setMethod(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
               <option value="Cash">Cash in Hand</option>
@@ -2025,8 +2273,8 @@ export function EditPaymentModal({
               type="text"
               placeholder="e.g. TrxID BK9928192 or Bank slip #4819"
               value={reference}
-              onChange={e => setReference(e.target.value)}
-              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+              onChange={(e) => setReference(e.target.value)}
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm  focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
           </div>
 
@@ -2039,7 +2287,7 @@ export function EditPaymentModal({
               rows={2}
               placeholder="e.g. Settle February classes batch, bonus included..."
               value={note}
-              onChange={e => setNote(e.target.value)}
+              onChange={(e) => setNote(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
           </div>
@@ -2056,7 +2304,9 @@ export function EditPaymentModal({
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete Payment
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
 
             <div className="flex items-center gap-2">
               <button
@@ -2085,16 +2335,30 @@ export function EditPaymentModal({
 // -------------------------------------------------------------
 interface DelayPaymentModalProps extends ModalProps {
   teacher: Teacher | null;
-  onConfirmDelay: (teacherId: string, delayedUntil: string, reason: string) => void;
+  onConfirmDelay: (
+    teacherId: string,
+    delayedUntil: string,
+    reason: string,
+  ) => void;
   onClearDelay: (teacherId: string) => void;
 }
 
-export function DelayPaymentModal({ isOpen, onClose, teacher, onConfirmDelay, onClearDelay }: DelayPaymentModalProps) {
+export function DelayPaymentModal({
+  isOpen,
+  onClose,
+  teacher,
+  onConfirmDelay,
+  onClearDelay,
+}: DelayPaymentModalProps) {
   const [delayedUntil, setDelayedUntil] = useState(
     teacher?.paymentPolicy?.delayedUntil ||
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0],
   );
-  const [reason, setReason] = useState(teacher?.paymentPolicy?.delayReason || "");
+  const [reason, setReason] = useState(
+    teacher?.paymentPolicy?.delayReason || "",
+  );
 
   if (!isOpen || !teacher) return null;
 
@@ -2109,33 +2373,44 @@ export function DelayPaymentModal({ isOpen, onClose, teacher, onConfirmDelay, on
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-md shadow-xl text-zinc-900 dark:text-zinc-100">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">Delay Settlement with {teacher.name}</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Record a deferral date so it is not treated as overdue</p>
+            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+              Delay Settlement with {teacher.name}
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Record a deferral date so it is not treated as overdue
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Defer Until Date *</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Defer Until Date *
+            </label>
             <input
               type="date"
               required
               value={delayedUntil}
-              onChange={e => setDelayedUntil(e.target.value)}
+              onChange={(e) => setDelayedUntil(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 "
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Reason for Delay (Human Note)</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Reason for Delay (Human Note)
+            </label>
             <textarea
               rows={3}
               placeholder="e.g. Teacher requested payment combined with next month, or waiting for salary on Oct 5"
               value={reason}
-              onChange={e => setReason(e.target.value)}
+              onChange={(e) => setReason(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-2.5 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 resize-none"
             />
           </div>
@@ -2152,7 +2427,9 @@ export function DelayPaymentModal({ isOpen, onClose, teacher, onConfirmDelay, on
               >
                 Remove Delay
               </button>
-            ) : <span />}
+            ) : (
+              <span />
+            )}
 
             <div className="flex gap-2">
               <button
@@ -2190,11 +2467,17 @@ interface AddEventModalProps extends ModalProps {
   }) => void;
 }
 
-export function AddEventModal({ isOpen, onClose, subjects, onSave }: AddEventModalProps) {
+export function AddEventModal({
+  isOpen,
+  onClose,
+  subjects,
+  onSave,
+}: AddEventModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState("10:00");
+  const [date, setDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [eventType, setEventType] = useState<CalendarEventType>("EXAM");
   const [subjectId, setSubjectId] = useState("");
 
@@ -2207,7 +2490,7 @@ export function AddEventModal({ isOpen, onClose, subjects, onSave }: AddEventMod
     onSave({
       title: title.trim(),
       description: description.trim() || undefined,
-      startAt: `${date}T${time}:00`,
+      startAt: `${date}T00:00:00`,
       eventType,
       subjectId: subjectId || undefined,
     });
@@ -2219,89 +2502,104 @@ export function AddEventModal({ isOpen, onClose, subjects, onSave }: AddEventMod
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-md shadow-xl text-zinc-900 dark:text-zinc-100">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">Add Calendar Event</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Record an exam, homework deadline, or holiday</p>
+            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+              Add Calendar Event
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Record an exam, homework deadline, or holiday
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Event Type</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Event Type
+            </label>
             <div className="grid grid-cols-4 gap-1.5">
-              {(["EXAM", "ASSIGNMENT_DUE", "HOLIDAY", "PARENT_MEETING"] as const).map(type => (
+              {(
+                ["EXAM", "ASSIGNMENT_DUE", "HOLIDAY", "PARENT_MEETING"] as const
+              ).map((type) => (
                 <button
                   type="button"
                   key={type}
                   onClick={() => setEventType(type)}
-                  className={`py-1.5 text-center text-xs font-medium border transition-colors cursor-pointer ${eventType === type
+                  className={`py-1.5 text-center text-xs font-medium border transition-colors cursor-pointer ${
+                    eventType === type
                       ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                       : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 bg-white dark:bg-zinc-950"
-                    }`}
+                  }`}
                 >
-                  {type === "ASSIGNMENT_DUE" ? "Assignment" : type === "PARENT_MEETING" ? "Meeting" : type.charAt(0) + type.slice(1).toLowerCase()}
+                  {type === "ASSIGNMENT_DUE"
+                    ? "Assignment"
+                    : type === "PARENT_MEETING"
+                      ? "Meeting"
+                      : type.charAt(0) + type.slice(1).toLowerCase()}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Title *</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Title *
+            </label>
             <input
               type="text"
               required
               placeholder="e.g. Physics Midterm Exam or Problem Set Due"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Date</label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 "
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={e => setTime(e.target.value)}
-                className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 "
-              />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 "
+            />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Linked Subject (Optional)</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Linked Subject (Optional)
+            </label>
             <select
               value={subjectId}
-              onChange={e => setSubjectId(e.target.value)}
+              onChange={(e) => setSubjectId(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             >
               <option value="">None / General</option>
-              {subjects.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Description / Location</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Description / Location
+            </label>
             <textarea
               rows={2}
               placeholder="e.g. Room 402, Chapters 1-5 covered"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-2.5 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400 resize-none"
             />
           </div>
@@ -2331,10 +2629,18 @@ export function AddEventModal({ isOpen, onClose, subjects, onSave }: AddEventMod
 // 6. ADD SUBJECT MODAL
 // -------------------------------------------------------------
 interface AddSubjectModalProps extends ModalProps {
-  onSave: (subjectData: { name: string; color: string; defaultDurationMin: number }) => void;
+  onSave: (subjectData: {
+    name: string;
+    color: string;
+    defaultDurationMin: number;
+  }) => void;
 }
 
-export function AddSubjectModal({ isOpen, onClose, onSave }: AddSubjectModalProps) {
+export function AddSubjectModal({
+  isOpen,
+  onClose,
+  onSave,
+}: AddSubjectModalProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#3b82f6");
 
@@ -2358,37 +2664,50 @@ export function AddSubjectModal({ isOpen, onClose, onSave }: AddSubjectModalProp
       <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 w-full max-w-sm shadow-xl text-zinc-900 dark:text-zinc-100">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">Add Academic Subject</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Create a dedicated course entity</p>
+            <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+              Add Academic Subject
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Create a dedicated course entity
+            </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Subject Name *</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Subject Name *
+            </label>
             <input
               type="text"
               required
               placeholder="e.g. Linear Algebra, Physics"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">Accent Color</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 block mb-1">
+              Accent Color
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 value={color}
-                onChange={e => setColor(e.target.value)}
+                onChange={(e) => setColor(e.target.value)}
                 className="w-8 h-8 rounded border border-zinc-300 dark:border-zinc-700 p-0.5 cursor-pointer bg-white dark:bg-zinc-950"
               />
-              <span className=" text-xs text-zinc-600 dark:text-zinc-400">{color}</span>
+              <span className=" text-xs text-zinc-600 dark:text-zinc-400">
+                {color}
+              </span>
             </div>
           </div>
 

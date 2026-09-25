@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { NoteItem, NoteFolder, NoteMention, DEFAULT_FOLDERS } from "@/types/notes";
+import {
+  NoteItem,
+  NoteFolder,
+  NoteMention,
+  DEFAULT_FOLDERS,
+} from "@/types/notes";
 import { createClient } from "@/lib/supabase/client";
 import {
   Folder,
@@ -26,22 +31,28 @@ import {
   Layers,
   Globe,
   SlidersHorizontal,
-  ChevronLeft
+  ChevronLeft,
 } from "lucide-react";
-import { EntityMentionModal, EntityType } from "@/components/admin/EntityMentionModal";
+import {
+  EntityMentionModal,
+  EntityType,
+} from "@/components/admin/EntityMentionModal";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 // Dynamically import BlockNote AdminRichEditor to prevent SSR issues
-const AdminRichEditor = dynamic(() => import("@/components/admin/AdminRichEditor"), {
-  ssr: false,
-  loading: () => (
-    <div className="bg-zinc-950 border border-white/10 rounded-lg min-h-[350px] flex flex-col items-center justify-center text-zinc-400 space-y-2">
-      <i className="fa-solid fa-spinner animate-spin text-2xl text-indigo-500"></i>
-      <p className="text-xs">Loading rich block editor...</p>
-    </div>
-  )
-});
+const AdminRichEditor = dynamic(
+  () => import("@/components/admin/AdminRichEditor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-zinc-950 border border-white/10 rounded-lg min-h-[350px] flex flex-col items-center justify-center text-zinc-400 space-y-2">
+        <i className="fa-solid fa-spinner animate-spin text-2xl text-indigo-500"></i>
+        <p className="text-xs">Loading rich block editor...</p>
+      </div>
+    ),
+  },
+);
 
 export default function NotesPage() {
   const supabase = createClient();
@@ -52,7 +63,9 @@ export default function NotesPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
-  const [savingStatus, setSavingStatus] = useState<"saved" | "saving" | "unsaved">("saved");
+  const [savingStatus, setSavingStatus] = useState<
+    "saved" | "saving" | "unsaved"
+  >("saved");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "editor">("list");
 
@@ -71,7 +84,9 @@ export default function NotesPage() {
 
   // Interactive Entity Mention Modal state
   const [entityModalOpen, setEntityModalOpen] = useState(false);
-  const [activeEntityType, setActiveEntityType] = useState<EntityType | null>(null);
+  const [activeEntityType, setActiveEntityType] = useState<EntityType | null>(
+    null,
+  );
 
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -80,8 +95,11 @@ export default function NotesPage() {
     const fetchCRM = async () => {
       try {
         const [invRes, clientRes] = await Promise.all([
-          supabase.from("invoices").select("id, invoice_number, status").limit(50),
-          supabase.from("clients").select("id, name, email").limit(50)
+          supabase
+            .from("invoices")
+            .select("id, invoice_number, status")
+            .limit(50),
+          supabase.from("clients").select("id, name, email").limit(50),
         ]);
         if (invRes.data) setInvoices(invRes.data);
         if (clientRes.data) setClients(clientRes.data);
@@ -109,7 +127,7 @@ export default function NotesPage() {
         if (selectFirst && loadedNotes.length > 0) {
           loadNoteToEditor(loadedNotes[0]);
         } else if (selectedNoteId) {
-          const matched = loadedNotes.find(n => n.id === selectedNoteId);
+          const matched = loadedNotes.find((n) => n.id === selectedNoteId);
           if (matched) loadNoteToEditor(matched);
           else if (loadedNotes.length > 0) loadNoteToEditor(loadedNotes[0]);
         } else if (loadedNotes.length > 0) {
@@ -146,20 +164,20 @@ export default function NotesPage() {
       folder_id: selectedFolder !== "all" ? selectedFolder : "all",
       is_pinned: false,
       tags: [],
-      mentions: []
+      mentions: [],
     };
 
     try {
       const res = await fetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newNoteData)
+        body: JSON.stringify(newNoteData),
       });
 
       if (res.ok) {
         const data = await res.json();
         const saved = data.note;
-        setNotes(prev => [saved, ...prev]);
+        setNotes((prev) => [saved, ...prev]);
         loadNoteToEditor(saved);
         toast.success("Note created");
       }
@@ -176,9 +194,12 @@ export default function NotesPage() {
   const confirmDelete = async () => {
     if (!deleteConfirmId) return;
     try {
-      const res = await fetch(`/api/notes?id=${encodeURIComponent(deleteConfirmId)}`, { method: "DELETE" });
+      const res = await fetch(
+        `/api/notes?id=${encodeURIComponent(deleteConfirmId)}`,
+        { method: "DELETE" },
+      );
       if (res.ok) {
-        const remaining = notes.filter(n => n.id !== deleteConfirmId);
+        const remaining = notes.filter((n) => n.id !== deleteConfirmId);
         setNotes(remaining);
         if (selectedNoteId === deleteConfirmId) {
           if (remaining.length > 0) loadNoteToEditor(remaining[0]);
@@ -203,7 +224,7 @@ export default function NotesPage() {
       const res = await fetch("/api/notes", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "toggle_pin" })
+        body: JSON.stringify({ id, action: "toggle_pin" }),
       });
       if (res.ok) {
         if (selectedNoteId === id) setIsPinned(!isPinned);
@@ -230,21 +251,25 @@ export default function NotesPage() {
         tags: currentTags,
         is_pinned: isPinned,
         mentions,
-        ...updatedFields
+        ...updatedFields,
       };
 
       try {
         const res = await fetch("/api/notes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
 
         if (res.ok) {
           const data = await res.json();
           setSavingStatus("saved");
           // Update note in local state list
-          setNotes(prev => prev.map(n => n.id === selectedNoteId ? { ...n, ...data.note } : n));
+          setNotes((prev) =>
+            prev.map((n) =>
+              n.id === selectedNoteId ? { ...n, ...data.note } : n,
+            ),
+          );
         }
       } catch (err) {
         console.error("Auto-save failed:", err);
@@ -271,7 +296,10 @@ export default function NotesPage() {
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
-      const newTag = tagInput.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+      const newTag = tagInput
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "");
       if (newTag && !currentTags.includes(newTag)) {
         const updated = [...currentTags, newTag];
         setCurrentTags(updated);
@@ -282,7 +310,7 @@ export default function NotesPage() {
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    const updated = currentTags.filter(t => t !== tagToRemove);
+    const updated = currentTags.filter((t) => t !== tagToRemove);
     setCurrentTags(updated);
     triggerAutoSave({ tags: updated });
   };
@@ -297,7 +325,7 @@ export default function NotesPage() {
     setCurrentContent(updated);
 
     let updatedMentions = mentions;
-    if (mentionData && !mentions.some(m => m.label === mentionData.label)) {
+    if (mentionData && !mentions.some((m) => m.label === mentionData.label)) {
       updatedMentions = [...mentions, mentionData];
       setMentions(updatedMentions);
     }
@@ -325,19 +353,23 @@ export default function NotesPage() {
             <p className="px-2 font-black text-[9px] text-zinc-500 uppercase tracking-widest mb-2">
               Folders
             </p>
-            {folders.map(f => {
+            {folders.map((f) => {
               const isSelected = selectedFolder === f.id;
               return (
                 <button
                   key={f.id}
                   onClick={() => setSelectedFolder(f.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isSelected
                       ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-black"
                       : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
-                    }`}
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
-                    <i className={`fa-solid ${f.icon} text-xs w-4 text-center`} style={{ color: isSelected ? "white" : f.color }}></i>
+                    <i
+                      className={`fa-solid ${f.icon} text-xs w-4 text-center`}
+                      style={{ color: isSelected ? "white" : f.color }}
+                    ></i>
                     <span className="truncate">{f.name}</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 opacity-60" />
@@ -350,17 +382,20 @@ export default function NotesPage() {
         {/* Bottom stats / new folder */}
         <div className="p-4 border-t border-zinc-900 text-[11px] text-zinc-500 flex items-center justify-between">
           <span>{notes.length} Total Notes</span>
-          <span className="font-mono text-zinc-400">v2.0</span>
+          <span className=" text-zinc-400">v2.0</span>
         </div>
       </div>
 
       {/* COLUMN 2: NOTE LIST */}
-      <div className={`w-full md:w-72 lg:w-80 bg-zinc-900/90 border-r border-zinc-800 flex-col shrink-0 ${mobileView === "editor" ? "hidden md:flex" : "flex"}`}>
+      <div
+        className={`w-full md:w-72 lg:w-80 bg-zinc-900/90 border-r border-zinc-800 flex-col shrink-0 ${mobileView === "editor" ? "hidden md:flex" : "flex"}`}
+      >
         {/* Search & New Note header */}
         <div className="p-4 border-b border-zinc-800 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-black text-base text-white capitalize">
-              {folders.find(f => f.id === selectedFolder)?.name || "All Notes"}
+              {folders.find((f) => f.id === selectedFolder)?.name ||
+                "All Notes"}
             </h2>
             <button
               onClick={handleCreateNewNote}
@@ -373,7 +408,7 @@ export default function NotesPage() {
 
           {/* Folder Pills for Mobile / Tablet */}
           <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-            {folders.map(f => (
+            {folders.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setSelectedFolder(f.id)}
@@ -411,19 +446,23 @@ export default function NotesPage() {
           ) : (
             notes.map((note) => {
               const isSelected = selectedNoteId === note.id;
-              const dateStr = new Date(note.updated_at).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric"
-              });
+              const dateStr = new Date(note.updated_at).toLocaleDateString(
+                undefined,
+                {
+                  month: "short",
+                  day: "numeric",
+                },
+              );
 
               return (
                 <div
                   key={note.id}
                   onClick={() => loadNoteToEditor(note)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${isSelected
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
+                    isSelected
                       ? "bg-indigo-600/15 border-indigo-500/50 shadow-md shadow-indigo-600/10"
                       : "bg-zinc-950/60 hover:bg-zinc-950 border-zinc-800/80 hover:border-zinc-700"
-                    }`}
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-extrabold text-xs text-white truncate max-w-[190px]">
@@ -450,7 +489,7 @@ export default function NotesPage() {
                   <div className="mt-2 pt-2 border-t border-zinc-800/60 flex items-center justify-between text-[10px] text-zinc-500">
                     <span>{dateStr}</span>
                     {note.tags && note.tags.length > 0 && (
-                      <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded font-mono text-[9px]">
+                      <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded  text-[9px]">
                         #{note.tags[0]}
                       </span>
                     )}
@@ -463,7 +502,9 @@ export default function NotesPage() {
       </div>
 
       {/* COLUMN 3: NOTE WORKSPACE & BLOCKNOTE EDITOR */}
-      <div className={`w-full flex-1 flex-col bg-zinc-950 overflow-hidden ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
+      <div
+        className={`w-full flex-1 flex-col bg-zinc-950 overflow-hidden ${mobileView === "list" ? "hidden md:flex" : "flex"}`}
+      >
         {selectedNoteId ? (
           <>
             {/* Top Toolbar */}
@@ -493,21 +534,26 @@ export default function NotesPage() {
                   onChange={(e) => handleFolderChange(e.target.value)}
                   className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs font-bold text-zinc-300 focus:outline-none"
                 >
-                  {folders.map(f => (
-                    <option key={f.id} value={f.id}>{f.name}</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
                   ))}
                 </select>
 
                 {/* Pin Button */}
                 <button
                   onClick={() => handleTogglePin(selectedNoteId)}
-                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${isPinned
+                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                    isPinned
                       ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
                       : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
-                    }`}
+                  }`}
                   title={isPinned ? "Unpin Note" : "Pin to Top"}
                 >
-                  <Pin className={`w-4 h-4 ${isPinned ? "fill-amber-400" : ""}`} />
+                  <Pin
+                    className={`w-4 h-4 ${isPinned ? "fill-amber-400" : ""}`}
+                  />
                 </button>
 
                 {/* Save status indicator */}
@@ -532,7 +578,8 @@ export default function NotesPage() {
             {/* Entity Quick Mentions Toolbar */}
             <div className="px-6 py-2.5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center gap-2 overflow-x-auto custom-scrollbar">
               <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1 shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Insert Entity:
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Insert
+                Entity:
               </span>
               <button
                 onClick={() => handleInsertEntityMention("invoice")}
@@ -589,13 +636,16 @@ export default function NotesPage() {
               <div className="pt-4 border-t border-zinc-800 space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Tag className="w-3.5 h-3.5 text-zinc-500" />
-                  {currentTags.map(t => (
+                  {currentTags.map((t) => (
                     <span
                       key={t}
-                      className="inline-flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-2.5 py-1 rounded-lg font-mono transition-colors"
+                      className="inline-flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-2.5 py-1 rounded-lg  transition-colors"
                     >
                       #{t}
-                      <button onClick={() => handleRemoveTag(t)} className="text-zinc-400 hover:text-rose-400">
+                      <button
+                        onClick={() => handleRemoveTag(t)}
+                        className="text-zinc-400 hover:text-rose-400"
+                      >
                         ✕
                       </button>
                     </span>
@@ -615,9 +665,12 @@ export default function NotesPage() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 space-y-3 p-8">
             <FileText className="w-16 h-16 stroke-1 text-zinc-700" />
-            <h3 className="font-extrabold text-base text-zinc-300">No Note Selected</h3>
+            <h3 className="font-extrabold text-base text-zinc-300">
+              No Note Selected
+            </h3>
             <p className="text-xs text-zinc-500 text-center max-w-sm">
-              Select a note from the left sidebar or create a new one to start writing with the rich block editor.
+              Select a note from the left sidebar or create a new one to start
+              writing with the rich block editor.
             </p>
             <button
               onClick={handleCreateNewNote}

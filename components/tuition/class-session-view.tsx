@@ -62,10 +62,6 @@ export default function ClassSessionView({
     month: "long",
     day: "numeric",
   });
-  const formattedTime = new Date(session.scheduledAt).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
   const handleAddNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,13 +332,10 @@ export default function ClassSessionView({
 
         <div>
           <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium block mb-1">
-            Date & Scheduled Time
+            Date
           </span>
           <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
             {formattedDate}
-          </div>
-          <div className="text-xs  text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {formattedTime}
           </div>
         </div>
       </div>

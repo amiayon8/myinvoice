@@ -770,7 +770,9 @@ export default function AttendxPage() {
   const filteredOrgs = useMemo(() => {
     return organizations.filter((org) => {
       const matchesSearch =
-        org.org_name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        org.org_name
+          .toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
         org.org_id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (org.contact_email || "")
           .toLowerCase()
@@ -1277,7 +1279,7 @@ export default function AttendxPage() {
                         <span className="text-[10px] text-slate-500 font-bold uppercase block">
                           Client Web Base URL
                         </span>
-                        <span className="font-mono text-xs text-white block truncate">
+                        <span className=" text-xs text-white block truncate">
                           {selectedOrg.client_web_base || "Not configured"}
                         </span>
                       </div>
@@ -1285,7 +1287,7 @@ export default function AttendxPage() {
                         <span className="text-[10px] text-purple-400 font-bold uppercase block">
                           Webhook Secret (Authorization Bearer Token)
                         </span>
-                        <div className="flex items-center justify-between font-mono text-xs text-purple-300">
+                        <div className="flex items-center justify-between  text-xs text-purple-300">
                           <span className="truncate font-bold">
                             {selectedOrg.webhook_secret ||
                               selectedOrg.client_id ||
@@ -1377,7 +1379,7 @@ export default function AttendxPage() {
                         <span className="text-[10px] text-slate-500 uppercase font-bold block">
                           Email
                         </span>
-                        <span className="font-mono text-slate-200">
+                        <span className=" text-slate-200">
                           {selectedOrg.contact_email || "Not specified"}
                         </span>
                       </div>
@@ -1385,7 +1387,7 @@ export default function AttendxPage() {
                         <span className="text-[10px] text-slate-500 uppercase font-bold block">
                           Phone
                         </span>
-                        <span className="font-mono text-slate-200">
+                        <span className=" text-slate-200">
                           {selectedOrg.contact_phone || "Not specified"}
                         </span>
                       </div>
@@ -1425,7 +1427,7 @@ export default function AttendxPage() {
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-mono font-black text-sm text-white">
+                              <span className=" font-black text-sm text-white">
                                 #{inv.invoice_number}
                               </span>
                               <span
@@ -1445,7 +1447,7 @@ export default function AttendxPage() {
 
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <div className="font-mono font-black text-sm text-white">
+                              <div className=" font-black text-sm text-white">
                                 {inv.currency}
                                 {inv.total_amount?.toLocaleString()}
                               </div>
@@ -1506,7 +1508,7 @@ export default function AttendxPage() {
                             <div className="font-bold text-xs text-white flex items-center gap-2">
                               <span>{p.payment_method || "Payment"}</span>
                               {p.transaction_id && (
-                                <span className="font-mono text-[10px] bg-slate-950 px-1.5 py-0.5 rounded text-indigo-400 border border-slate-800">
+                                <span className=" text-[10px] bg-slate-950 px-1.5 py-0.5 rounded text-indigo-400 border border-slate-800">
                                   Trx: {p.transaction_id}
                                 </span>
                               )}
@@ -1516,7 +1518,7 @@ export default function AttendxPage() {
                               {p.notes ? `• ${p.notes}` : ""}
                             </p>
                           </div>
-                          <div className="font-black text-sm text-emerald-400 font-mono">
+                          <div className="font-black text-sm text-emerald-400 ">
                             +{selectedOrg.currency}
                             {Number(p.amount).toLocaleString()}
                           </div>
@@ -1598,7 +1600,7 @@ export default function AttendxPage() {
                                     {hw.serial_numbers.map((sn, idx) => (
                                       <span
                                         key={idx}
-                                        className="font-mono text-[9px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300"
+                                        className=" text-[9px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300"
                                       >
                                         {sn}
                                       </span>
@@ -1742,7 +1744,7 @@ export default function AttendxPage() {
                           .replace(/\s+/g, "_"),
                       })
                     }
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5  font-bold text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1796,7 +1798,7 @@ export default function AttendxPage() {
                       client_web_base: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5  text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -1833,7 +1835,7 @@ export default function AttendxPage() {
                       webhook_secret: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-xs text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5  text-xs text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
                   Used by client's{" "}
@@ -2106,7 +2108,7 @@ export default function AttendxPage() {
                   placeholder="e.g. SN-ZK-991, SN-ZK-992"
                   value={serialInput}
                   onChange={(e) => setSerialInput(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5  text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
 
@@ -2569,7 +2571,7 @@ export default function AttendxPage() {
                     {billingOrg.currency}
                     {customPlanPrice.toLocaleString()})
                   </span>
-                  <span className="font-mono">
+                  <span className="">
                     {billingOrg.currency}
                     {billTotals.planSubtotal.toLocaleString()}
                   </span>
@@ -2577,7 +2579,7 @@ export default function AttendxPage() {
                 {billTotals.discountAmount > 0 && (
                   <div className="flex items-center justify-between text-emerald-400">
                     <span>Discount</span>
-                    <span className="font-mono">
+                    <span className="">
                       - {billingOrg.currency}
                       {billTotals.discountAmount.toLocaleString()}
                     </span>
@@ -2586,7 +2588,7 @@ export default function AttendxPage() {
                 {billTotals.hardwareTotal > 0 && (
                   <div className="flex items-center justify-between text-purple-400">
                     <span>Hardware Line Items</span>
-                    <span className="font-mono">
+                    <span className="">
                       + {billingOrg.currency}
                       {billTotals.hardwareTotal.toLocaleString()}
                     </span>
@@ -2615,7 +2617,7 @@ export default function AttendxPage() {
                       value={
                         window.location.origin + generatedBillResult.share_url
                       }
-                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[11px] text-slate-300"
+                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg  text-[11px] text-slate-300"
                     />
                     <button
                       onClick={() =>
@@ -2747,7 +2749,7 @@ export default function AttendxPage() {
                   onChange={(e) =>
                     setPayForm({ ...payForm, transaction_id: e.target.value })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5  text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -2837,7 +2839,7 @@ export default function AttendxPage() {
                 <label className="text-[10px] font-bold text-slate-500 uppercase">
                   Endpoint
                 </label>
-                <div className="p-2 bg-slate-950 border border-slate-800 font-mono text-purple-300 text-xs break-all rounded-lg">
+                <div className="p-2 bg-slate-950 border border-slate-800  text-purple-300 text-xs break-all rounded-lg">
                   GET /management/api/checkSubscription?orgId={testedOrg.org_id}
                 </div>
               </div>
@@ -2846,7 +2848,7 @@ export default function AttendxPage() {
                 <label className="text-[10px] font-bold text-slate-500 uppercase">
                   Response JSON
                 </label>
-                <pre className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-emerald-400 text-xs overflow-x-auto">
+                <pre className="p-3.5 rounded-xl bg-slate-950 border border-slate-800  text-emerald-400 text-xs overflow-x-auto">
                   {apiLoading
                     ? "Fetching..."
                     : JSON.stringify(apiResponse, null, 2)}

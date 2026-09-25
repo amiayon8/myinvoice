@@ -77,8 +77,6 @@ export default function PublicSharedTuitionPage({
   const [recordTeacherId, setRecordTeacherId] = useState("");
   const [recordSubjectId, setRecordSubjectId] = useState("");
   const [recordDate, setRecordDate] = useState(() => toDateKey(new Date()));
-  const [recordTime, setRecordTime] = useState("16:00");
-  const [recordDurationMin, setRecordDurationMin] = useState(60);
   const [recordNotes, setRecordNotes] = useState("");
 
   useEffect(() => {
@@ -111,8 +109,6 @@ export default function PublicSharedTuitionPage({
       if (json.teachers && json.teachers.length === 1) {
         const singleTeacher = json.teachers[0];
         setRecordTeacherId(singleTeacher.id);
-        setRecordTime(singleTeacher.defaultTime || "16:00");
-        setRecordDurationMin(singleTeacher.defaultDurationMin || 60);
         if (singleTeacher.defaultSubjectId) {
           setRecordSubjectId(singleTeacher.defaultSubjectId);
         } else if (
@@ -124,8 +120,6 @@ export default function PublicSharedTuitionPage({
       } else if (json.teachers && json.teachers.length > 0) {
         const first = json.teachers[0];
         setRecordTeacherId(first.id);
-        setRecordTime(first.defaultTime || "16:00");
-        setRecordDurationMin(first.defaultDurationMin || 60);
         if (first.defaultSubjectId) {
           setRecordSubjectId(first.defaultSubjectId);
         } else if (first.subjectIds && first.subjectIds.length > 0) {
@@ -262,8 +256,6 @@ export default function PublicSharedTuitionPage({
     setRecordTeacherId(teacherId);
     const selected = teacherMap.get(teacherId);
     if (selected) {
-      setRecordTime(selected.defaultTime || "16:00");
-      setRecordDurationMin(selected.defaultDurationMin || 60);
       if (selected.defaultSubjectId) {
         setRecordSubjectId(selected.defaultSubjectId);
       } else if (selected.subjectIds && selected.subjectIds.length > 0) {
@@ -292,7 +284,7 @@ export default function PublicSharedTuitionPage({
 
     try {
       setSubmittingRecord(true);
-      const scheduledAt = `${recordDate}T${recordTime || "16:00"}:00`;
+      const scheduledAt = `${recordDate}T12:00:00`;
       const res = await fetch(`/api/tuition/share/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,7 +292,7 @@ export default function PublicSharedTuitionPage({
           teacherId: recordTeacherId,
           subjectId: recordSubjectId,
           scheduledAt,
-          durationMin: Number(recordDurationMin) || 60,
+          durationMin: 60,
           notes: recordNotes.trim() || undefined,
         }),
       });
@@ -1275,19 +1267,17 @@ export default function PublicSharedTuitionPage({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={recordDate}
-                    onChange={(e) => setRecordDate(e.target.value)}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-3 py-2 rounded-lg text-xs font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-zinc-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={recordDate}
+                  onChange={(e) => setRecordDate(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-3 py-2 rounded-lg text-xs font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-zinc-500"
+                />
               </div>
 
               <div>
@@ -1324,20 +1314,15 @@ export default function PublicSharedTuitionPage({
         </div>
       )}
 
-      <footer className="text-center py-8 border-t bg-foreground text-background mt-12 space-y-2">
-        <p className="text-sm mt-1">
+      <footer className="text-center py-8 text-xs text-zinc-400 dark:text-zinc-600 border-t border-zinc-200 dark:border-zinc-800 mt-12">
+        <p>
           Developed by{" "}
           <a
-            href="https://www.thenicedev.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary font-bold hover:underline"
+            className="text-black dark:text-white hover:underline"
+            href="https://www.thenicedev.xyz"
           >
             The Nice Developer
           </a>
-        </p>
-        <p className="font-bold text-sm">
-          © {new Date().getFullYear()} Subscription Baba. All Rights Reserved
         </p>
       </footer>
     </div>

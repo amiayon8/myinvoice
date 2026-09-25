@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useToast } from '@/components/ui/toast';
+import React, { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
 
 interface EntityProfile {
   id: string;
@@ -31,72 +31,87 @@ export default function DocumentsPage() {
   const [generating, setGenerating] = useState(false);
   const [companies, setCompanies] = useState<EntityProfile[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
-  const [activeDocType, setActiveDocType] = useState<string>('contract');
+  const [activeDocType, setActiveDocType] = useState<string>("contract");
 
   // Selected dropdown IDs
-  const [selectedEntityId, setSelectedEntityId] = useState<string>('');
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [selectedEntityId, setSelectedEntityId] = useState<string>("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
 
   // Generation History state
-  const [rightPanelTab, setRightPanelTab] = useState<'payload' | 'history'>('history');
+  const [rightPanelTab, setRightPanelTab] = useState<"payload" | "history">(
+    "history",
+  );
   const [historyItems, setHistoryItems] = useState<any[]>([]);
 
   // Gemini AI wizard states
-  const [activeMode, setActiveMode] = useState<'wizard' | 'manual'>('wizard');
-  const [wizardIndustry, setWizardIndustry] = useState<string>('🎉 Event Management');
-  const [wizardPrompt, setWizardPrompt] = useState<string>('');
+  const [activeMode, setActiveMode] = useState<"wizard" | "manual">("wizard");
+  const [wizardIndustry, setWizardIndustry] = useState<string>(
+    "🎉 Event Management",
+  );
+  const [wizardPrompt, setWizardPrompt] = useState<string>("");
   const [generatingAI, setGeneratingAI] = useState<boolean>(false);
-  const [wizardBudget, setWizardBudget] = useState<string>('25,000');
-  const [wizardTimeline, setWizardTimeline] = useState<string>('3 Weeks');
+  const [wizardBudget, setWizardBudget] = useState<string>("25,000");
+  const [wizardTimeline, setWizardTimeline] = useState<string>("3 Weeks");
 
   const [availableFeatures, setAvailableFeatures] = useState<string[]>([
-    'User Authentication & Roles',
-    'Dashboard & Analytics',
-    'Product Catalog & Cart',
-    'Advanced Search & Filtering',
-    'Admin Control Panel',
-    'Booking & Scheduling System',
-    'Real-time Chat / Support',
-    'Review & Rating System',
-    'Blog / Content Management',
+    "User Authentication & Roles",
+    "Dashboard & Analytics",
+    "Product Catalog & Cart",
+    "Advanced Search & Filtering",
+    "Admin Control Panel",
+    "Booking & Scheduling System",
+    "Real-time Chat / Support",
+    "Review & Rating System",
+    "Blog / Content Management",
   ]);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(['User Authentication & Roles', 'Dashboard & Analytics']);
-  const [customFeatureInput, setCustomFeatureInput] = useState<string>('');
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
+    "User Authentication & Roles",
+    "Dashboard & Analytics",
+  ]);
+  const [customFeatureInput, setCustomFeatureInput] = useState<string>("");
 
   const [availableIntegrations, setAvailableIntegrations] = useState<string[]>([
-    'Stripe Payment Gateway',
-    'SSLCommerz Gateway (Bangladesh)',
-    'bKash / Nagad Mobile Payments',
-    'Pathao / Steadfast Courier API',
-    'Gemini / OpenAI Assistant',
-    'Twilio SMS Notifications',
-    'SendGrid Email Delivery',
-    'Google Maps Store Locator',
+    "Stripe Payment Gateway",
+    "SSLCommerz Gateway (Bangladesh)",
+    "bKash / Nagad Mobile Payments",
+    "Pathao / Steadfast Courier API",
+    "Gemini / OpenAI Assistant",
+    "Twilio SMS Notifications",
+    "SendGrid Email Delivery",
+    "Google Maps Store Locator",
   ]);
-  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(['bKash / Nagad Mobile Payments']);
-  const [customIntegrationInput, setCustomIntegrationInput] = useState<string>('');
+  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>([
+    "bKash / Nagad Mobile Payments",
+  ]);
+  const [customIntegrationInput, setCustomIntegrationInput] =
+    useState<string>("");
 
   // Default configurations
   const defaultCommonData = {
-    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-    currency: '৳ ',
+    date: new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+    currency: "৳ ",
     developer: {
-      name: 'The Nice Developer',
-      representative: 'Sarker Ayon',
-      email: 'hello@thenicedev.xyz',
-      address: 'House 12, Road 5, Dhanmondi, Dhaka-1209, Bangladesh',
-      website: 'https://thenicedev.xyz',
+      name: "The Nice Developer",
+      representative: "Sarker Ayon",
+      email: "hello@thenicedev.xyz",
+      address: "House 12, Road 5, Dhanmondi, Dhaka-1209, Bangladesh",
+      website: "https://thenicedev.xyz",
     },
     client: {
-      name: 'Event Management',
-      company: 'Event Management',
-      representative: 'Sajjadul Islam Ontor',
-      email: 'event@management.com',
-      address: 'House 45, Road 2, Gulshan-1, Dhaka-1212, Bangladesh',
+      name: "Event Management",
+      company: "Event Management",
+      representative: "Sajjadul Islam Ontor",
+      email: "event@management.com",
+      address: "House 45, Road 2, Gulshan-1, Dhaka-1212, Bangladesh",
     },
     project: {
-      name: 'Event Management Portfolio Website',
-      summary: 'A premium portfolio website for showcasing event management projects, booking services, and client communications.',
+      name: "Event Management Portfolio Website",
+      summary:
+        "A premium portfolio website for showcasing event management projects, booking services, and client communications.",
     },
   };
 
@@ -108,14 +123,22 @@ export default function DocumentsPage() {
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
       pricing: {
-        total: '25,000',
-        advance: '10,000',
-        hourlyRate: '1,500',
+        total: "25,000",
+        advance: "10,000",
+        hourlyRate: "1,500",
         paymentTermsDays: 15,
       },
       milestones: [
-        { name: 'Phase 1: Architecture & UI Designs', dueDate: 'July 15, 2026', paymentAmount: '10,000' },
-        { name: 'Phase 2: Core Development & APIs', dueDate: 'August 30, 2026', paymentAmount: '15,000' },
+        {
+          name: "Phase 1: Architecture & UI Designs",
+          dueDate: "July 15, 2026",
+          paymentAmount: "10,000",
+        },
+        {
+          name: "Phase 2: Core Development & APIs",
+          dueDate: "August 30, 2026",
+          paymentAmount: "15,000",
+        },
       ],
       revisions: {
         limit: 3,
@@ -125,7 +148,7 @@ export default function DocumentsPage() {
       },
       legal: {
         governingLaw: "the laws of the People's Republic of Bangladesh",
-        jurisdiction: 'Dhaka, Bangladesh',
+        jurisdiction: "Dhaka, Bangladesh",
       },
     },
     sow: {
@@ -134,94 +157,158 @@ export default function DocumentsPage() {
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
       features: [
-        { title: 'User Authentication & Roles', description: 'Secure signup, signin, and password resets using JWT tokens. Role-based access control for Admins, Managers, and general Staff.' },
-        { title: 'Reporting Dashboard & Analytics', description: 'Visual data widgets displaying financial metrics and operations logs, including custom charts generated via Chart.js.' },
-        { title: 'Stripe Payment Gateway', description: 'Secure credit card checkouts, automated invoices, and transaction state synchronization using webhooks.' },
+        {
+          title: "User Authentication & Roles",
+          description:
+            "Secure signup, signin, and password resets using JWT tokens. Role-based access control for Admins, Managers, and general Staff.",
+        },
+        {
+          title: "Reporting Dashboard & Analytics",
+          description:
+            "Visual data widgets displaying financial metrics and operations logs, including custom charts generated via Chart.js.",
+        },
+        {
+          title: "Stripe Payment Gateway",
+          description:
+            "Secure credit card checkouts, automated invoices, and transaction state synchronization using webhooks.",
+        },
       ],
       pages: [
-        { name: 'Landing Dashboard', description: 'Operational overview displaying aggregate stats and recent client logs.' },
-        { name: 'Payments / Invoicing Page', description: 'Lists all recent billing statements with download capabilities and checkout links.' },
-        { name: 'Settings Management Panel', description: 'Enables users to customize profile information, set alert preferences, and toggle security.' },
+        {
+          name: "Landing Dashboard",
+          description:
+            "Operational overview displaying aggregate stats and recent client logs.",
+        },
+        {
+          name: "Payments / Invoicing Page",
+          description:
+            "Lists all recent billing statements with download capabilities and checkout links.",
+        },
+        {
+          name: "Settings Management Panel",
+          description:
+            "Enables users to customize profile information, set alert preferences, and toggle security.",
+        },
       ],
       techStack: {
-        frontend: 'React.js with Next.js Framework & Tailwind CSS',
-        backend: 'Node.js with Express API & Prisma ORM Engine',
-        database: 'PostgreSQL Database Engine hosted on Supabase',
-        other: 'GitHub Actions CI/CD pipeline, Vercel Application hosting',
-        thirdPartyApis: 'Stripe API for Checkouts, SendGrid for transactional notifications',
+        frontend: "React.js with Next.js Framework & Tailwind CSS",
+        backend: "Node.js with Express API & Prisma ORM Engine",
+        database: "PostgreSQL Database Engine hosted on Supabase",
+        other: "GitHub Actions CI/CD pipeline, Vercel Application hosting",
+        thirdPartyApis:
+          "Stripe API for Checkouts, SendGrid for transactional notifications",
       },
       exclusions: [
-        'Native Mobile Apps creation (iOS and Android client stores)',
-        'Legacy data cleanup or data parsing from existing spreadsheets',
-        'SEO copy campaign creation and marketing execution',
+        "Native Mobile Apps creation (iOS and Android client stores)",
+        "Legacy data cleanup or data parsing from existing spreadsheets",
+        "SEO copy campaign creation and marketing execution",
       ],
       clientDependencies: [
-        'Provisioning of Stripe Sandbox credentials and dashboard access keys',
-        'Provisioning of domain registers, SSL redirects, and DNS registers',
-        'Branding materials: vector logos, specific font licenses, and color styling assets',
+        "Provisioning of Stripe Sandbox credentials and dashboard access keys",
+        "Provisioning of domain registers, SSL redirects, and DNS registers",
+        "Branding materials: vector logos, specific font licenses, and color styling assets",
       ],
     },
     proposal: {
       date: defaultCommonData.date,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      validUntil: new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
       developer: { ...defaultCommonData.developer },
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
-      problem: 'The Client currently has no central web platform to showcase their event management projects, handle customer bookings, and collect initial event deposits. This leads to inefficient communication and lost booking opportunities.',
-      solution: 'We propose building a premium Event Management Portfolio Website. This platform will showcase past events, allow prospective clients to submit booking inquiries, and pay booking deposits online, driving engagement and streamlining reservations.',
-      currency: '৳ ',
+      problem:
+        "The Client currently has no central web platform to showcase their event management projects, handle customer bookings, and collect initial event deposits. This leads to inefficient communication and lost booking opportunities.",
+      solution:
+        "We propose building a premium Event Management Portfolio Website. This platform will showcase past events, allow prospective clients to submit booking inquiries, and pay booking deposits online, driving engagement and streamlining reservations.",
+      currency: "৳ ",
       pricing: {
-        total: '25,000',
-        advance: '10,000',
+        total: "25,000",
+        advance: "10,000",
       },
       phases: [
-        { name: 'Phase 1: Discovery & Interface Prototypes', duration: '1-2 Weeks', description: 'Interactive wireframes design, database architecture mapping, and API routing designs.' },
-        { name: 'Phase 2: Core Engineering Sprints', duration: '4-6 Weeks', description: 'Database integrations, API endpoints implementation, UI components creation, and security checks.' },
-        { name: 'Phase 3: QA, Tuning & Launch Support', duration: '1-2 Weeks', description: 'Cross-device browser verification, server configuration, domain mapping, and staff onboarding.' },
+        {
+          name: "Phase 1: Discovery & Interface Prototypes",
+          duration: "1-2 Weeks",
+          description:
+            "Interactive wireframes design, database architecture mapping, and API routing designs.",
+        },
+        {
+          name: "Phase 2: Core Engineering Sprints",
+          duration: "4-6 Weeks",
+          description:
+            "Database integrations, API endpoints implementation, UI components creation, and security checks.",
+        },
+        {
+          name: "Phase 3: QA, Tuning & Launch Support",
+          duration: "1-2 Weeks",
+          description:
+            "Cross-device browser verification, server configuration, domain mapping, and staff onboarding.",
+        },
       ],
       pricingOptions: [
-        { name: 'MVP Core Package', description: 'Includes core portfolio components, standard booking forms, 30 days post-launch support, and hosting config.', amount: '15,000' },
-        { name: 'Standard Complete Package', description: 'Includes SOW specs, full online deposit checkout, client inquiry system, and 90 days support.', amount: '25,000' },
-        { name: 'Enterprise Premium Package', description: 'Includes complete website, multi-page layout, custom SMS/Email alerts, and 6 months dedicated maintenance support.', amount: '40,000' },
+        {
+          name: "MVP Core Package",
+          description:
+            "Includes core portfolio components, standard booking forms, 30 days post-launch support, and hosting config.",
+          amount: "15,000",
+        },
+        {
+          name: "Standard Complete Package",
+          description:
+            "Includes SOW specs, full online deposit checkout, client inquiry system, and 90 days support.",
+          amount: "25,000",
+        },
+        {
+          name: "Enterprise Premium Package",
+          description:
+            "Includes complete website, multi-page layout, custom SMS/Email alerts, and 6 months dedicated maintenance support.",
+          amount: "40,000",
+        },
       ],
       whyUs: [
-        'Over 8 years of specialized experience engineering secure, scale-ready SaaS platforms.',
-        'High availability communication: Direct Discord access, daily Git commit logs, and weekly demo deployments.',
-        'Strong security defaults: Encrypted environment configs, safe authentication, and automated backup strategies.',
+        "Over 8 years of specialized experience engineering secure, scale-ready SaaS platforms.",
+        "High availability communication: Direct Discord access, daily Git commit logs, and weekly demo deployments.",
+        "Strong security defaults: Encrypted environment configs, safe authentication, and automated backup strategies.",
       ],
     },
     maintenance: {
       date: defaultCommonData.date,
-      termMonths: '6',
-      monthlyFee: '5,000',
-      currency: '৳ ',
+      termMonths: "6",
+      monthlyFee: "5,000",
+      currency: "৳ ",
       developer: { ...defaultCommonData.developer },
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
-      supportHoursAllowance: '5',
+      supportHoursAllowance: "5",
       maintenanceScope: [
-        'Ongoing package dependencies auditing and version security patch updates.',
-        'Periodic database structure optimizations and index health reviews.',
-        'Continuous application uptime monitoring with email alerts.',
-        'Up to 5 hours/month of minor styling adjustments, text modifications, or layout fixes.',
-        'Weekly automated backup verifications and off-site archives.',
+        "Ongoing package dependencies auditing and version security patch updates.",
+        "Periodic database structure optimizations and index health reviews.",
+        "Continuous application uptime monitoring with email alerts.",
+        "Up to 5 hours/month of minor styling adjustments, text modifications, or layout fixes.",
+        "Weekly automated backup verifications and off-site archives.",
       ],
       responseTimeSLA: {
-        critical: '4',
-        normal: '24',
+        critical: "4",
+        normal: "24",
       },
-      extraHourlyRate: '1,500',
-      terminationNoticeDays: '30',
+      extraHourlyRate: "1,500",
+      terminationNoticeDays: "30",
     },
     nda: {
       date: defaultCommonData.date,
       disclosingParty: { ...defaultCommonData.client },
       receivingParty: { ...defaultCommonData.developer },
-      purpose: 'Evaluating, designing, building, and delivering software services and portfolio integrations for the Event Management Portfolio Website project.',
-      activeTermYears: '2',
-      survivalYears: '3',
+      purpose:
+        "Evaluating, designing, building, and delivering software services and portfolio integrations for the Event Management Portfolio Website project.",
+      activeTermYears: "2",
+      survivalYears: "3",
       governingState: "the People's Republic of Bangladesh",
-      jurisdiction: 'Dhaka, Bangladesh',
+      jurisdiction: "Dhaka, Bangladesh",
     },
     handover: {
       date: defaultCommonData.date,
@@ -229,33 +316,76 @@ export default function DocumentsPage() {
       client: { ...defaultCommonData.client },
       project: { ...defaultCommonData.project },
       git: {
-        url: 'https://github.com/thenicedev/event-management-portfolio.git',
-        mainBranch: 'main',
-        stagingBranch: 'develop',
+        url: "https://github.com/thenicedev/event-management-portfolio.git",
+        mainBranch: "main",
+        stagingBranch: "develop",
       },
       deployment: {
-        productionHost: 'Vercel & Supabase Cloud',
-        productionUrl: 'https://eventmanagement.com.bd',
-        stagingUrl: 'https://staging.eventmanagement.com.bd',
-        adminUrl: 'https://eventmanagement.com.bd/admin',
+        productionHost: "Vercel & Supabase Cloud",
+        productionUrl: "https://eventmanagement.com.bd",
+        stagingUrl: "https://staging.eventmanagement.com.bd",
+        adminUrl: "https://eventmanagement.com.bd/admin",
       },
       credentials: [
-        { service: 'GitHub Organization', url: 'https://github.com', username: 'stellar-admin@stellar.io', actionRequired: 'Transfer primary ownership and remove developer rights.' },
-        { service: 'AWS Console Access', url: 'https://aws.amazon.com', username: 'aws-admin-dev', actionRequired: 'Rotate root security keys and modify access passwords.' },
-        { service: 'Stripe Production dashboard', url: 'https://stripe.com', username: 'payments-billing@stellar.io', actionRequired: 'Remove Developer webhook credentials and rotate signing keys.' },
-        { service: 'Supabase Cloud Database', url: 'https://supabase.com', username: 'postgres-main-admin', actionRequired: 'Update PostgreSQL root db key.' },
+        {
+          service: "GitHub Organization",
+          url: "https://github.com",
+          username: "stellar-admin@stellar.io",
+          actionRequired:
+            "Transfer primary ownership and remove developer rights.",
+        },
+        {
+          service: "AWS Console Access",
+          url: "https://aws.amazon.com",
+          username: "aws-admin-dev",
+          actionRequired:
+            "Rotate root security keys and modify access passwords.",
+        },
+        {
+          service: "Stripe Production dashboard",
+          url: "https://stripe.com",
+          username: "payments-billing@stellar.io",
+          actionRequired:
+            "Remove Developer webhook credentials and rotate signing keys.",
+        },
+        {
+          service: "Supabase Cloud Database",
+          url: "https://supabase.com",
+          username: "postgres-main-admin",
+          actionRequired: "Update PostgreSQL root db key.",
+        },
       ],
       environmentVariables: [
-        { key: 'DATABASE_URL', description: 'Postgres connection string containing DB username, address, and security key credentials.', exampleValue: 'postgresql://postgres:********@aws-rds-endpoint.com:5432/main_db' },
-        { key: 'NEXTAUTH_SECRET', description: 'Cryptographically randomized token key used by NextAuth to sign and verify security session webhooks.', exampleValue: '71a9a8385bf7de534d0bce628...8cb1' },
-        { key: 'STRIPE_SECRET_KEY', description: 'Stripe API private token for transactions.', exampleValue: 'sk_live_51N...8u2' },
-        { key: 'SENDGRID_API_KEY', description: 'SendGrid authentication key token for transactional emails delivery.', exampleValue: 'SG.yH98s...Jk2' },
+        {
+          key: "DATABASE_URL",
+          description:
+            "Postgres connection string containing DB username, address, and security key credentials.",
+          exampleValue:
+            "postgresql://postgres:********@aws-rds-endpoint.com:5432/main_db",
+        },
+        {
+          key: "NEXTAUTH_SECRET",
+          description:
+            "Cryptographically randomized token key used by NextAuth to sign and verify security session webhooks.",
+          exampleValue: "71a9a8385bf7de534d0bce628...8cb1",
+        },
+        {
+          key: "STRIPE_SECRET_KEY",
+          description: "Stripe API private token for transactions.",
+          exampleValue: "sk_live_51N...8u2",
+        },
+        {
+          key: "SENDGRID_API_KEY",
+          description:
+            "SendGrid authentication key token for transactional emails delivery.",
+          exampleValue: "SG.yH98s...Jk2",
+        },
       ],
       localSetup: {
-        nodeVersion: '18.16.0',
-        installCommand: 'npm install',
-        dbCommand: 'npx prisma db push',
-        runCommand: 'npm run dev',
+        nodeVersion: "18.16.0",
+        installCommand: "npm install",
+        dbCommand: "npx prisma db push",
+        runCommand: "npm run dev",
       },
     },
   });
@@ -264,18 +394,20 @@ export default function DocumentsPage() {
 
   const fetchHistory = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session?.user) return;
 
       const { data, error } = await supabase
-        .from('document_generations')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("document_generations")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setHistoryItems(data || []);
     } catch (err) {
-      console.error('Error fetching generation history:', err);
+      console.error("Error fetching generation history:", err);
     }
   };
 
@@ -285,28 +417,34 @@ export default function DocumentsPage() {
     if (wizardBudget) parts.push(`Budget: ${wizardBudget} BDT`);
     if (wizardTimeline) parts.push(`Timeline: ${wizardTimeline}`);
     if (selectedFeatures.length > 0) {
-      parts.push(`Features: ${selectedFeatures.join(', ')}`);
+      parts.push(`Features: ${selectedFeatures.join(", ")}`);
     }
     if (selectedIntegrations.length > 0) {
-      parts.push(`Integrations: ${selectedIntegrations.join(', ')}`);
+      parts.push(`Integrations: ${selectedIntegrations.join(", ")}`);
     }
-    setWizardPrompt(parts.join('\n'));
-  }, [wizardIndustry, wizardBudget, wizardTimeline, selectedFeatures, selectedIntegrations]);
+    setWizardPrompt(parts.join("\n"));
+  }, [
+    wizardIndustry,
+    wizardBudget,
+    wizardTimeline,
+    selectedFeatures,
+    selectedIntegrations,
+  ]);
 
   useEffect(() => {
     const fetchDBData = async () => {
       setLoading(true);
       try {
         const [comps, cls] = await Promise.all([
-          supabase.from('companies').select('*').order('name'),
-          supabase.from('clients').select('*').order('name'),
+          supabase.from("companies").select("*").order("name"),
+          supabase.from("clients").select("*").order("name"),
         ]);
         setCompanies(comps.data || []);
         setClients(cls.data || []);
         await fetchHistory();
       } catch (err) {
-        console.error('Error fetching entities/clients:', err);
-        toast.error('Failed to load database profiles');
+        console.error("Error fetching entities/clients:", err);
+        toast.error("Failed to load database profiles");
       } finally {
         setLoading(false);
       }
@@ -315,7 +453,7 @@ export default function DocumentsPage() {
   }, []);
 
   const handleFieldChange = (path: string, value: any) => {
-    const pathKeys = path.split('.');
+    const pathKeys = path.split(".");
     const updatedConfigs = { ...docConfigs };
     let current = updatedConfigs[activeDocType];
 
@@ -328,34 +466,45 @@ export default function DocumentsPage() {
     setDocConfigs(updatedConfigs);
   };
 
-  const handleListFieldChange = (listName: string, index: number, field: string, value: any) => {
+  const handleListFieldChange = (
+    listName: string,
+    index: number,
+    field: string,
+    value: any,
+  ) => {
     const updatedConfigs = { ...docConfigs };
     updatedConfigs[activeDocType][listName][index][field] = value;
     setDocConfigs(updatedConfigs);
   };
 
-  const handleEnvPaste = (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
-    const pasteData = e.clipboardData.getData('text');
+  const handleEnvPaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    const pasteData = e.clipboardData.getData("text");
     const lines = pasteData.split(/\r?\n/);
     const pairs: { key: string; value: string }[] = [];
 
     for (let line of lines) {
       line = line.trim();
-      if (!line || line.startsWith('#')) continue;
+      if (!line || line.startsWith("#")) continue;
 
-      if (line.startsWith('export ')) {
+      if (line.startsWith("export ")) {
         line = line.substring(7).trim();
       }
 
-      let sepIdx = line.indexOf('=');
+      let sepIdx = line.indexOf("=");
       if (sepIdx === -1) {
-        sepIdx = line.indexOf(':');
+        sepIdx = line.indexOf(":");
       }
 
       if (sepIdx !== -1) {
         const key = line.substring(0, sepIdx).trim();
         let val = line.substring(sepIdx + 1).trim();
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
           val = val.substring(1, val.length - 1);
         }
         pairs.push({ key, value: val });
@@ -372,14 +521,14 @@ export default function DocumentsPage() {
         ...envList[index],
         key: pairs[0].key,
         exampleValue: pairs[0].value,
-        description: envList[index]?.description || 'Configuration detail',
+        description: envList[index]?.description || "Configuration detail",
       };
 
       // Insert remaining pairs after the current index
       const newRows = pairs.slice(1).map((p) => ({
         key: p.key,
         exampleValue: p.value,
-        description: 'Configuration detail',
+        description: "Configuration detail",
       }));
 
       envList.splice(index + 1, 0, ...newRows);
@@ -390,7 +539,11 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleArrayStringFieldChange = (listName: string, index: number, value: string) => {
+  const handleArrayStringFieldChange = (
+    listName: string,
+    index: number,
+    value: string,
+  ) => {
     const updatedConfigs = { ...docConfigs };
     updatedConfigs[activeDocType][listName][index] = value;
     setDocConfigs(updatedConfigs);
@@ -418,25 +571,25 @@ export default function DocumentsPage() {
     if (!company) return;
 
     const updatedConfigs = { ...docConfigs };
-    if (activeDocType === 'nda') {
+    if (activeDocType === "nda") {
       updatedConfigs[activeDocType].receivingParty = {
         ...updatedConfigs[activeDocType].receivingParty,
-        name: company.name || '',
-        email: company.email || '',
-        address: company.address || '',
-        website: company.website || '',
+        name: company.name || "",
+        email: company.email || "",
+        address: company.address || "",
+        website: company.website || "",
       };
     } else {
       updatedConfigs[activeDocType].developer = {
         ...updatedConfigs[activeDocType].developer,
-        name: company.name || '',
-        email: company.email || '',
-        address: company.address || '',
-        website: company.website || '',
+        name: company.name || "",
+        email: company.email || "",
+        address: company.address || "",
+        website: company.website || "",
       };
     }
     setDocConfigs(updatedConfigs);
-    toast.success('Loaded Entity profile.');
+    toast.success("Loaded Entity profile.");
   };
 
   const applySelectedClient = (id: string) => {
@@ -446,47 +599,52 @@ export default function DocumentsPage() {
     if (!client) return;
 
     const updatedConfigs = { ...docConfigs };
-    if (activeDocType === 'nda') {
+    if (activeDocType === "nda") {
       updatedConfigs[activeDocType].disclosingParty = {
         ...updatedConfigs[activeDocType].disclosingParty,
-        name: client.name || '',
-        company: client.name || '',
-        email: client.email || '',
-        address: client.address || '',
-        phone: client.phone || '',
+        name: client.name || "",
+        company: client.name || "",
+        email: client.email || "",
+        address: client.address || "",
+        phone: client.phone || "",
       };
     } else {
       updatedConfigs[activeDocType].client = {
         ...updatedConfigs[activeDocType].client,
-        name: client.name || '',
-        company: client.name || '',
-        email: client.email || '',
-        address: client.address || '',
-        phone: client.phone || '',
+        name: client.name || "",
+        company: client.name || "",
+        email: client.email || "",
+        address: client.address || "",
+        phone: client.phone || "",
       };
     }
     setDocConfigs(updatedConfigs);
-    toast.success('Loaded Client profile.');
+    toast.success("Loaded Client profile.");
   };
 
   const handleGenerateAI = async () => {
     setGeneratingAI(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/ai/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL!}/api/documents/ai/generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            documentType: activeDocType,
+            industry: wizardIndustry,
+            prompt: wizardPrompt,
+          }),
         },
-        body: JSON.stringify({
-          documentType: activeDocType,
-          industry: wizardIndustry,
-          prompt: wizardPrompt,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
@@ -494,16 +652,18 @@ export default function DocumentsPage() {
       }
 
       const generatedPayload = await response.json();
-      
+
       const updatedConfigs = { ...docConfigs };
       updatedConfigs[activeDocType] = generatedPayload;
       setDocConfigs(updatedConfigs);
-      
-      toast.success(`Gemini AI successfully generated your ${activeDocType === 'sow' ? 'SOW' : activeDocType}!`);
-      setActiveMode('manual');
+
+      toast.success(
+        `Gemini AI successfully generated your ${activeDocType === "sow" ? "SOW" : activeDocType}!`,
+      );
+      setActiveMode("manual");
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating AI document');
+      toast.error(err.message || "Error generating AI document");
     } finally {
       setGeneratingAI(false);
     }
@@ -512,17 +672,22 @@ export default function DocumentsPage() {
   const handleGeneratePDF = async () => {
     setGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${activeDocType}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${activeDocType}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(activeData),
         },
-        body: JSON.stringify(activeData),
-      });
+      );
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
@@ -531,11 +696,11 @@ export default function DocumentsPage() {
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
 
-      let clientName = 'Client';
-      if (activeDocType === 'nda') {
+      let clientName = "Client";
+      if (activeDocType === "nda") {
         clientName =
           activeData.disclosingParty.name === defaultCommonData.client.name
             ? activeData.disclosingParty.name
@@ -543,18 +708,18 @@ export default function DocumentsPage() {
       } else {
         clientName = activeData.client.name;
       }
-      clientName = clientName.replace(/\s+/g, '_');
+      clientName = clientName.replace(/\s+/g, "_");
 
       a.download = `${activeDocType.toUpperCase()}_${clientName}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('PDF successfully generated!');
+      toast.success("PDF successfully generated!");
       await fetchHistory();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error compiling PDF document');
+      toast.error(err.message || "Error compiling PDF document");
     } finally {
       setGenerating(false);
     }
@@ -565,16 +730,17 @@ export default function DocumentsPage() {
     if (!payload) return;
 
     // 1. Determine Industry / Business Type
-    let industryVal = '';
-    if (item.document_type === 'nda') {
-      industryVal = payload.disclosingParty?.company || payload.disclosingParty?.name || '';
+    let industryVal = "";
+    if (item.document_type === "nda") {
+      industryVal =
+        payload.disclosingParty?.company || payload.disclosingParty?.name || "";
     } else {
-      industryVal = payload.client?.company || payload.client?.name || '';
+      industryVal = payload.client?.company || payload.client?.name || "";
     }
-    setWizardIndustry(industryVal || '🎉 Event Management');
+    setWizardIndustry(industryVal || "🎉 Event Management");
 
     // 2. Budget
-    let budgetVal = '25,000';
+    let budgetVal = "25,000";
     if (payload.pricing?.total) {
       budgetVal = payload.pricing.total;
     } else if (payload.pricing?.amount) {
@@ -585,10 +751,10 @@ export default function DocumentsPage() {
     setWizardBudget(budgetVal);
 
     // 3. Timeline
-    let timelineVal = '3 Weeks';
+    let timelineVal = "3 Weeks";
     if (payload.milestones && payload.milestones.length > 0) {
       const lastMilestone = payload.milestones[payload.milestones.length - 1];
-      timelineVal = `Ends by ${lastMilestone.dueDate || 'Milestones schedule'}`;
+      timelineVal = `Ends by ${lastMilestone.dueDate || "Milestones schedule"}`;
     } else if (payload.termMonths) {
       timelineVal = `${payload.termMonths} Months Term`;
     }
@@ -614,7 +780,10 @@ export default function DocumentsPage() {
       }
     }
 
-    if (payload.environmentVariables && Array.isArray(payload.environmentVariables)) {
+    if (
+      payload.environmentVariables &&
+      Array.isArray(payload.environmentVariables)
+    ) {
       payload.environmentVariables.forEach((env: any) => {
         if (env.key) extractedIntegrations.push(env.key);
       });
@@ -630,7 +799,10 @@ export default function DocumentsPage() {
       });
       setSelectedFeatures(extractedFeatures);
     } else {
-      setSelectedFeatures(['User Authentication & Roles', 'Dashboard & Analytics']);
+      setSelectedFeatures([
+        "User Authentication & Roles",
+        "Dashboard & Analytics",
+      ]);
     }
 
     if (extractedIntegrations.length > 0) {
@@ -643,11 +815,11 @@ export default function DocumentsPage() {
       });
       setSelectedIntegrations(extractedIntegrations);
     } else {
-      setSelectedIntegrations(['bKash / Nagad Mobile Payments']);
+      setSelectedIntegrations(["bKash / Nagad Mobile Payments"]);
     }
 
     setActiveDocType(item.document_type);
-    setActiveMode('wizard');
+    setActiveMode("wizard");
     toast.success(`Prefilled AI Wizard parameters from history item.`);
   };
 
@@ -657,33 +829,42 @@ export default function DocumentsPage() {
     setDocConfigs(updatedConfigs);
     setActiveDocType(item.document_type);
 
-    const compName = item.payload.developer?.name || item.payload.receivingParty?.name;
+    const compName =
+      item.payload.developer?.name || item.payload.receivingParty?.name;
     const company = companies.find((c) => c.name === compName);
     if (company) setSelectedEntityId(company.id);
-    else setSelectedEntityId('');
+    else setSelectedEntityId("");
 
-    const cliName = item.payload.client?.name || item.payload.disclosingParty?.name;
+    const cliName =
+      item.payload.client?.name || item.payload.disclosingParty?.name;
     const client = clients.find((c) => c.name === cliName);
     if (client) setSelectedClientId(client.id);
-    else setSelectedClientId('');
+    else setSelectedClientId("");
 
-    toast.success(`Restored ${item.document_type === 'sow' ? 'SOW' : item.document_type} configuration.`);
+    toast.success(
+      `Restored ${item.document_type === "sow" ? "SOW" : item.document_type} configuration.`,
+    );
   };
 
   const downloadHistoryItem = async (item: any) => {
     setGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${item.document_type}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL!}/api/documents/${item.document_type}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(item.payload),
         },
-        body: JSON.stringify(item.payload),
-      });
+      );
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
@@ -692,21 +873,24 @@ export default function DocumentsPage() {
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
 
-      let clientName = item.payload.client?.name || item.payload.disclosingParty?.name || 'Client';
-      clientName = clientName.replace(/\s+/g, '_');
+      let clientName =
+        item.payload.client?.name ||
+        item.payload.disclosingParty?.name ||
+        "Client";
+      clientName = clientName.replace(/\s+/g, "_");
 
       a.download = `${item.document_type.toUpperCase()}_${clientName}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('PDF successfully generated!');
+      toast.success("PDF successfully generated!");
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error compiling PDF document');
+      toast.error(err.message || "Error compiling PDF document");
     } finally {
       setGenerating(false);
     }
@@ -714,28 +898,28 @@ export default function DocumentsPage() {
 
   const docIntroductions: Record<string, { title: string; desc: string }> = {
     contract: {
-      title: 'Service Agreement / Development Contract',
-      desc: 'The primary legal agreement outlining project deliverables, timeline schedules, IP ownership rights, and liability caps.',
+      title: "Service Agreement / Development Contract",
+      desc: "The primary legal agreement outlining project deliverables, timeline schedules, IP ownership rights, and liability caps.",
     },
     sow: {
-      title: 'Scope of Work (SOW)',
-      desc: 'Detailed technical document specifications. Highlights all included features, stack models, and crucially what is OUT of scope.',
+      title: "Scope of Work (SOW)",
+      desc: "Detailed technical document specifications. Highlights all included features, stack models, and crucially what is OUT of scope.",
     },
     proposal: {
-      title: 'Project Proposal Document',
-      desc: 'Sales-focused overview highlighting client pain points, solution outline, project milestones, pricing package estimates, and next steps.',
+      title: "Project Proposal Document",
+      desc: "Sales-focused overview highlighting client pain points, solution outline, project milestones, pricing package estimates, and next steps.",
     },
     maintenance: {
-      title: 'Maintenance & Support Agreement',
-      desc: 'Post-delivery service contract detailing system maintenance boundaries, support SLA response metrics, and extra development rates.',
+      title: "Maintenance & Support Agreement",
+      desc: "Post-delivery service contract detailing system maintenance boundaries, support SLA response metrics, and extra development rates.",
     },
     nda: {
-      title: 'Mutual Non-Disclosure Agreement (NDA)',
-      desc: 'Legally ensures confidentiality during early talks or developer onboarding. Sets rules on data security and survival terms.',
+      title: "Mutual Non-Disclosure Agreement (NDA)",
+      desc: "Legally ensures confidentiality during early talks or developer onboarding. Sets rules on data security and survival terms.",
     },
     handover: {
-      title: 'Handover & Technical Credentials Document',
-      desc: 'Administrative summary detailing repo URLs, staging/prod hosting links, environment keys, console users, and local build instructions.',
+      title: "Handover & Technical Credentials Document",
+      desc: "Administrative summary detailing repo URLs, staging/prod hosting links, environment keys, console users, and local build instructions.",
     },
   };
 
@@ -744,7 +928,9 @@ export default function DocumentsPage() {
       <div className="flex justify-center items-center w-full min-h-screen text-slate-400">
         <div className="flex flex-col items-center gap-4">
           <div className="border-4 border-indigo-500/20 border-t-indigo-500 rounded-full w-12 h-12 animate-spin"></div>
-          <p className="font-semibold text-sm uppercase tracking-widest">Accessing Registries...</p>
+          <p className="font-semibold text-sm uppercase tracking-widest">
+            Accessing Registries...
+          </p>
         </div>
       </div>
     );
@@ -796,24 +982,32 @@ export default function DocumentsPage() {
                 key={docType}
                 onClick={() => {
                   setActiveDocType(docType);
-                  setSelectedEntityId('');
-                  setSelectedClientId('');
+                  setSelectedEntityId("");
+                  setSelectedClientId("");
                 }}
-                className={`w-full flex items-center justify-between p-3.5 rounded-lg text-left text-sm font-semibold transition-all ${activeDocType === docType
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/55 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                className={`w-full flex items-center justify-between p-3.5 rounded-lg text-left text-sm font-semibold transition-all ${
+                  activeDocType === docType
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/55 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
-                <span className="capitalize">{docType === 'sow' ? 'Scope of Work (SOW)' : docType}</span>
+                <span className="capitalize">
+                  {docType === "sow" ? "Scope of Work (SOW)" : docType}
+                </span>
                 <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${docType === 'contract' || docType === 'nda'
-                    ? 'bg-blue-500/10 text-blue-400'
-                    : docType === 'sow' || docType === 'handover'
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'bg-amber-500/10 text-amber-400'
-                    }`}
+                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                    docType === "contract" || docType === "nda"
+                      ? "bg-blue-500/10 text-blue-400"
+                      : docType === "sow" || docType === "handover"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-amber-500/10 text-amber-400"
+                  }`}
                 >
-                  {docType === 'contract' || docType === 'nda' ? 'Legal' : docType === 'sow' || docType === 'handover' ? 'Tech' : 'Sales'}
+                  {docType === "contract" || docType === "nda"
+                    ? "Legal"
+                    : docType === "sow" || docType === "handover"
+                      ? "Tech"
+                      : "Sales"}
                 </span>
               </button>
             ))}
@@ -834,21 +1028,23 @@ export default function DocumentsPage() {
             {/* Mode Toggle Button */}
             <div className="flex gap-1.5 p-1 bg-slate-950/30 border border-slate-800/80 rounded-xl max-w-xs no-print">
               <button
-                onClick={() => setActiveMode('wizard')}
-                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeMode === 'wizard'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                onClick={() => setActiveMode("wizard")}
+                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  activeMode === "wizard"
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
               >
                 <i className="fa-solid fa-robot"></i>
                 AI Wizard
               </button>
               <button
-                onClick={() => setActiveMode('manual')}
-                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeMode === 'manual'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                onClick={() => setActiveMode("manual")}
+                className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  activeMode === "manual"
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
               >
                 <i className="fa-solid fa-pen-to-square"></i>
                 Manual Forms
@@ -856,7 +1052,7 @@ export default function DocumentsPage() {
             </div>
           </div>
 
-          {activeMode === 'wizard' && (
+          {activeMode === "wizard" && (
             <div className="bg-slate-900/40 backdrop-blur-md p-8 border border-slate-800/80 rounded-2xl space-y-6 no-print">
               <div>
                 <h3 className="font-bold text-slate-800 dark:text-white text-md uppercase tracking-wide flex items-center gap-2">
@@ -864,7 +1060,8 @@ export default function DocumentsPage() {
                   Step-by-Step AI Generation
                 </h3>
                 <p className="text-slate-400 text-xs mt-1">
-                  Describe your client and project in simple terms, and Gemini AI will populate the complex variables for you.
+                  Describe your client and project in simple terms, and Gemini
+                  AI will populate the complex variables for you.
                 </p>
               </div>
 
@@ -875,27 +1072,30 @@ export default function DocumentsPage() {
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    '🎉 Event Management',
-                    '🩺 Medical/Doctor',
-                    '💻 Software Dev',
-                    '🎨 Creative Agency',
-                    '🛒 E-Commerce',
-                    '✏️ Content Creator',
+                    "🎉 Event Management",
+                    "🩺 Medical/Doctor",
+                    "💻 Software Dev",
+                    "🎨 Creative Agency",
+                    "🛒 E-Commerce",
+                    "✏️ Content Creator",
                   ].map((ind) => (
                     <button
                       key={ind}
                       onClick={() => setWizardIndustry(ind)}
-                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all border ${wizardIndustry === ind
-                        ? 'bg-indigo-600/15 border-indigo-500 text-indigo-400 shadow-md'
-                        : 'bg-slate-950/20 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                        }`}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all border ${
+                        wizardIndustry === ind
+                          ? "bg-indigo-600/15 border-indigo-500 text-indigo-400 shadow-md"
+                          : "bg-slate-950/20 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                      }`}
                     >
                       {ind}
                     </button>
                   ))}
                 </div>
                 <div className="flex flex-col gap-1.5 pt-1.5">
-                  <span className="text-[10px] text-slate-500">Or type custom business:</span>
+                  <span className="text-[10px] text-slate-500">
+                    Or type custom business:
+                  </span>
                   <input
                     type="text"
                     value={wizardIndustry}
@@ -909,13 +1109,16 @@ export default function DocumentsPage() {
               {/* Step 2: Semiautomatic Parameters */}
               <div className="space-y-4 pt-4 border-t border-slate-800/50">
                 <label className="font-semibold text-slate-400 text-xs uppercase tracking-wider block">
-                  2. Project Parameters (Prices, Timeline, Features & Integrations)
+                  2. Project Parameters (Prices, Timeline, Features &
+                  Integrations)
                 </label>
-                
+
                 {/* Budget & Timeline Inputs */}
                 <div className="gap-4 grid grid-cols-2">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-400 text-xs font-semibold">Total Project Budget (BDT)</label>
+                    <label className="text-slate-400 text-xs font-semibold">
+                      Total Project Budget (BDT)
+                    </label>
                     <input
                       type="text"
                       value={wizardBudget}
@@ -925,7 +1128,9 @@ export default function DocumentsPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-400 text-xs font-semibold">Estimated Timeline</label>
+                    <label className="text-slate-400 text-xs font-semibold">
+                      Estimated Timeline
+                    </label>
                     <input
                       type="text"
                       value={wizardTimeline}
@@ -938,7 +1143,9 @@ export default function DocumentsPage() {
 
                 {/* Features Selection */}
                 <div className="space-y-2 pt-2">
-                  <label className="text-slate-400 text-xs font-semibold block">Select Core Features:</label>
+                  <label className="text-slate-400 text-xs font-semibold block">
+                    Select Core Features:
+                  </label>
                   <div className="flex flex-wrap gap-1.5">
                     {availableFeatures.map((feat) => {
                       const isSelected = selectedFeatures.includes(feat);
@@ -947,17 +1154,22 @@ export default function DocumentsPage() {
                           key={feat}
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedFeatures(selectedFeatures.filter(f => f !== feat));
+                              setSelectedFeatures(
+                                selectedFeatures.filter((f) => f !== feat),
+                              );
                             } else {
                               setSelectedFeatures([...selectedFeatures, feat]);
                             }
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${isSelected
-                            ? 'bg-emerald-600/15 border-emerald-500 text-emerald-400 font-bold'
-                            : 'bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300'
-                            }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${
+                            isSelected
+                              ? "bg-emerald-600/15 border-emerald-500 text-emerald-400 font-bold"
+                              : "bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300"
+                          }`}
                         >
-                          {isSelected && <i className="fa-solid fa-check mr-1 text-[10px]"></i>}
+                          {isSelected && (
+                            <i className="fa-solid fa-check mr-1 text-[10px]"></i>
+                          )}
                           {feat}
                         </button>
                       );
@@ -970,7 +1182,7 @@ export default function DocumentsPage() {
                       value={customFeatureInput}
                       onChange={(e) => setCustomFeatureInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && customFeatureInput.trim()) {
+                        if (e.key === "Enter" && customFeatureInput.trim()) {
                           e.preventDefault();
                           const val = customFeatureInput.trim();
                           if (!availableFeatures.includes(val)) {
@@ -979,7 +1191,7 @@ export default function DocumentsPage() {
                           if (!selectedFeatures.includes(val)) {
                             setSelectedFeatures([...selectedFeatures, val]);
                           }
-                          setCustomFeatureInput('');
+                          setCustomFeatureInput("");
                         }
                       }}
                       className="flex-1 bg-slate-950/30 p-2 border border-slate-800/60 rounded outline-none text-slate-300 text-xs"
@@ -995,7 +1207,7 @@ export default function DocumentsPage() {
                           if (!selectedFeatures.includes(val)) {
                             setSelectedFeatures([...selectedFeatures, val]);
                           }
-                          setCustomFeatureInput('');
+                          setCustomFeatureInput("");
                         }
                       }}
                       className="bg-slate-850 hover:bg-slate-700 px-3 py-1.5 rounded text-slate-300 text-xs font-bold transition-all"
@@ -1007,7 +1219,9 @@ export default function DocumentsPage() {
 
                 {/* Integrations Selection */}
                 <div className="space-y-2 pt-2">
-                  <label className="text-slate-400 text-xs font-semibold block">Select Integrations:</label>
+                  <label className="text-slate-400 text-xs font-semibold block">
+                    Select Integrations:
+                  </label>
                   <div className="flex flex-wrap gap-1.5">
                     {availableIntegrations.map((integ) => {
                       const isSelected = selectedIntegrations.includes(integ);
@@ -1016,17 +1230,25 @@ export default function DocumentsPage() {
                           key={integ}
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedIntegrations(selectedIntegrations.filter(i => i !== integ));
+                              setSelectedIntegrations(
+                                selectedIntegrations.filter((i) => i !== integ),
+                              );
                             } else {
-                              setSelectedIntegrations([...selectedIntegrations, integ]);
+                              setSelectedIntegrations([
+                                ...selectedIntegrations,
+                                integ,
+                              ]);
                             }
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${isSelected
-                            ? 'bg-blue-600/15 border-blue-500 text-blue-400 font-bold'
-                            : 'bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300'
-                            }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${
+                            isSelected
+                              ? "bg-blue-600/15 border-blue-500 text-blue-400 font-bold"
+                              : "bg-slate-950/25 border-slate-800/60 text-slate-500 hover:border-slate-700 hover:text-slate-300"
+                          }`}
                         >
-                          {isSelected && <i className="fa-solid fa-check mr-1 text-[10px]"></i>}
+                          {isSelected && (
+                            <i className="fa-solid fa-check mr-1 text-[10px]"></i>
+                          )}
                           {integ}
                         </button>
                       );
@@ -1037,18 +1259,29 @@ export default function DocumentsPage() {
                       type="text"
                       placeholder="Add custom integration..."
                       value={customIntegrationInput}
-                      onChange={(e) => setCustomIntegrationInput(e.target.value)}
+                      onChange={(e) =>
+                        setCustomIntegrationInput(e.target.value)
+                      }
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && customIntegrationInput.trim()) {
+                        if (
+                          e.key === "Enter" &&
+                          customIntegrationInput.trim()
+                        ) {
                           e.preventDefault();
                           const val = customIntegrationInput.trim();
                           if (!availableIntegrations.includes(val)) {
-                            setAvailableIntegrations([...availableIntegrations, val]);
+                            setAvailableIntegrations([
+                              ...availableIntegrations,
+                              val,
+                            ]);
                           }
                           if (!selectedIntegrations.includes(val)) {
-                            setSelectedIntegrations([...selectedIntegrations, val]);
+                            setSelectedIntegrations([
+                              ...selectedIntegrations,
+                              val,
+                            ]);
                           }
-                          setCustomIntegrationInput('');
+                          setCustomIntegrationInput("");
                         }
                       }}
                       className="flex-1 bg-slate-950/30 p-2 border border-slate-800/60 rounded outline-none text-slate-300 text-xs"
@@ -1059,12 +1292,18 @@ export default function DocumentsPage() {
                         const val = customIntegrationInput.trim();
                         if (val) {
                           if (!availableIntegrations.includes(val)) {
-                            setAvailableIntegrations([...availableIntegrations, val]);
+                            setAvailableIntegrations([
+                              ...availableIntegrations,
+                              val,
+                            ]);
                           }
                           if (!selectedIntegrations.includes(val)) {
-                            setSelectedIntegrations([...selectedIntegrations, val]);
+                            setSelectedIntegrations([
+                              ...selectedIntegrations,
+                              val,
+                            ]);
                           }
-                          setCustomIntegrationInput('');
+                          setCustomIntegrationInput("");
                         }
                       }}
                       className="bg-slate-850 hover:bg-slate-700 px-3 py-1.5 rounded text-slate-300 text-xs font-bold transition-all"
@@ -1085,10 +1324,11 @@ export default function DocumentsPage() {
                   onChange={(e) => setWizardPrompt(e.target.value)}
                   placeholder="The prompt will be auto-generated here..."
                   rows={5}
-                  className="w-full bg-slate-950/20 p-4 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm placeholder:text-slate-600 custom-scrollbar resize-none font-mono text-xs"
+                  className="w-full bg-slate-950/20 p-4 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm placeholder:text-slate-600 custom-scrollbar resize-none  text-xs"
                 />
                 <span className="text-[10px] text-slate-500">
-                  You can edit the prompt preview above directly to fine-tune the AI instructions before compiling.
+                  You can edit the prompt preview above directly to fine-tune
+                  the AI instructions before compiling.
                 </span>
               </div>
 
@@ -1119,7 +1359,7 @@ export default function DocumentsPage() {
             </div>
           )}
 
-          <div className={activeMode === 'wizard' ? 'hidden' : 'space-y-6'}>
+          <div className={activeMode === "wizard" ? "hidden" : "space-y-6"}>
             {/* Database Selection Feed */}
             <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
               <h3 className="mb-4 font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1164,7 +1404,7 @@ export default function DocumentsPage() {
             </div>
 
             {/* Common Parties fields */}
-            {activeDocType !== 'nda' && (
+            {activeDocType !== "nda" && (
               <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                 <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
                   Developer & Client Details
@@ -1172,82 +1412,127 @@ export default function DocumentsPage() {
                 <div className="space-y-4">
                   <div className="gap-4 grid grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">Developer Name</label>
+                      <label className="text-slate-400 text-xs">
+                        Developer Name
+                      </label>
                       <input
                         type="text"
                         value={activeData.developer.name}
-                        onChange={(e) => handleFieldChange('developer.name', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("developer.name", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">Client Name</label>
+                      <label className="text-slate-400 text-xs">
+                        Client Name
+                      </label>
                       <input
                         type="text"
                         value={activeData.client.name}
-                        onChange={(e) => handleFieldChange('client.name', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("client.name", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                       />
                     </div>
                   </div>
                   <div className="gap-4 grid grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">Developer Email</label>
+                      <label className="text-slate-400 text-xs">
+                        Developer Email
+                      </label>
                       <input
                         type="email"
                         value={activeData.developer.email}
-                        onChange={(e) => handleFieldChange('developer.email', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("developer.email", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">Client Email</label>
+                      <label className="text-slate-400 text-xs">
+                        Client Email
+                      </label>
                       <input
                         type="email"
                         value={activeData.client.email}
-                        onChange={(e) => handleFieldChange('client.email', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("client.email", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                       />
                     </div>
                   </div>
-                  {(activeDocType === 'contract' || activeDocType === 'maintenance') && (
+                  {(activeDocType === "contract" ||
+                    activeDocType === "maintenance") && (
                     <>
                       <div className="gap-4 grid grid-cols-2">
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-slate-400 text-xs">Developer Address</label>
+                          <label className="text-slate-400 text-xs">
+                            Developer Address
+                          </label>
                           <input
                             type="text"
-                            value={activeData.developer.address || ''}
-                            onChange={(e) => handleFieldChange('developer.address', e.target.value)}
+                            value={activeData.developer.address || ""}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                "developer.address",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-slate-400 text-xs">Client Address</label>
+                          <label className="text-slate-400 text-xs">
+                            Client Address
+                          </label>
                           <input
                             type="text"
-                            value={activeData.client.address || ''}
-                            onChange={(e) => handleFieldChange('client.address', e.target.value)}
+                            value={activeData.client.address || ""}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                "client.address",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                           />
                         </div>
                       </div>
                       <div className="gap-4 grid grid-cols-2">
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-slate-400 text-xs">Developer Representative</label>
+                          <label className="text-slate-400 text-xs">
+                            Developer Representative
+                          </label>
                           <input
                             type="text"
-                            value={activeData.developer.representative || ''}
-                            onChange={(e) => handleFieldChange('developer.representative', e.target.value)}
+                            value={activeData.developer.representative || ""}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                "developer.representative",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-slate-400 text-xs">Client Representative</label>
+                          <label className="text-slate-400 text-xs">
+                            Client Representative
+                          </label>
                           <input
                             type="text"
-                            value={activeData.client.representative || ''}
-                            onChange={(e) => handleFieldChange('client.representative', e.target.value)}
+                            value={activeData.client.representative || ""}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                "client.representative",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                           />
                         </div>
@@ -1259,7 +1544,7 @@ export default function DocumentsPage() {
             )}
 
             {/* Document Specific Parameters */}
-            {activeDocType === 'contract' && (
+            {activeDocType === "contract" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1268,107 +1553,169 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Agreement Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Agreement Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Currency</label>
+                        <label className="text-slate-400 text-xs">
+                          Currency
+                        </label>
                         <input
                           type="text"
                           value={activeData.currency}
-                          onChange={(e) => handleFieldChange('currency', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("currency", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Project Name</label>
+                        <label className="text-slate-400 text-xs">
+                          Project Name
+                        </label>
                         <input
                           type="text"
                           value={activeData.project.name}
-                          onChange={(e) => handleFieldChange('project.name', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("project.name", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Total Budget</label>
+                        <label className="text-slate-400 text-xs">
+                          Total Budget
+                        </label>
                         <input
                           type="text"
                           value={activeData.pricing.total}
-                          onChange={(e) => handleFieldChange('pricing.total', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("pricing.total", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Kickoff Deposit</label>
+                        <label className="text-slate-400 text-xs">
+                          Kickoff Deposit
+                        </label>
                         <input
                           type="text"
                           value={activeData.pricing.advance}
-                          onChange={(e) => handleFieldChange('pricing.advance', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("pricing.advance", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Hourly Rate</label>
+                        <label className="text-slate-400 text-xs">
+                          Hourly Rate
+                        </label>
                         <input
                           type="text"
                           value={activeData.pricing.hourlyRate}
-                          onChange={(e) => handleFieldChange('pricing.hourlyRate', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "pricing.hourlyRate",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Invoice Net Terms (Days)</label>
+                        <label className="text-slate-400 text-xs">
+                          Invoice Net Terms (Days)
+                        </label>
                         <input
                           type="number"
                           value={activeData.pricing.paymentTermsDays}
-                          onChange={(e) => handleFieldChange('pricing.paymentTermsDays', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "pricing.paymentTermsDays",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Revision Limit</label>
+                        <label className="text-slate-400 text-xs">
+                          Revision Limit
+                        </label>
                         <input
                           type="number"
                           value={activeData.revisions.limit}
-                          onChange={(e) => handleFieldChange('revisions.limit', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "revisions.limit",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Termination Notice (Days)</label>
+                        <label className="text-slate-400 text-xs">
+                          Termination Notice (Days)
+                        </label>
                         <input
                           type="number"
                           value={activeData.termination.noticeDays}
-                          onChange={(e) => handleFieldChange('termination.noticeDays', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "termination.noticeDays",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Governing Law</label>
+                        <label className="text-slate-400 text-xs">
+                          Governing Law
+                        </label>
                         <input
                           type="text"
                           value={activeData.legal.governingLaw}
-                          onChange={(e) => handleFieldChange('legal.governingLaw', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "legal.governingLaw",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Court Jurisdiction</label>
+                        <label className="text-slate-400 text-xs">
+                          Court Jurisdiction
+                        </label>
                         <input
                           type="text"
                           value={activeData.legal.jurisdiction}
-                          onChange={(e) => handleFieldChange('legal.jurisdiction', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "legal.jurisdiction",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
@@ -1383,7 +1730,13 @@ export default function DocumentsPage() {
                       Project Milestones Deliverables
                     </h3>
                     <button
-                      onClick={() => addListRow('milestones', { name: 'New Milestone', dueDate: 'TBD', paymentAmount: '0' })}
+                      onClick={() =>
+                        addListRow("milestones", {
+                          name: "New Milestone",
+                          dueDate: "TBD",
+                          paymentAmount: "0",
+                        })
+                      }
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Milestone
@@ -1391,32 +1744,56 @@ export default function DocumentsPage() {
                   </div>
                   <div className="space-y-3">
                     {activeData.milestones.map((m: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg"
+                      >
                         <div className="flex-1 gap-3 grid grid-cols-3">
                           <input
                             type="text"
                             placeholder="Milestone Name"
                             value={m.name}
-                            onChange={(e) => handleListFieldChange('milestones', idx, 'name', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "milestones",
+                                idx,
+                                "name",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                           <input
                             type="text"
                             placeholder="Due Date"
                             value={m.dueDate}
-                            onChange={(e) => handleListFieldChange('milestones', idx, 'dueDate', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "milestones",
+                                idx,
+                                "dueDate",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                           <input
                             type="text"
                             placeholder="Amount"
                             value={m.paymentAmount}
-                            onChange={(e) => handleListFieldChange('milestones', idx, 'paymentAmount', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "milestones",
+                                idx,
+                                "paymentAmount",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                         </div>
                         <button
-                          onClick={() => removeListRow('milestones', idx)}
+                          onClick={() => removeListRow("milestones", idx)}
                           className="bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded text-red-400 text-xs transition-colors"
                         >
                           Delete
@@ -1428,7 +1805,7 @@ export default function DocumentsPage() {
               </>
             )}
 
-            {activeDocType === 'sow' && (
+            {activeDocType === "sow" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1437,70 +1814,110 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Project Name</label>
+                        <label className="text-slate-400 text-xs">
+                          Project Name
+                        </label>
                         <input
                           type="text"
                           value={activeData.project.name}
-                          onChange={(e) => handleFieldChange('project.name', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("project.name", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Scope Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Scope Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Frontend Stack</label>
+                        <label className="text-slate-400 text-xs">
+                          Frontend Stack
+                        </label>
                         <input
                           type="text"
                           value={activeData.techStack.frontend}
-                          onChange={(e) => handleFieldChange('techStack.frontend', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "techStack.frontend",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Backend Stack</label>
+                        <label className="text-slate-400 text-xs">
+                          Backend Stack
+                        </label>
                         <input
                           type="text"
                           value={activeData.techStack.backend}
-                          onChange={(e) => handleFieldChange('techStack.backend', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "techStack.backend",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Database Engine</label>
+                        <label className="text-slate-400 text-xs">
+                          Database Engine
+                        </label>
                         <input
                           type="text"
                           value={activeData.techStack.database}
-                          onChange={(e) => handleFieldChange('techStack.database', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "techStack.database",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Hosting / Deployment</label>
+                        <label className="text-slate-400 text-xs">
+                          Hosting / Deployment
+                        </label>
                         <input
                           type="text"
                           value={activeData.techStack.other}
-                          onChange={(e) => handleFieldChange('techStack.other', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("techStack.other", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">Third Party APIs</label>
+                      <label className="text-slate-400 text-xs">
+                        Third Party APIs
+                      </label>
                       <input
                         type="text"
-                        value={activeData.techStack.thirdPartyApis || ''}
-                        onChange={(e) => handleFieldChange('techStack.thirdPartyApis', e.target.value)}
+                        value={activeData.techStack.thirdPartyApis || ""}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            "techStack.thirdPartyApis",
+                            e.target.value,
+                          )
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                       />
                     </div>
@@ -1514,7 +1931,12 @@ export default function DocumentsPage() {
                       Included Scope Features
                     </h3>
                     <button
-                      onClick={() => addListRow('features', { title: 'New Feature', description: 'Functional specs.' })}
+                      onClick={() =>
+                        addListRow("features", {
+                          title: "New Feature",
+                          description: "Functional specs.",
+                        })
+                      }
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Feature
@@ -1522,24 +1944,41 @@ export default function DocumentsPage() {
                   </div>
                   <div className="space-y-3">
                     {activeData.features.map((f: any, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg">
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg"
+                      >
                         <div className="flex flex-col flex-1 gap-2">
                           <input
                             type="text"
                             placeholder="Feature Title"
                             value={f.title}
-                            onChange={(e) => handleListFieldChange('features', idx, 'title', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "features",
+                                idx,
+                                "title",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none font-bold text-slate-300 text-xs"
                           />
                           <textarea
                             placeholder="Specification description"
                             value={f.description}
-                            onChange={(e) => handleListFieldChange('features', idx, 'description', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "features",
+                                idx,
+                                "description",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none h-16 text-slate-300 text-xs resize-none"
                           />
                         </div>
                         <button
-                          onClick={() => removeListRow('features', idx)}
+                          onClick={() => removeListRow("features", idx)}
                           className="bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded text-red-400 text-xs transition-colors"
                         >
                           Delete
@@ -1556,7 +1995,7 @@ export default function DocumentsPage() {
                       Out of Scope Exclusions
                     </h3>
                     <button
-                      onClick={() => addListRow('exclusions', 'New Exclusion')}
+                      onClick={() => addListRow("exclusions", "New Exclusion")}
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Exclusion
@@ -1564,15 +2003,24 @@ export default function DocumentsPage() {
                   </div>
                   <div className="space-y-2">
                     {activeData.exclusions.map((ex: string, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/30 p-2.5 border border-slate-800 rounded-lg">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 bg-slate-950/30 p-2.5 border border-slate-800 rounded-lg"
+                      >
                         <input
                           type="text"
                           value={ex}
-                          onChange={(e) => handleArrayStringFieldChange('exclusions', idx, e.target.value)}
+                          onChange={(e) =>
+                            handleArrayStringFieldChange(
+                              "exclusions",
+                              idx,
+                              e.target.value,
+                            )
+                          }
                           className="flex-1 bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                         />
                         <button
-                          onClick={() => removeListRow('exclusions', idx)}
+                          onClick={() => removeListRow("exclusions", idx)}
                           className="bg-red-500/10 hover:bg-red-500/20 px-2 py-1.5 rounded text-red-400 text-xs"
                         >
                           Delete
@@ -1584,7 +2032,7 @@ export default function DocumentsPage() {
               </>
             )}
 
-            {activeDocType === 'proposal' && (
+            {activeDocType === "proposal" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1593,46 +2041,66 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Proposal Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Proposal Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Valid Until</label>
+                        <label className="text-slate-400 text-xs">
+                          Valid Until
+                        </label>
                         <input
                           type="text"
                           value={activeData.validUntil}
-                          onChange={(e) => handleFieldChange('validUntil', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("validUntil", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Currency</label>
+                        <label className="text-slate-400 text-xs">
+                          Currency
+                        </label>
                         <input
                           type="text"
                           value={activeData.currency}
-                          onChange={(e) => handleFieldChange('currency', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("currency", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">The Problem / Pain points</label>
+                      <label className="text-slate-400 text-xs">
+                        The Problem / Pain points
+                      </label>
                       <textarea
                         value={activeData.problem}
-                        onChange={(e) => handleFieldChange('problem', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("problem", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none h-24 text-slate-300 text-sm resize-none"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">The Solution Proposed</label>
+                      <label className="text-slate-400 text-xs">
+                        The Solution Proposed
+                      </label>
                       <textarea
                         value={activeData.solution}
-                        onChange={(e) => handleFieldChange('solution', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("solution", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none h-24 text-slate-300 text-sm resize-none"
                       />
                     </div>
@@ -1646,7 +2114,13 @@ export default function DocumentsPage() {
                       Pricing Package Tiers
                     </h3>
                     <button
-                      onClick={() => addListRow('pricingOptions', { name: 'New Tier Option', description: 'Description', amount: '5,000' })}
+                      onClick={() =>
+                        addListRow("pricingOptions", {
+                          name: "New Tier Option",
+                          description: "Description",
+                          amount: "5,000",
+                        })
+                      }
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Tier
@@ -1654,32 +2128,56 @@ export default function DocumentsPage() {
                   </div>
                   <div className="space-y-3">
                     {activeData.pricingOptions.map((opt: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg"
+                      >
                         <div className="flex-1 gap-3 grid grid-cols-3">
                           <input
                             type="text"
                             placeholder="Tier Name"
                             value={opt.name}
-                            onChange={(e) => handleListFieldChange('pricingOptions', idx, 'name', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "pricingOptions",
+                                idx,
+                                "name",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                           <input
                             type="text"
                             placeholder="Description"
                             value={opt.description}
-                            onChange={(e) => handleListFieldChange('pricingOptions', idx, 'description', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "pricingOptions",
+                                idx,
+                                "description",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                           <input
                             type="text"
                             placeholder="Amount"
                             value={opt.amount}
-                            onChange={(e) => handleListFieldChange('pricingOptions', idx, 'amount', e.target.value)}
+                            onChange={(e) =>
+                              handleListFieldChange(
+                                "pricingOptions",
+                                idx,
+                                "amount",
+                                e.target.value,
+                              )
+                            }
                             className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
                           />
                         </div>
                         <button
-                          onClick={() => removeListRow('pricingOptions', idx)}
+                          onClick={() => removeListRow("pricingOptions", idx)}
                           className="bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded text-red-400 text-xs transition-colors"
                         >
                           Delete
@@ -1691,7 +2189,7 @@ export default function DocumentsPage() {
               </>
             )}
 
-            {activeDocType === 'maintenance' && (
+            {activeDocType === "maintenance" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1700,58 +2198,88 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Agreement Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Agreement Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Monthly Fee</label>
+                        <label className="text-slate-400 text-xs">
+                          Monthly Fee
+                        </label>
                         <input
                           type="text"
                           value={activeData.monthlyFee}
-                          onChange={(e) => handleFieldChange('monthlyFee', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("monthlyFee", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Currency</label>
+                        <label className="text-slate-400 text-xs">
+                          Currency
+                        </label>
                         <input
                           type="text"
                           value={activeData.currency}
-                          onChange={(e) => handleFieldChange('currency', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("currency", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Term (Months)</label>
+                        <label className="text-slate-400 text-xs">
+                          Term (Months)
+                        </label>
                         <input
                           type="text"
                           value={activeData.termMonths}
-                          onChange={(e) => handleFieldChange('termMonths', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("termMonths", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">SLA Response Critical (Hrs)</label>
+                        <label className="text-slate-400 text-xs">
+                          SLA Response Critical (Hrs)
+                        </label>
                         <input
                           type="text"
                           value={activeData.responseTimeSLA.critical}
-                          onChange={(e) => handleFieldChange('responseTimeSLA.critical', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "responseTimeSLA.critical",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">SLA Response Normal (Hrs)</label>
+                        <label className="text-slate-400 text-xs">
+                          SLA Response Normal (Hrs)
+                        </label>
                         <input
                           type="text"
                           value={activeData.responseTimeSLA.normal}
-                          onChange={(e) => handleFieldChange('responseTimeSLA.normal', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "responseTimeSLA.normal",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
@@ -1766,35 +2294,50 @@ export default function DocumentsPage() {
                       Maintenance Task Scope
                     </h3>
                     <button
-                      onClick={() => addListRow('maintenanceScope', 'New maintenance tasks')}
+                      onClick={() =>
+                        addListRow("maintenanceScope", "New maintenance tasks")
+                      }
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Task
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {activeData.maintenanceScope.map((scope: string, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/30 p-2.5 border border-slate-800 rounded-lg">
-                        <input
-                          type="text"
-                          value={scope}
-                          onChange={(e) => handleArrayStringFieldChange('maintenanceScope', idx, e.target.value)}
-                          className="flex-1 bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
-                        />
-                        <button
-                          onClick={() => removeListRow('maintenanceScope', idx)}
-                          className="bg-red-500/10 hover:bg-red-500/20 px-2 py-1.5 rounded text-red-400 text-xs"
+                    {activeData.maintenanceScope.map(
+                      (scope: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 bg-slate-950/30 p-2.5 border border-slate-800 rounded-lg"
                         >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
+                          <input
+                            type="text"
+                            value={scope}
+                            onChange={(e) =>
+                              handleArrayStringFieldChange(
+                                "maintenanceScope",
+                                idx,
+                                e.target.value,
+                              )
+                            }
+                            className="flex-1 bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
+                          />
+                          <button
+                            onClick={() =>
+                              removeListRow("maintenanceScope", idx)
+                            }
+                            className="bg-red-500/10 hover:bg-red-500/20 px-2 py-1.5 rounded text-red-400 text-xs"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               </>
             )}
 
-            {activeDocType === 'nda' && (
+            {activeDocType === "nda" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1803,60 +2346,104 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Disclosing Party (Client)</label>
+                        <label className="text-slate-400 text-xs">
+                          Disclosing Party (Client)
+                        </label>
                         <input
                           type="text"
                           value={activeData.disclosingParty.name}
-                          onChange={(e) => handleFieldChange('disclosingParty.name', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "disclosingParty.name",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Receiving Party (Developer)</label>
+                        <label className="text-slate-400 text-xs">
+                          Receiving Party (Developer)
+                        </label>
                         <input
                           type="text"
                           value={activeData.receivingParty.name}
-                          onChange={(e) => handleFieldChange('receivingParty.name', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "receivingParty.name",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Disclosing Email</label>
+                        <label className="text-slate-400 text-xs">
+                          Disclosing Email
+                        </label>
                         <input
                           type="email"
                           value={activeData.disclosingParty.email}
-                          onChange={(e) => handleFieldChange('disclosingParty.email', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "disclosingParty.email",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Receiving Email</label>
+                        <label className="text-slate-400 text-xs">
+                          Receiving Email
+                        </label>
                         <input
                           type="email"
                           value={activeData.receivingParty.email}
-                          onChange={(e) => handleFieldChange('receivingParty.email', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "receivingParty.email",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Disclosing Representative</label>
+                        <label className="text-slate-400 text-xs">
+                          Disclosing Representative
+                        </label>
                         <input
                           type="text"
-                          value={activeData.disclosingParty.representative || ''}
-                          onChange={(e) => handleFieldChange('disclosingParty.representative', e.target.value)}
+                          value={
+                            activeData.disclosingParty.representative || ""
+                          }
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "disclosingParty.representative",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Receiving Representative</label>
+                        <label className="text-slate-400 text-xs">
+                          Receiving Representative
+                        </label>
                         <input
                           type="text"
-                          value={activeData.receivingParty.representative || ''}
-                          onChange={(e) => handleFieldChange('receivingParty.representative', e.target.value)}
+                          value={activeData.receivingParty.representative || ""}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "receivingParty.representative",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
@@ -1871,58 +2458,88 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Effective Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Effective Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Active Term (Years)</label>
+                        <label className="text-slate-400 text-xs">
+                          Active Term (Years)
+                        </label>
                         <input
                           type="number"
                           value={activeData.activeTermYears}
-                          onChange={(e) => handleFieldChange('activeTermYears', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "activeTermYears",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Survival Term (Years)</label>
+                        <label className="text-slate-400 text-xs">
+                          Survival Term (Years)
+                        </label>
                         <input
                           type="number"
                           value={activeData.survivalYears}
-                          onChange={(e) => handleFieldChange('survivalYears', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "survivalYears",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Governing State</label>
+                        <label className="text-slate-400 text-xs">
+                          Governing State
+                        </label>
                         <input
                           type="text"
                           value={activeData.governingState}
-                          onChange={(e) => handleFieldChange('governingState', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("governingState", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Jurisdiction Court</label>
+                        <label className="text-slate-400 text-xs">
+                          Jurisdiction Court
+                        </label>
                         <input
                           type="text"
                           value={activeData.jurisdiction}
-                          onChange={(e) => handleFieldChange('jurisdiction', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("jurisdiction", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-slate-400 text-xs">NDA Purpose</label>
+                      <label className="text-slate-400 text-xs">
+                        NDA Purpose
+                      </label>
                       <textarea
                         value={activeData.purpose}
-                        onChange={(e) => handleFieldChange('purpose', e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange("purpose", e.target.value)
+                        }
                         className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none h-20 text-slate-300 text-sm resize-none"
                       />
                     </div>
@@ -1931,7 +2548,7 @@ export default function DocumentsPage() {
               </>
             )}
 
-            {activeDocType === 'handover' && (
+            {activeDocType === "handover" && (
               <>
                 <div className="bg-slate-900/40 backdrop-blur-md p-6 border border-slate-800/80 rounded-xl">
                   <h3 className="mb-4 pb-2 border-slate-800/50 border-b font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">
@@ -1940,49 +2557,72 @@ export default function DocumentsPage() {
                   <div className="space-y-4">
                     <div className="gap-4 grid grid-cols-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Handover Date</label>
+                        <label className="text-slate-400 text-xs">
+                          Handover Date
+                        </label>
                         <input
                           type="text"
                           value={activeData.date}
-                          onChange={(e) => handleFieldChange('date', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("date", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Project Name</label>
+                        <label className="text-slate-400 text-xs">
+                          Project Name
+                        </label>
                         <input
                           type="text"
                           value={activeData.project.name}
-                          onChange={(e) => handleFieldChange('project.name', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("project.name", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Git Main Branch</label>
+                        <label className="text-slate-400 text-xs">
+                          Git Main Branch
+                        </label>
                         <input
                           type="text"
                           value={activeData.git.mainBranch}
-                          onChange={(e) => handleFieldChange('git.mainBranch', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("git.mainBranch", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                     </div>
                     <div className="gap-4 grid grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Git URL</label>
+                        <label className="text-slate-400 text-xs">
+                          Git URL
+                        </label>
                         <input
                           type="text"
                           value={activeData.git.url}
-                          onChange={(e) => handleFieldChange('git.url', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange("git.url", e.target.value)
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-slate-400 text-xs">Live App URL</label>
+                        <label className="text-slate-400 text-xs">
+                          Live App URL
+                        </label>
                         <input
                           type="text"
                           value={activeData.deployment.productionUrl}
-                          onChange={(e) => handleFieldChange('deployment.productionUrl', e.target.value)}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              "deployment.productionUrl",
+                              e.target.value,
+                            )
+                          }
                           className="bg-slate-950/20 p-3 border border-slate-800/80 focus:border-indigo-500 rounded-lg outline-none text-slate-300 text-sm"
                         />
                       </div>
@@ -1997,47 +2637,81 @@ export default function DocumentsPage() {
                       Required Env Config Keys
                     </h3>
                     <button
-                      onClick={() => addListRow('environmentVariables', { key: 'NEW_ENV_KEY', description: 'Configuration detail', exampleValue: 'value' })}
+                      onClick={() =>
+                        addListRow("environmentVariables", {
+                          key: "NEW_ENV_KEY",
+                          description: "Configuration detail",
+                          exampleValue: "value",
+                        })
+                      }
                       className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded font-bold text-xs transition-all"
                     >
                       + Add Key
                     </button>
                   </div>
                   <div className="space-y-3">
-                    {activeData.environmentVariables.map((env: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg">
-                        <div className="flex-1 gap-3 grid grid-cols-3">
-                          <input
-                            type="text"
-                            placeholder="Key Name"
-                            value={env.key}
-                            onChange={(e) => handleListFieldChange('environmentVariables', idx, 'key', e.target.value)}
-                            onPaste={(e) => handleEnvPaste(e, idx)}
-                            className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none font-mono text-slate-300 text-xs"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Purpose"
-                            value={env.description}
-                            onChange={(e) => handleListFieldChange('environmentVariables', idx, 'description', e.target.value)}
-                            className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Example / Format"
-                            value={env.exampleValue || ''}
-                            onChange={(e) => handleListFieldChange('environmentVariables', idx, 'exampleValue', e.target.value)}
-                            className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeListRow('environmentVariables', idx)}
-                          className="bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded text-red-400 text-xs transition-colors"
+                    {activeData.environmentVariables.map(
+                      (env: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 bg-slate-950/30 p-3 border border-slate-800 rounded-lg"
                         >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex-1 gap-3 grid grid-cols-3">
+                            <input
+                              type="text"
+                              placeholder="Key Name"
+                              value={env.key}
+                              onChange={(e) =>
+                                handleListFieldChange(
+                                  "environmentVariables",
+                                  idx,
+                                  "key",
+                                  e.target.value,
+                                )
+                              }
+                              onPaste={(e) => handleEnvPaste(e, idx)}
+                              className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none  text-slate-300 text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Purpose"
+                              value={env.description}
+                              onChange={(e) =>
+                                handleListFieldChange(
+                                  "environmentVariables",
+                                  idx,
+                                  "description",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Example / Format"
+                              value={env.exampleValue || ""}
+                              onChange={(e) =>
+                                handleListFieldChange(
+                                  "environmentVariables",
+                                  idx,
+                                  "exampleValue",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-slate-950/30 p-2 border border-slate-800 rounded outline-none text-slate-300 text-xs"
+                            />
+                          </div>
+                          <button
+                            onClick={() =>
+                              removeListRow("environmentVariables", idx)
+                            }
+                            className="bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded text-red-400 text-xs transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               </>
@@ -2058,8 +2732,8 @@ export default function DocumentsPage() {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0">
-            {rightPanelTab === 'payload' ? (
-              <div className="flex-1 p-4 overflow-auto font-mono text-[10px] text-emerald-400 whitespace-pre custom-scrollbar">
+            {rightPanelTab === "payload" ? (
+              <div className="flex-1 p-4 overflow-auto  text-[10px] text-emerald-400 whitespace-pre custom-scrollbar">
                 {JSON.stringify(activeData, null, 4)}
               </div>
             ) : (
@@ -2067,8 +2741,12 @@ export default function DocumentsPage() {
                 {historyItems.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-center text-slate-500">
                     <i className="text-3xl mb-2 fa-solid fa-clock-rotate-left"></i>
-                    <p className="text-xs font-semibold uppercase tracking-wider">No history recorded yet</p>
-                    <p className="text-[10px] mt-1 text-slate-600">Generated PDFs will appear here automatically.</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider">
+                      No history recorded yet
+                    </p>
+                    <p className="text-[10px] mt-1 text-slate-600">
+                      Generated PDFs will appear here automatically.
+                    </p>
                   </div>
                 ) : (
                   historyItems.map((item) => (
@@ -2079,19 +2757,24 @@ export default function DocumentsPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-indigo-500/10 text-indigo-400 capitalize">
-                            {item.document_type === 'sow' ? 'SOW' : item.document_type}
+                            {item.document_type === "sow"
+                              ? "SOW"
+                              : item.document_type}
                           </span>
                           <h4 className="font-bold text-slate-200 text-sm mt-1.5 truncate max-w-[200px]">
                             {item.client_name}
                           </h4>
                         </div>
                         <span className="text-[9px] text-slate-500 font-semibold">
-                          {new Date(item.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {new Date(item.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-400 truncate font-semibold">

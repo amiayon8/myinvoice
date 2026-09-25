@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { getSharedSubscriptionData } from "@/services/subscriptions";
 import {
@@ -10,6 +9,13 @@ import {
   getStartMonthStr,
 } from "@/lib/date-utils";
 import { DynamicPaymentCards } from "@/components/dynamic-payment-cards";
+import {
+  Sun,
+  Moon,
+  AlertCircle,
+  ArrowUpRight,
+  ArrowDownLeft,
+} from "lucide-react";
 
 interface SharedPageProps {
   params: Promise<{ token: string }>;
@@ -28,20 +34,18 @@ export default function PublicSharedSubscriptionPage({
   );
   const [showRemoved, setShowRemoved] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
-
-  // Resolved data states
   const [scope, setScope] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
 
   useEffect(() => {
-    // Resolve params promise
+    setMounted(true);
+  }, []);
+
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+
+  useEffect(() => {
     paramsPromise.then((res) => {
       setToken(res.token);
     });
@@ -74,57 +78,44 @@ export default function PublicSharedSubscriptionPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex justify-center items-center font-sans p-6">
-        <div className="text-center space-y-3">
-          <i className="fa-solid fa-spinner animate-spin text-3xl text-indigo-600"></i>
-          <p className="text-sm text-slate-550 dark:text-slate-405 font-bold uppercase tracking-wider">
-            Loading subscription portal...
-          </p>
-        </div>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center font-sans text-xs text-zinc-400 ">
+        Loading subscription data...
       </div>
     );
   }
 
   if (error || !scope) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex justify-center items-center font-sans p-6">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-6">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-950/20 text-red-650 dark:text-red-405 rounded-full flex justify-center items-center text-2xl mx-auto shadow-inner">
-            <i className="fa-solid fa-ban"></i>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-6 font-sans text-zinc-900 dark:text-zinc-100">
+        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 max-w-sm w-full space-y-3 text-center">
+          <div className="flex justify-center text-zinc-400 dark:text-zinc-500">
+            <AlertCircle className="w-8 h-8" />
           </div>
-          <div className="space-y-2">
-            <h2 className="font-black text-slate-850 dark:text-white text-lg uppercase tracking-tight">
-              Access Restricted
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {error ||
-                "This dashboard link is invalid, expired, or has been revoked by the system administrator."}
-            </p>
-          </div>
-          <div className="border-t border-slate-100 dark:border-slate-800 pt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-            Security Protected · My Invoice
-          </div>
+          <h2 className="text-sm font-semibold tracking-tight uppercase">
+            Access Restricted
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            {error || "This link is invalid, expired, or has been revoked."}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Calculate metrics
   const activeSubs = subscriptions.filter((s) => s.status === "active");
-  const mrr = activeSubs.reduce(
+  const monthlyRateTotal = activeSubs.reduce(
     (sum, s) => sum + Number(s.price_per_slot) * Number(s.slots_count),
     0,
   );
-  const totalSlots = subscriptions.reduce(
+  const totalSlotsCount = subscriptions.reduce(
     (sum, s) => sum + (s.slots_count || 0),
     0,
   );
-  const totalPaid = subscriptions.reduce(
+  const totalPaidSum = subscriptions.reduce(
     (sum, s) => sum + (Number(s.total_amount_paid) || 0),
     0,
   );
 
-  // Get list of unique plans present in the subscriptions
   const planMap: Record<string, any> = {};
   subscriptions.forEach((sub) => {
     if (sub.plan && !planMap[sub.plan.id]) {
@@ -134,199 +125,145 @@ export default function PublicSharedSubscriptionPage({
   const sharedPlans = Object.values(planMap);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] font-sans">
-      {/* Top Banner */}
-      <header className="bg-slate-900 text-white py-6 px-4 md:px-12 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex justify-center items-center bg-indigo-600 rounded-xl w-10 h-10 font-bold text-white shadow-lg shadow-indigo-600/35">
-              <i className="text-xl fa-solid fa-file-invoice"></i>
-            </div>
-            <div>
-              <span className="block font-black text-white text-lg tracking-tight">
-                My Invoice
-              </span>
-              <span className="block font-black text-[8px] text-indigo-400 uppercase tracking-[0.3em]">
-                Subscription Baba
-              </span>
-            </div>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100">
+      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight">
+              {scope.label || "Subscription Group"}
+            </h1>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 ">
+              Subscription Baba
+            </span>
           </div>
-          <div className="flex items-center gap-3 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            <button
-              onClick={toggleTheme}
-              className="flex justify-center items-center bg-slate-800 hover:bg-slate-700 rounded-full w-9 h-9 text-slate-300 transition-colors cursor-pointer animate-fade-in"
-              title="Toggle Theme"
-            >
-              <i
-                className={`fa-solid ${mounted && theme === "dark" ? "fa-sun" : "fa-moon"}`}
-              ></i>
-            </button>
-            <div className="text-left md:text-right bg-slate-800/50 px-4 py-2 border border-slate-700/40 rounded-xl max-w-sm flex-1 md:flex-none">
-              <span className="block text-xs font-bold text-slate-200 mt-0.5 truncate">
-                {scope.label || "Subscriptions Overview"}
-              </span>
-            </div>
-          </div>
+
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            title="Toggle theme"
+            aria-label="Toggle theme"
+          >
+            {mounted && theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto p-4 lg:p-12 space-y-8">
-        {/* KPI metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-slate-900 shadow-xl p-5 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
-                  Active Monthly Rate
-                </span>
-                <h3 className="mt-1 font-black text-slate-800 dark:text-white text-2xl tracking-tight">
-                  ৳{mrr.toLocaleString()}
-                </h3>
-              </div>
-              <div className="bg-indigo-500/10 p-2.5 rounded-xl text-indigo-650 dark:text-indigo-400">
-                <i className="fa-solid fa-sack-dollar text-lg"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 shadow-xl p-5 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
-                  Total Slots Monitored
-                </span>
-                <h3 className="mt-1 font-black text-slate-800 dark:text-white text-2xl tracking-tight">
-                  {totalSlots} Slot{totalSlots === 1 ? "" : "s"}
-                </h3>
-              </div>
-              <div className="bg-emerald-500/10 p-2.5 rounded-xl text-emerald-600 dark:text-emerald-450">
-                <i className="fa-solid fa-ticket text-lg"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 shadow-xl p-5 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
-                  Subscriptions Loaded
-                </span>
-                <h3 className="mt-1 font-black text-slate-850 dark:text-white text-2xl tracking-tight">
-                  {subscriptions.length}
-                </h3>
-              </div>
-              <div className="bg-sky-500/10 p-2.5 rounded-xl text-sky-600 dark:text-sky-400">
-                <i className="fa-solid fa-users text-lg"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 shadow-xl p-5 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
-                  Total Paid in History
-                </span>
-                <h3 className="mt-1 font-black text-slate-800 dark:text-white text-2xl tracking-tight">
-                  ৳{totalPaid.toLocaleString()}
-                </h3>
-              </div>
-              <div className="bg-amber-500/10 p-2.5 rounded-xl text-amber-600 dark:text-amber-450">
-                <i className="fa-solid fa-circle-check text-lg"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Payment Information & Verification Request */}
-        <DynamicPaymentCards
-          clientId={
-            scope?.clientId ||
-            (scope?.type === "client" ? scope?.clientId : null)
-          }
-          clientName={scope?.label}
-          subscriptionId={subscriptions[0]?.id}
-          currency="৳"
-          totalDue={subscriptions.reduce(
-            (sum, s) =>
-              sum +
-              (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1),
-            0,
-          )}
-          isPaid={false}
-          initialMethods={paymentMethods}
-          fullWidth={true}
-          columns={3}
-        />
-
-        {/* Cancellation Policy Banner */}
-        <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/20 to-pink-50/30 dark:from-slate-900/60 dark:via-purple-950/10 dark:to-pink-950/10 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm p-5 flex items-start gap-4">
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-3 rounded-xl shadow-sm flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-calendar-xmark text-lg"></i>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100/50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md">
-              Cancellation Policy
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div>
+            <span className="block text-[11px] text-zinc-400 font-medium uppercase tracking-wider">
+              Monthly Total
             </span>
-            <h4 className="font-extrabold text-slate-800 dark:text-white text-sm">
-              1-Month Advance Notification
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              To cancel or request subscription modifications, please notify us
-              at least{" "}
-              <span className="font-black text-indigo-600 dark:text-indigo-400">
-                1 month in advance
-              </span>{" "}
-              to avoid the next billing cycle.
-            </p>
+            <span className=" text-base font-semibold mt-0.5 block text-zinc-900 dark:text-zinc-100">
+              ৳{monthlyRateTotal.toLocaleString()}
+            </span>
+          </div>
+
+          <div>
+            <span className="block text-[11px] text-zinc-400 font-medium uppercase tracking-wider">
+              Allocated Slots
+            </span>
+            <span className=" text-base font-semibold mt-0.5 block text-zinc-900 dark:text-zinc-100">
+              {totalSlotsCount}
+            </span>
+          </div>
+
+          <div>
+            <span className="block text-[11px] text-zinc-400 font-medium uppercase tracking-wider">
+              Members
+            </span>
+            <span className=" text-base font-semibold mt-0.5 block text-zinc-900 dark:text-zinc-100">
+              {subscriptions.length}
+            </span>
+          </div>
+
+          <div>
+            <span className="block text-[11px] text-zinc-400 font-medium uppercase tracking-wider">
+              Total Settled
+            </span>
+            <span className=" text-base font-semibold mt-0.5 block text-zinc-900 dark:text-zinc-100">
+              ৳{totalPaidSum.toLocaleString()}
+            </span>
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="border-b border-slate-200 dark:border-slate-800 flex items-center gap-1 overflow-x-auto pb-px scrollbar-none">
-          <button
-            onClick={() => setActiveTab("subscriptions")}
-            className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs uppercase tracking-wider transition-all ${
-              activeTab === "subscriptions"
-                ? "border-indigo-600 text-indigo-600 font-black"
-                : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350"
-            }`}
-          >
-            <i className="fa-solid fa-ticket"></i> Active Allocations (
-            {subscriptions.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("payments")}
-            className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs uppercase tracking-wider transition-all ${
-              activeTab === "payments"
-                ? "border-indigo-600 text-indigo-600 font-black"
-                : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350"
-            }`}
-          >
-            <i className="fa-solid fa-clock-rotate-left"></i>
-            Payment History ({payments.length})
-          </button>
+        <div>
+          <DynamicPaymentCards
+            clientId={
+              scope?.clientId ||
+              (scope?.type === "client" ? scope?.clientId : null)
+            }
+            clientName={scope?.label}
+            subscriptionId={subscriptions[0]?.id}
+            currency="৳"
+            totalDue={subscriptions.reduce(
+              (sum, s) =>
+                sum +
+                (Number(s.price_per_slot) || 0) * (Number(s.slots_count) || 1),
+              0,
+            )}
+            isPaid={false}
+            initialMethods={paymentMethods}
+            fullWidth={true}
+            columns={3}
+          />
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/50 rounded-2xl shadow-xl overflow-hidden">
-          {/* TAB 1: SUBSCRIPTIONS VIEW */}
+        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+          <span>Notice Period</span>
+          <span className="font-medium text-zinc-900 dark:text-zinc-200">
+            Please notify 1 month in advance for any plan cancellations or
+            modifications.
+          </span>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+            <div className="flex items-center gap-6 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab("subscriptions")}
+                className={`font-medium transition-colors ${
+                  activeTab === "subscriptions"
+                    ? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100 pb-3 -mb-3"
+                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                Allocations ({subscriptions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("payments")}
+                className={`font-medium transition-colors ${
+                  activeTab === "payments"
+                    ? "text-zinc-900 dark:text-zinc-100 border-b-2 border-zinc-900 dark:border-zinc-100 pb-3 -mb-3"
+                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                Payment History ({payments.length})
+              </button>
+            </div>
+
+            {activeTab === "subscriptions" && (
+              <label className="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showRemoved}
+                  onChange={(e) => setShowRemoved(e.target.checked)}
+                  className="accent-zinc-900 dark:accent-zinc-100"
+                />
+                <span>Include removed</span>
+              </label>
+            )}
+          </div>
+
           {activeTab === "subscriptions" && (
-            <div className="p-6 space-y-8 bg-slate-50/10 dark:bg-slate-950/5">
-              <div className="flex justify-between items-center">
-                <h2 className="font-black text-slate-800 dark:text-white text-xs uppercase tracking-wider">
-                  Allocations Overview
-                </h2>
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-                  <input
-                    type="checkbox"
-                    checked={showRemoved}
-                    onChange={(e) => setShowRemoved(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                  />
-                  Show Removed
-                </label>
-              </div>
+            <div className="pt-6 space-y-8">
               {sharedPlans.map((plan) => {
                 const planSubs = subscriptions.filter(
                   (sub) =>
@@ -342,28 +279,18 @@ export default function PublicSharedSubscriptionPage({
                 );
 
                 return (
-                  <div
-                    key={plan.id}
-                    className="space-y-4 border border-slate-100 dark:border-slate-800/80 p-6 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20"
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                      <div>
-                        <h3 className="font-black text-slate-850 dark:text-white text-sm uppercase tracking-tight">
-                          {plan.name}
-                        </h3>
-                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-wide">
-                          ৳{Number(plan.selling_price).toLocaleString()} per
-                          slot
-                        </span>
-                      </div>
-                      <div>
-                        <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-655 dark:text-indigo-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-                          Active Slots: {activeSlots}
-                        </span>
-                      </div>
+                  <div key={plan.id} className="space-y-3">
+                    <div className="flex items-baseline justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-2">
+                      <h2 className="text-sm font-semibold tracking-tight">
+                        {plan.name}
+                      </h2>
+                      <span className=" text-xs text-zinc-500">
+                        ৳{Number(plan.selling_price).toLocaleString()} / slot ·{" "}
+                        {activeSlots} active
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                       {planSubs.map((sub) => {
                         const todayStr = new Date().toISOString().split("T")[0];
                         const endStr = sub.kicked_at
@@ -387,194 +314,60 @@ export default function PublicSharedSubscriptionPage({
                           sub.months_paid,
                         );
 
-                        // Colors / visual helpers
                         const isKicked = sub.status === "kicked";
                         const isDue = !isKicked && monthsRemaining < -0.01;
-                        const isAdvance = !isKicked && monthsRemaining > 0.01;
-
-                        const initials = sub.user?.name
-                          ? sub.user.name
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                              .substring(0, 2)
-                              .toUpperCase()
-                          : "??";
 
                         return (
                           <div
                             key={sub.id}
-                            className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm relative flex flex-col justify-between ${
-                              isKicked
-                                ? "border-slate-200 dark:border-slate-800 opacity-60"
-                                : isDue
-                                  ? "border-rose-200 dark:border-rose-900/50 shadow-rose-50/10"
-                                  : isAdvance
-                                    ? "border-emerald-250 dark:border-emerald-900/50 shadow-emerald-50/10"
-                                    : "border-slate-200 dark:border-slate-800"
+                            className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              isKicked ? "opacity-50" : ""
                             }`}
                           >
-                            <div>
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-10 h-10 rounded-full flex justify-center items-center font-black text-sm ${
-                                      isKicked
-                                        ? "bg-slate-400"
-                                        : isDue
-                                          ? "bg-rose-500 shadow-lg shadow-rose-500/20"
-                                          : isAdvance
-                                            ? "bg-emerald-500 shadow-lg shadow-emerald-500/20"
-                                            : "bg-indigo-550 shadow-lg shadow-indigo-650/20"
-                                    }`}
-                                  >
-                                    {initials}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-tight">
-                                      {sub.user?.name}
-                                    </h4>
-                                    <span className="text-[10px] text-slate-400 block mt-0.5 font-semibold">
-                                      {sub.user?.contact || "No Email"}
-                                    </span>
-                                  </div>
-                                </div>
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                                  {sub.user?.name || "Member"}
+                                </span>
+                                <span className=" text-[11px] text-zinc-400">
+                                  ({sub.slots_count}{" "}
+                                  {sub.slots_count === 1 ? "slot" : "slots"})
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-zinc-500 ">
+                                <span>Started: {startMonthStr}</span>
+                                <span className="mx-2">·</span>
+                                <span>Paid to: {paidUpTo}</span>
+                              </div>
+                            </div>
 
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
-                                    isKicked
-                                      ? "bg-slate-100 text-slate-500 dark:bg-slate-855"
-                                      : isDue
-                                        ? "bg-rose-100 text-rose-600 dark:bg-rose-950/30"
-                                        : isAdvance
-                                          ? "bg-emerald-100 text-emerald-605 dark:bg-emerald-950/30"
-                                          : "bg-slate-100 text-slate-655 dark:bg-slate-800"
-                                  }`}
-                                >
-                                  {sub.slots_count} Slot
-                                  {sub.slots_count > 1 ? "s" : ""}
+                            <div className="flex items-center gap-6 sm:text-right">
+                              <div>
+                                <span className="block  text-xs text-zinc-900 dark:text-zinc-100">
+                                  ৳{totalCostPerMonth.toLocaleString()} / mo
+                                </span>
+                                <span className="block  text-[11px] text-zinc-400">
+                                  Paid: ৳
+                                  {Number(
+                                    sub.total_amount_paid || 0,
+                                  ).toLocaleString()}
                                 </span>
                               </div>
 
-                              {/* Card Details */}
-                              <div className="mt-4 space-y-2 border-t border-slate-105 dark:border-slate-805 pt-3 text-left">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-405 font-bold">
-                                    Monthly Price:
+                              <div className="min-w-[90px] text-right">
+                                {isKicked ? (
+                                  <span className="text-[11px] text-zinc-400 ">
+                                    Removed
                                   </span>
-                                  <span className="font-black text-slate-800 dark:text-slate-200">
-                                    ৳{totalCostPerMonth.toLocaleString()}
+                                ) : isDue ? (
+                                  <span className=" text-xs font-medium text-rose-600 dark:text-rose-400">
+                                    Due ৳{balanceAmount.toLocaleString()}
                                   </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-405 font-bold">
-                                    Start Month:
+                                ) : (
+                                  <span className="text-[11px] text-zinc-500 ">
+                                    Current
                                   </span>
-                                  <span className="font-bold text-slate-655 dark:text-slate-350">
-                                    {startMonthStr}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-405 font-bold">
-                                    Paid Upto:
-                                  </span>
-                                  <span className="font-black text-indigo-650 dark:text-indigo-400">
-                                    {paidUpTo}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-405 font-bold">
-                                    Total Spent:
-                                  </span>
-                                  <span className="font-black text-emerald-600 dark:text-emerald-450">
-                                    ৳
-                                    {Number(
-                                      sub.total_amount_paid || 0,
-                                    ).toLocaleString()}
-                                  </span>
-                                </div>
-                                {isDue && (
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-rose-500 dark:text-rose-400 font-bold">
-                                      Due Amount:
-                                    </span>
-                                    <span className="font-black text-rose-600 dark:text-rose-400">
-                                      ৳{balanceAmount.toLocaleString()}
-                                    </span>
-                                  </div>
                                 )}
-                              </div>
-
-                              {/* Paid Upto Indicator */}
-                              <div
-                                className={`mt-4 p-3 rounded-xl flex items-center gap-2 border ${
-                                  isKicked
-                                    ? "bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-500"
-                                    : isDue
-                                      ? "bg-rose-50/30 dark:bg-rose-950/10 border-rose-100/50 dark:border-rose-900/20 text-rose-600 dark:text-rose-455"
-                                      : isAdvance
-                                        ? "bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100/50 dark:border-emerald-900/20 text-emerald-650 dark:text-emerald-400"
-                                        : "bg-slate-55 dark:bg-slate-950/30  text-slate-705 dark:text-slate-350"
-                                }`}
-                              >
-                                <i
-                                  className={`text-sm fa-solid ${
-                                    isKicked
-                                      ? "fa-user-slash"
-                                      : isDue
-                                        ? "fa-triangle-exclamation"
-                                        : "fa-circle-check"
-                                  }`}
-                                ></i>
-                                <div className="text-[10px] leading-tight text-left">
-                                  <span className="block font-black uppercase tracking-wider">
-                                    {isKicked
-                                      ? "Kicked / Frozen"
-                                      : isDue
-                                        ? "Overdue Debt"
-                                        : isAdvance
-                                          ? "Paid in Advance"
-                                          : "Up to Date"}
-                                  </span>
-                                  <span className="block font-bold mt-0.5">
-                                    {isKicked
-                                      ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
-                                      : (() => {
-                                          const monthsPaidNum = Number(
-                                            sub.months_paid || 0,
-                                          );
-                                          const fullMonthsPaid =
-                                            Math.floor(monthsPaidNum);
-                                          const partialPaid =
-                                            Number(sub.total_amount_paid || 0) %
-                                            totalCostPerMonth;
-
-                                          let remainsVal = 0;
-                                          if (monthsRemaining < -0.01) {
-                                            remainsVal = balanceAmount;
-                                          } else if (monthsRemaining > 0.01) {
-                                            if (partialPaid > 0.01) {
-                                              remainsVal = Math.round(
-                                                totalCostPerMonth - partialPaid,
-                                              );
-                                            } else {
-                                              remainsVal = 0;
-                                            }
-                                          } else {
-                                            remainsVal = 0;
-                                          }
-
-                                          const nextMonthIndex =
-                                            fullMonthsPaid + 1;
-                                          const nextMonthName =
-                                            getPaidUpToMonthStr(
-                                              sub.start_date,
-                                              nextMonthIndex,
-                                            );
-                                          return `${remainsVal} remains. Next for ${nextMonthName}`;
-                                        })()}
-                                  </span>
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -584,95 +377,85 @@ export default function PublicSharedSubscriptionPage({
                   </div>
                 );
               })}
+
               {subscriptions.length === 0 && (
-                <div className="py-12 text-slate-400 text-sm text-center italic border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl animate-fade-in">
-                  No allocations found.
+                <div className="py-12 text-center text-xs text-zinc-400">
+                  No active allocations found in this link.
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: PAYMENTS HISTORY VIEW */}
           {activeTab === "payments" && (
-            <div className="p-6">
+            <div className="pt-6">
               {payments.length === 0 ? (
-                <p className="py-8 text-center text-slate-400 text-sm italic">
-                  No payment history records found under this access scope.
-                </p>
+                <div className="py-12 text-center text-xs text-zinc-400">
+                  No payment records found under this view.
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {payments.map((p) => {
-                    const isDeduction = p.amount < 0;
-                    // Find associated user for labeling
-                    const sub = subscriptions.find(
-                      (s) => s.id === p.subscription_id,
-                    );
-                    const userName = sub?.user?.name || "Unknown User";
-                    const planName = sub?.plan?.name || "Unknown Plan";
+                <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                        <th className="py-2.5 px-4 font-normal">
+                          Member / Plan
+                        </th>
+                        <th className="py-2.5 px-4 font-normal">Date</th>
+                        <th className="py-2.5 px-4 font-normal">Notes</th>
+                        <th className="py-2.5 px-4 text-right font-normal">
+                          Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                      {payments.map((p) => {
+                        const isDeduction = p.amount < 0;
+                        const sub = subscriptions.find(
+                          (s) => s.id === p.subscription_id,
+                        );
+                        const userName = sub?.user?.name || "Member";
+                        const planName = sub?.plan?.name || "Subscription";
 
-                    return (
-                      <div
-                        key={p.id}
-                        className={`p-4 border rounded-xl flex justify-between items-center transition-all ${
-                          isDeduction
-                            ? "bg-rose-50/20 dark:bg-rose-950/10 border-rose-100 dark:border-rose-900/30"
-                            : "bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30"
-                        }`}
-                      >
-                        <div className="space-y-1">
-                          <span
-                            className={`text-[10px] font-black uppercase tracking-wider block ${
-                              isDeduction
-                                ? "text-rose-500"
-                                : "text-emerald-650 dark:text-emerald-450"
-                            }`}
+                        return (
+                          <tr
+                            key={p.id}
+                            className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20"
                           >
-                            {isDeduction
-                              ? "Deduction / Refund"
-                              : "Payment Received"}
-                          </span>
-                          <span className="block text-xs font-bold text-slate-700 dark:text-slate-350">
-                            {userName} ·{" "}
-                            <span className="text-indigo-650 dark:text-indigo-400 font-semibold">
-                              {planName}
-                            </span>
-                          </span>
-                          <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                            {p.notes || "Payment recorded"}
-                          </span>
-                          <span className="block text-[9px] text-slate-400">
-                            {new Date(p.payment_date).toLocaleString(
-                              undefined,
+                            <td className="py-2.5 px-4">
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 block">
+                                {userName}
+                              </span>
+                              <span className="text-[11px] text-zinc-400 block ">
+                                {planName}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4  text-zinc-500 dark:text-zinc-400">
                               {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span
-                            className={`text-sm font-black block ${
-                              isDeduction
-                                ? "text-rose-605"
-                                : "text-emerald-650 dark:text-emerald-400"
-                            }`}
-                          >
-                            {isDeduction ? "-" : "+"}৳
-                            {Math.abs(Number(p.amount)).toLocaleString()}
-                          </span>
-                          <span className="block text-[10px] text-slate-400 font-bold">
-                            {isDeduction ? "-" : "+"}
-                            {Math.abs(Number(p.months))} Month
-                            {Math.abs(Number(p.months)) === 1 ? "" : "s"}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                                new Date(p.payment_date)
+                                  .toISOString()
+                                  .split("T")[0]
+                              }
+                            </td>
+                            <td className="py-2.5 px-4 text-zinc-600 dark:text-zinc-400">
+                              {p.notes || "Payment logged"}
+                            </td>
+                            <td className="py-2.5 px-4 text-right  font-medium">
+                              <span
+                                className={
+                                  isDeduction
+                                    ? "text-rose-600 dark:text-rose-400"
+                                    : "text-zinc-900 dark:text-zinc-100"
+                                }
+                              >
+                                {isDeduction ? "-" : "+"}৳
+                                {Math.abs(Number(p.amount)).toLocaleString()}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -680,21 +463,16 @@ export default function PublicSharedSubscriptionPage({
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="text-center py-8  border-t bg-foreground text-background  mt-12 space-y-2">
-        <p className="text-sm mt-1">
+      <footer className="text-center py-8 text-xs text-zinc-400 dark:text-zinc-600 border-t border-zinc-200 dark:border-zinc-800 mt-12">
+        <p className="mb-2">Subscription Baba</p>
+        <p>
           Developed by{" "}
           <a
-            href="https://www.thenicedev.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary font-bold hover:underline"
+            className="text-black dark:text-white hover:underline"
+            href="https://www.thenicedev.xyz"
           >
             The Nice Developer
           </a>
-        </p>
-        <p className="font-bold text-sm ">
-          © {new Date().getFullYear()} Subscription Baba. All Rights Reserved
         </p>
       </footer>
     </div>

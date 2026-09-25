@@ -123,23 +123,32 @@ export default function SubscriptionsDashboardPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(
+    null,
+  );
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [plansRes, usersRes, subsRes, linksRes, reqsRes] = await Promise.all([
-        getPlans(),
-        getSubscriptionUsers(),
-        getSubscriptions(),
-        getShareLinks(),
-        fetch('/api/payment-requests?status=pending&type=subscription', { cache: 'no-store' }).then(r => r.ok ? r.json() : { requests: [] })
-      ]);
+      const [plansRes, usersRes, subsRes, linksRes, reqsRes] =
+        await Promise.all([
+          getPlans(),
+          getSubscriptionUsers(),
+          getSubscriptions(),
+          getShareLinks(),
+          fetch("/api/payment-requests?status=pending&type=subscription", {
+            cache: "no-store",
+          }).then((r) => (r.ok ? r.json() : { requests: [] })),
+        ]);
       setPlans(plansRes);
       setUsers(usersRes);
       setSubscriptions(subsRes);
       setShareLinks(linksRes);
-      setPendingRequests((reqsRes.requests || []).filter((r: any) => r.type === 'subscription' && r.status === 'pending'));
+      setPendingRequests(
+        (reqsRes.requests || []).filter(
+          (r: any) => r.type === "subscription" && r.status === "pending",
+        ),
+      );
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to load subscriptions data.");
@@ -148,24 +157,29 @@ export default function SubscriptionsDashboardPage() {
     }
   };
 
-  const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+  const handleReviewVerificationRequest = async (
+    requestId: string,
+    action: "approved" | "rejected",
+  ) => {
     if (reviewingRequestId) return;
     setReviewingRequestId(requestId);
     try {
       const res = await fetch(`/api/payment-requests/${requestId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
       if (res.ok) {
-        toast.success(`Verification request ${action === 'approved' ? 'approved' : 'rejected'}`);
+        toast.success(
+          `Verification request ${action === "approved" ? "approved" : "rejected"}`,
+        );
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Failed to review request');
+        toast.error(err.error || "Failed to review request");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error updating request');
+      toast.error(err.message || "Error updating request");
     } finally {
       setReviewingRequestId(null);
     }
@@ -213,7 +227,8 @@ export default function SubscriptionsDashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: "Delete Plan",
-      description: "Are you sure you want to delete this plan? This will also remove associated subscriptions.",
+      description:
+        "Are you sure you want to delete this plan? This will also remove associated subscriptions.",
       confirmText: "Delete Plan",
       variant: "danger",
       action: async () => {
@@ -256,7 +271,8 @@ export default function SubscriptionsDashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: "Delete User Profile",
-      description: "Are you sure you want to delete this user profile? All associated subscriptions will be removed.",
+      description:
+        "Are you sure you want to delete this user profile? All associated subscriptions will be removed.",
       confirmText: "Delete Profile",
       variant: "danger",
       action: async () => {
@@ -356,7 +372,8 @@ export default function SubscriptionsDashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: "Deduct 1 Month Payment",
-      description: "Deduct 1 month payment from this subscription? This will subtract 1 month from paid duration and subtract cash value from total paid.",
+      description:
+        "Deduct 1 month payment from this subscription? This will subtract 1 month from paid duration and subtract cash value from total paid.",
       confirmText: "Deduct Month",
       variant: "warning",
       action: async () => {
@@ -540,7 +557,9 @@ export default function SubscriptionsDashboardPage() {
 
   const handleTriggerWebhook = async (sub: any) => {
     const orgId = sub.org_id || sub.client_id || sub.name;
-    const toastId = toast.loading(`Triggering refreshSubscription webhook for ${sub.name}...`);
+    const toastId = toast.loading(
+      `Triggering refreshSubscription webhook for ${sub.name}...`,
+    );
     try {
       const res = await fetch("/api/attendx/purge-cache", {
         method: "POST",
@@ -549,9 +568,14 @@ export default function SubscriptionsDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Subscription cache refreshed successfully for ${sub.name}!`, { id: toastId });
+        toast.success(
+          `Subscription cache refreshed successfully for ${sub.name}!`,
+          { id: toastId },
+        );
       } else {
-        toast.error(`Webhook returned: ${data.message || "Failed"}`, { id: toastId });
+        toast.error(`Webhook returned: ${data.message || "Failed"}`, {
+          id: toastId,
+        });
       }
     } catch (err: any) {
       toast.error("Webhook network failure: " + err.message, { id: toastId });
@@ -562,7 +586,8 @@ export default function SubscriptionsDashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: "Revoke Share Link",
-      description: "Revoke this share link? Anyone using it will instantly lose access.",
+      description:
+        "Revoke this share link? Anyone using it will instantly lose access.",
       confirmText: "Revoke Link",
       variant: "danger",
       action: async () => {
@@ -640,7 +665,8 @@ export default function SubscriptionsDashboardPage() {
     setConfirmModal({
       isOpen: true,
       title: "Delete Payment Record",
-      description: "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly.",
+      description:
+        "Are you sure you want to delete this payment record? This will adjust the subscription's paid months and total cash spent accordingly.",
       confirmText: "Delete Record",
       variant: "danger",
       action: async () => {
@@ -798,10 +824,12 @@ export default function SubscriptionsDashboardPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                  {pendingRequests.length} Pending Subscription Verification Request{pendingRequests.length > 1 ? "s" : ""}
+                  {pendingRequests.length} Pending Subscription Verification
+                  Request{pendingRequests.length > 1 ? "s" : ""}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Clients have submitted payment proof for subscription renewal/payment.
+                  Clients have submitted payment proof for subscription
+                  renewal/payment.
                 </p>
               </div>
             </div>
@@ -815,23 +843,35 @@ export default function SubscriptionsDashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {pendingRequests.slice(0, 4).map((req) => (
-              <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+              <div
+                key={req.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm"
+              >
                 <div className="space-y-0.5 min-w-0">
                   <div className="font-extrabold text-slate-900 dark:text-white truncate">
-                    {req.client_name || "Subscriber"} ({req.payment_method_name || "Payment Method"})
+                    {req.client_name || "Subscriber"} (
+                    {req.payment_method_name || "Payment Method"})
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Trx: <span className="text-slate-700 dark:text-slate-300 font-bold">{req.transaction_id}</span> | A/C: {req.account_number}
+                  <div className="text-[10px] text-slate-400 ">
+                    Trx:{" "}
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">
+                      {req.transaction_id}
+                    </span>{" "}
+                    | A/C: {req.account_number}
                   </div>
                   <div className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
-                    {req.amount ? `${req.currency || "৳"}${req.amount.toLocaleString()}` : "Payment Proof"}
+                    {req.amount
+                      ? `${req.currency || "৳"}${req.amount.toLocaleString()}`
+                      : "Payment Proof"}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 ml-3">
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, "approved")}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "approved")
+                    }
                     className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all flex items-center gap-1"
                   >
                     {reviewingRequestId === req.id ? (
@@ -841,7 +881,9 @@ export default function SubscriptionsDashboardPage() {
                   </button>
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, "rejected")}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "rejected")
+                    }
                     className="bg-slate-100 hover:bg-rose-100 disabled:opacity-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
                   >
                     Reject
@@ -1255,16 +1297,27 @@ export default function SubscriptionsDashboardPage() {
                                         {isKicked
                                           ? `Kicked in ${getStartMonthStr(sub.kicked_at)}`
                                           : (() => {
-                                              const monthsPaidNum = Number(sub.months_paid || 0);
-                                              const fullMonthsPaid = Math.floor(monthsPaidNum);
-                                              const partialPaid = Number(sub.total_amount_paid || 0) % totalCostPerMonth;
+                                              const monthsPaidNum = Number(
+                                                sub.months_paid || 0,
+                                              );
+                                              const fullMonthsPaid =
+                                                Math.floor(monthsPaidNum);
+                                              const partialPaid =
+                                                Number(
+                                                  sub.total_amount_paid || 0,
+                                                ) % totalCostPerMonth;
 
                                               let remainsVal = 0;
                                               if (monthsRemaining < -0.01) {
                                                 remainsVal = balanceAmount;
-                                              } else if (monthsRemaining > 0.01) {
+                                              } else if (
+                                                monthsRemaining > 0.01
+                                              ) {
                                                 if (partialPaid > 0.01) {
-                                                  remainsVal = Math.round(totalCostPerMonth - partialPaid);
+                                                  remainsVal = Math.round(
+                                                    totalCostPerMonth -
+                                                      partialPaid,
+                                                  );
                                                 } else {
                                                   remainsVal = 0;
                                                 }
@@ -1272,11 +1325,13 @@ export default function SubscriptionsDashboardPage() {
                                                 remainsVal = 0;
                                               }
 
-                                              const nextMonthIndex = fullMonthsPaid + 1;
-                                              const nextMonthName = getPaidUpToMonthStr(
-                                                sub.start_date,
-                                                nextMonthIndex
-                                              );
+                                              const nextMonthIndex =
+                                                fullMonthsPaid + 1;
+                                              const nextMonthName =
+                                                getPaidUpToMonthStr(
+                                                  sub.start_date,
+                                                  nextMonthIndex,
+                                                );
                                               return `${remainsVal} remains. Next for ${nextMonthName}`;
                                             })()}
                                       </span>
@@ -1724,7 +1779,7 @@ export default function SubscriptionsDashboardPage() {
                             <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
                               {link.label || "Unnamed Link"}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono select-all">
+                            <span className="text-[10px] text-slate-400  select-all">
                               {link.token}
                             </span>
                           </div>
@@ -2571,7 +2626,7 @@ export default function SubscriptionsDashboardPage() {
                     <input
                       readOnly
                       value={generatedLink}
-                      className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-mono rounded-lg outline-none dark:text-white select-all"
+                      className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs  rounded-lg outline-none dark:text-white select-all"
                     />
                     <button
                       type="button"
@@ -2807,7 +2862,7 @@ export default function SubscriptionsDashboardPage() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={confirmModal.action}
         title={confirmModal.title}
         description={confirmModal.description}

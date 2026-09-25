@@ -14,7 +14,12 @@ import {
   Clock,
   ShieldCheck,
 } from "lucide-react";
-import { Teacher, Subject, TuitionShareLink, TuitionShareType } from "@/types/tuition";
+import {
+  Teacher,
+  Subject,
+  TuitionShareLink,
+  TuitionShareType,
+} from "@/types/tuition";
 import {
   getTuitionShareLinks,
   createTuitionShareLink,
@@ -40,9 +45,13 @@ export default function TuitionShareModal({
 
   const [label, setLabel] = useState("");
   const [shareType, setShareType] = useState<TuitionShareType>("all");
-  const [selectedTeacherId, setSelectedTeacherId] = useState(teachers[0]?.id || "");
+  const [selectedTeacherId, setSelectedTeacherId] = useState(
+    teachers[0]?.id || "",
+  );
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState(subjects[0]?.id || "");
+  const [selectedSubjectId, setSelectedSubjectId] = useState(
+    subjects[0]?.id || "",
+  );
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [neverExpires, setNeverExpires] = useState(true);
   const [daysExpiry, setDaysExpiry] = useState(30);
@@ -83,13 +92,13 @@ export default function TuitionShareModal({
 
   const handleToggleTeacherId = (id: string) => {
     setSelectedTeacherIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
   const handleToggleSubjectId = (id: string) => {
     setSelectedSubjectIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
@@ -124,7 +133,7 @@ export default function TuitionShareModal({
         params,
         neverExpires,
         daysExpiry,
-        allowRecordClass
+        allowRecordClass,
       );
 
       if (!created) {
@@ -152,7 +161,11 @@ export default function TuitionShareModal({
   };
 
   const handleRevokeLink = async (id: string) => {
-    if (!confirm("Are you sure you want to revoke this share link? Teachers will no longer have access.")) {
+    if (
+      !confirm(
+        "Are you sure you want to revoke this share link? Teachers will no longer have access.",
+      )
+    ) {
       return;
     }
     try {
@@ -181,7 +194,8 @@ export default function TuitionShareModal({
                 Share Calendar & Agenda
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Generate scoped links for teachers to view schedule and record classes
+                Generate scoped links for teachers to view schedule and record
+                classes
               </p>
             </div>
           </div>
@@ -195,7 +209,10 @@ export default function TuitionShareModal({
         </div>
 
         <div className="overflow-y-auto p-5 space-y-6">
-          <form onSubmit={handleCreateLink} className="space-y-4 bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <form
+            onSubmit={handleCreateLink}
+            className="space-y-4 bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800"
+          >
             <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Create New Share Link
             </h4>
@@ -221,10 +238,14 @@ export default function TuitionShareModal({
                 </label>
                 <select
                   value={shareType}
-                  onChange={(e) => setShareType(e.target.value as TuitionShareType)}
+                  onChange={(e) =>
+                    setShareType(e.target.value as TuitionShareType)
+                  }
                   className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 rounded-lg text-xs font-medium text-zinc-900 dark:text-zinc-100 cursor-pointer outline-none focus:ring-1 focus:ring-zinc-500"
                 >
-                  <option value="all">Everything (All Teachers & Subjects)</option>
+                  <option value="all">
+                    Everything (All Teachers & Subjects)
+                  </option>
                   <option value="teacher">Single Teacher</option>
                   <option value="teachers">Multiple Teachers</option>
                   <option value="subject">Specific Subject</option>
@@ -383,7 +404,8 @@ export default function TuitionShareModal({
                 htmlFor="allowRecordCheckbox"
                 className="text-xs text-zinc-700 dark:text-zinc-300 font-medium cursor-pointer"
               >
-                Allow teacher to record class sessions (submissions require admin approval)
+                Allow teacher to record class sessions (submissions require
+                admin approval)
               </label>
             </div>
 
@@ -409,7 +431,7 @@ export default function TuitionShareModal({
                   type="text"
                   readOnly
                   value={newlyCreatedUrl}
-                  className="flex-1 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 px-3 py-2 rounded-lg text-xs font-mono text-zinc-900 dark:text-zinc-100"
+                  className="flex-1 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 px-3 py-2 rounded-lg text-xs  text-zinc-900 dark:text-zinc-100"
                 />
                 <button
                   type="button"
@@ -427,11 +449,14 @@ export default function TuitionShareModal({
 
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Active Share Links ({shareLinks.filter((l) => !l.revokedAt).length})
+              Active Share Links (
+              {shareLinks.filter((l) => !l.revokedAt).length})
             </h4>
 
             {loadingLinks ? (
-              <div className="text-center py-6 text-xs text-zinc-400">Loading links...</div>
+              <div className="text-center py-6 text-xs text-zinc-400">
+                Loading links...
+              </div>
             ) : shareLinks.length === 0 ? (
               <div className="text-center py-8 text-xs text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
                 No share links generated yet
@@ -447,14 +472,24 @@ export default function TuitionShareModal({
 
                   let scopeDescription = "All Teachers & Subjects";
                   if (link.type === "teacher" && link.params.teacherId) {
-                    const t = teachers.find((item) => item.id === link.params.teacherId);
+                    const t = teachers.find(
+                      (item) => item.id === link.params.teacherId,
+                    );
                     scopeDescription = `Teacher: ${t?.name || "Specific Teacher"}`;
-                  } else if (link.type === "teachers" && Array.isArray(link.params.teacherIds)) {
+                  } else if (
+                    link.type === "teachers" &&
+                    Array.isArray(link.params.teacherIds)
+                  ) {
                     scopeDescription = `${link.params.teacherIds.length} Teachers`;
                   } else if (link.type === "subject" && link.params.subjectId) {
-                    const s = subjects.find((item) => item.id === link.params.subjectId);
+                    const s = subjects.find(
+                      (item) => item.id === link.params.subjectId,
+                    );
                     scopeDescription = `Subject: ${s?.name || "Specific Subject"}`;
-                  } else if (link.type === "subjects" && Array.isArray(link.params.subjectIds)) {
+                  } else if (
+                    link.type === "subjects" &&
+                    Array.isArray(link.params.subjectIds)
+                  ) {
                     scopeDescription = `${link.params.subjectIds.length} Subjects`;
                   }
 
@@ -497,7 +532,9 @@ export default function TuitionShareModal({
                           {link.allowRecordClass && (
                             <>
                               <span>·</span>
-                              <span className="text-emerald-600 dark:text-emerald-400">Can Record</span>
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                Can Record
+                              </span>
                             </>
                           )}
                         </div>

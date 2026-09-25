@@ -4,7 +4,6 @@ import React from "react";
 import {
   Plus,
   CheckCircle2,
-  Clock,
   CreditCard,
   Calendar as CalendarIcon,
   UserPlus,
@@ -227,7 +226,7 @@ export default function TuitionDashboard({
                           )}
                         </div>
                         <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          {new Date(session.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {new Date(session.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          {new Date(session.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </div>
                       </div>
 
@@ -280,13 +279,13 @@ export default function TuitionDashboard({
                       className="py-3.5 flex items-center justify-between group hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors px-1"
                     >
                       <div className="flex items-start gap-3">
-                        <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500 mt-0.5 shrink-0" />
+                        <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500 mt-0.5 shrink-0" />
                         <div>
                           <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                             {subject?.name}
                           </div>
                           <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                            {teacher?.name} · <span className="">{new Date(session.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                            {teacher?.name}
                           </div>
                         </div>
                       </div>
@@ -344,9 +343,6 @@ export default function TuitionDashboard({
                           </span>
                         )}
                       </div>
-                      <span className=" text-zinc-500 dark:text-zinc-400">
-                        {new Date(session.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                      </span>
                     </div>
                   );
                 })}

@@ -1,16 +1,24 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { deleteInvoice, saveInvoice, generateRecurringInstanceAction } from '@/services/invoices';
-import { DashboardStats } from '@/components/dashboard-stats';
-import { RevenueCharts } from '@/components/revenue-charts';
-import { Invoice } from '@/types';
-import { useToast } from '@/components/ui/toast';
-import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
-import { TableSkeleton } from '@/components/skeleton';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import {
+  deleteInvoice,
+  saveInvoice,
+  generateRecurringInstanceAction,
+} from "@/services/invoices";
+import { DashboardStats } from "@/components/dashboard-stats";
+import { RevenueCharts } from "@/components/revenue-charts";
+import { Invoice } from "@/types";
+import { useToast } from "@/components/ui/toast";
+import {
+  calculateNextGenDate,
+  parseBillingTiming,
+  appendBillingTiming,
+} from "@/lib/date-utils";
+import { TableSkeleton } from "@/components/skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,32 +33,36 @@ export default function DashboardPage() {
     title: string;
     description: string;
     confirmText?: string;
-    variant?: 'danger' | 'info';
+    variant?: "danger" | "info";
     action: () => Promise<void>;
   }>({
     isOpen: false,
-    title: '',
-    description: '',
+    title: "",
+    description: "",
     action: async () => {},
   });
 
   // Manage Invoice & Recurring Modal State
-  const [selectedManageInvoice, setSelectedManageInvoice] = useState<Invoice | null>(null);
-  const [manageInvoiceNumber, setManageInvoiceNumber] = useState('');
-  const [manageStatus, setManageStatus] = useState<string>('draft');
-  const [manageDate, setManageDate] = useState('');
-  const [manageNotes, setManageNotes] = useState('');
-  const [manageCurrency, setManageCurrency] = useState('');
+  const [selectedManageInvoice, setSelectedManageInvoice] =
+    useState<Invoice | null>(null);
+  const [manageInvoiceNumber, setManageInvoiceNumber] = useState("");
+  const [manageStatus, setManageStatus] = useState<string>("draft");
+  const [manageDate, setManageDate] = useState("");
+  const [manageNotes, setManageNotes] = useState("");
+  const [manageCurrency, setManageCurrency] = useState("");
   const [manageTaxRate, setManageTaxRate] = useState(0);
   const [manageIsRecurring, setManageIsRecurring] = useState(false);
-  const [manageRecurringFrequency, setManageRecurringFrequency] = useState<string>('monthly');
-  const [manageNextGenDate, setManageNextGenDate] = useState('');
+  const [manageRecurringFrequency, setManageRecurringFrequency] =
+    useState<string>("monthly");
+  const [manageNextGenDate, setManageNextGenDate] = useState("");
   const [isSavingManager, setIsSavingManager] = useState(false);
   const [batchMonths, setBatchMonths] = useState(3);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   const [recurringLogs, setRecurringLogs] = useState<any[]>([]);
-  const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
+  const [expandedTemplates, setExpandedTemplates] = useState<
+    Record<string, boolean>
+  >({});
   const [loans, setLoans] = useState<any[]>([]);
   const [loanPayments, setLoanPayments] = useState<any[]>([]);
 
@@ -67,15 +79,15 @@ export default function DashboardPage() {
 
   const handleOpenManager = (invoice: Invoice) => {
     setSelectedManageInvoice(invoice);
-    setManageInvoiceNumber(invoice.invoice_number || '');
-    setManageStatus(invoice.status || 'draft');
-    setManageDate(invoice.date || '');
-    setManageNotes(invoice.notes || '');
-    setManageCurrency(invoice.currency || '৳ ');
+    setManageInvoiceNumber(invoice.invoice_number || "");
+    setManageStatus(invoice.status || "draft");
+    setManageDate(invoice.date || "");
+    setManageNotes(invoice.notes || "");
+    setManageCurrency(invoice.currency || "৳ ");
     setManageTaxRate(invoice.tax_rate || 0);
     setManageIsRecurring(invoice.is_recurring || false);
-    setManageRecurringFrequency(invoice.recurring_frequency || 'monthly');
-    setManageNextGenDate(invoice.next_generation_date || '');
+    setManageRecurringFrequency(invoice.recurring_frequency || "monthly");
+    setManageNextGenDate(invoice.next_generation_date || "");
     setBatchMonths(3);
   };
 
@@ -93,16 +105,18 @@ export default function DashboardPage() {
         tax_rate: manageTaxRate,
         is_recurring: manageIsRecurring,
         recurring_frequency: manageRecurringFrequency as any,
-        next_generation_date: manageIsRecurring ? (manageNextGenDate || new Date().toISOString().split('T')[0]) : null,
+        next_generation_date: manageIsRecurring
+          ? manageNextGenDate || new Date().toISOString().split("T")[0]
+          : null,
       };
 
       await saveInvoice(updatedData, selectedManageInvoice.items || []);
-      toast.success('Invoice details updated successfully.');
+      toast.success("Invoice details updated successfully.");
       setSelectedManageInvoice(null);
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error updating invoice.');
+      toast.error(err.message || "Error updating invoice.");
     } finally {
       setIsSavingManager(false);
     }
@@ -118,11 +132,11 @@ export default function DashboardPage() {
       };
       await saveInvoice(updatedData, selectedManageInvoice.items || []);
       setManageIsRecurring(false);
-      toast.success('Recurring billing stopped.');
+      toast.success("Recurring billing stopped.");
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error stopping recurring.');
+      toast.error(err.message || "Error stopping recurring.");
     } finally {
       setIsProcessingAction(false);
     }
@@ -132,15 +146,20 @@ export default function DashboardPage() {
     if (!selectedManageInvoice) return;
     setIsProcessingAction(true);
     try {
-      const result = await generateRecurringInstanceAction(selectedManageInvoice.id, 1);
-      toast.success(`Successfully generated 1 invoice: ${result.generated[0].invoice_number}`);
+      const result = await generateRecurringInstanceAction(
+        selectedManageInvoice.id,
+        1,
+      );
+      toast.success(
+        `Successfully generated 1 invoice: ${result.generated[0].invoice_number}`,
+      );
       if (result.nextScheduledDate) {
         setManageNextGenDate(result.nextScheduledDate);
       }
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating recurring invoice.');
+      toast.error(err.message || "Error generating recurring invoice.");
     } finally {
       setIsProcessingAction(false);
     }
@@ -149,52 +168,62 @@ export default function DashboardPage() {
   const handleGenerateMultipleMonths = async () => {
     if (!selectedManageInvoice) return;
     if (batchMonths <= 0) {
-      toast.error('Please enter a valid number of months.');
+      toast.error("Please enter a valid number of months.");
       return;
     }
     setIsProcessingAction(true);
     try {
-      const result = await generateRecurringInstanceAction(selectedManageInvoice.id, batchMonths);
-      toast.success(`Successfully generated ${result.generatedCount} invoice instance(s).`);
+      const result = await generateRecurringInstanceAction(
+        selectedManageInvoice.id,
+        batchMonths,
+      );
+      toast.success(
+        `Successfully generated ${result.generatedCount} invoice instance(s).`,
+      );
       if (result.nextScheduledDate) {
         setManageNextGenDate(result.nextScheduledDate);
       }
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating recurring invoices.');
+      toast.error(err.message || "Error generating recurring invoices.");
     } finally {
       setIsProcessingAction(false);
     }
   };
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(
+    null,
+  );
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, logsRes, loansRes, loanPaymentsRes, reqsRes] = await Promise.all([
-        supabase
-          .from('invoices')
-          .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('recurring_invoices')
-          .select('*'),
-        supabase
-          .from('loans')
-          .select('*, client:clients(*), source:loan_sources(*)'),
-        supabase
-          .from('loan_payments')
-          .select('*'),
-        fetch('/api/payment-requests?status=pending', { cache: 'no-store' }).then(r => r.ok ? r.json() : { requests: [] })
-      ]);
+      const [invRes, logsRes, loansRes, loanPaymentsRes, reqsRes] =
+        await Promise.all([
+          supabase
+            .from("invoices")
+            .select(
+              "*, items:invoice_items(*), client:clients(*), company:companies(*)",
+            )
+            .order("created_at", { ascending: false }),
+          supabase.from("recurring_invoices").select("*"),
+          supabase
+            .from("loans")
+            .select("*, client:clients(*), source:loan_sources(*)"),
+          supabase.from("loan_payments").select("*"),
+          fetch("/api/payment-requests?status=pending", {
+            cache: "no-store",
+          }).then((r) => (r.ok ? r.json() : { requests: [] })),
+        ]);
 
       if (invRes.data) setInvoices(invRes.data);
       if (logsRes.data) setRecurringLogs(logsRes.data);
       if (loansRes.data) setLoans(loansRes.data);
       if (loanPaymentsRes.data) setLoanPayments(loanPaymentsRes.data);
-      setPendingRequests((reqsRes.requests || []).filter((r: any) => r.status === 'pending'));
+      setPendingRequests(
+        (reqsRes.requests || []).filter((r: any) => r.status === "pending"),
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -202,24 +231,29 @@ export default function DashboardPage() {
     }
   };
 
-  const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+  const handleReviewVerificationRequest = async (
+    requestId: string,
+    action: "approved" | "rejected",
+  ) => {
     if (reviewingRequestId) return;
     setReviewingRequestId(requestId);
     try {
       const res = await fetch(`/api/payment-requests/${requestId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
       if (res.ok) {
-        toast.success(`Verification request ${action === 'approved' ? 'approved' : 'rejected'}`);
+        toast.success(
+          `Verification request ${action === "approved" ? "approved" : "rejected"}`,
+        );
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Failed to review request');
+        toast.error(err.error || "Failed to review request");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error updating request');
+      toast.error(err.message || "Error updating request");
     } finally {
       setReviewingRequestId(null);
     }
@@ -233,17 +267,18 @@ export default function DashboardPage() {
     e.stopPropagation();
     setConfirmModal({
       isOpen: true,
-      title: 'Delete Invoice',
-      description: 'Are you sure you want to permanently delete this invoice? This action cannot be undone.',
-      confirmText: 'Delete',
-      variant: 'danger',
+      title: "Delete Invoice",
+      description:
+        "Are you sure you want to permanently delete this invoice? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
       action: async () => {
         try {
           await deleteInvoice(id);
           await fetchData();
-          toast.success('Invoice deleted successfully');
+          toast.success("Invoice deleted successfully");
         } catch (err: any) {
-          toast.error(err.message || 'Error deleting invoice');
+          toast.error(err.message || "Error deleting invoice");
         }
       },
     });
@@ -253,25 +288,28 @@ export default function DashboardPage() {
     e.stopPropagation();
     setConfirmModal({
       isOpen: true,
-      title: 'Duplicate Invoice',
+      title: "Duplicate Invoice",
       description: `Create a draft copy of invoice #${invoice.invoice_number}?`,
-      confirmText: 'Duplicate',
-      variant: 'info',
+      confirmText: "Duplicate",
+      variant: "info",
       action: async () => {
         try {
-          const { id, items, client, company, created_at, ...cleanInvoice } = invoice;
+          const { id, items, client, company, created_at, ...cleanInvoice } =
+            invoice;
           const duplicatedData = {
             ...cleanInvoice,
             invoice_number: `${cleanInvoice.invoice_number}-COPY`,
-            status: 'draft' as const,
+            status: "draft" as const,
             paid_amount: 0,
           };
-          const cleanItems = items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) || [];
+          const cleanItems =
+            items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) ||
+            [];
           await saveInvoice(duplicatedData, cleanItems);
           await fetchData();
-          toast.success('Invoice duplicated successfully');
+          toast.success("Invoice duplicated successfully");
         } catch (err: any) {
-          toast.error(err.message || 'Error duplicating invoice');
+          toast.error(err.message || "Error duplicating invoice");
         }
       },
     });
@@ -280,22 +318,22 @@ export default function DashboardPage() {
   const handleGenerateRecurring = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch('/api/cron/recurring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/cron/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok || data.success === false) {
-        throw new Error(data.error || 'Failed to generate recurring invoices.');
+        throw new Error(data.error || "Failed to generate recurring invoices.");
       }
       toast.success(
-        `Recurring invoices processed! Generated ${data.generatedCount} new record(s).`
+        `Recurring invoices processed! Generated ${data.generatedCount} new record(s).`,
       );
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating recurring invoices.');
+      toast.error(err.message || "Error generating recurring invoices.");
     } finally {
       setIsGenerating(false);
     }
@@ -303,17 +341,17 @@ export default function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
-      case 'partially_paid':
-        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
-      case 'sent':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
-      case 'overdue':
-      case 'due':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      case "paid":
+        return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+      case "partially_paid":
+        return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+      case "sent":
+        return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
+      case "overdue":
+      case "due":
+        return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400";
       default:
-        return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400';
+        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400";
     }
   };
 
@@ -329,7 +367,10 @@ export default function DashboardPage() {
         {/* Skeleton cards */}
         <div className="gap-8 grid grid-cols-1 md:grid-cols-3 mb-8">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="space-y-3 bg-white dark:bg-slate-900 shadow-sm p-6 border border-slate-100 dark:border-slate-800/60 rounded-lg">
+            <div
+              key={i}
+              className="space-y-3 bg-white dark:bg-slate-900 shadow-sm p-6 border border-slate-100 dark:border-slate-800/60 rounded-lg"
+            >
               <div className="bg-slate-200 dark:bg-slate-800 rounded w-24 h-3 animate-pulse"></div>
               <div className="bg-slate-300 dark:bg-slate-700 rounded w-36 h-8 animate-pulse"></div>
             </div>
@@ -356,7 +397,7 @@ export default function DashboardPage() {
 
   const loanStats = enrichedLoans.reduce(
     (acc, loan) => {
-      if (loan.type === 'given') {
+      if (loan.type === "given") {
         acc.givenPrincipal += loan.principal_amount;
         acc.givenOutstanding += loan.remaining_balance;
       } else {
@@ -365,22 +406,29 @@ export default function DashboardPage() {
       }
       return acc;
     },
-    { givenPrincipal: 0, givenOutstanding: 0, takenPrincipal: 0, takenOutstanding: 0 }
+    {
+      givenPrincipal: 0,
+      givenOutstanding: 0,
+      takenPrincipal: 0,
+      takenOutstanding: 0,
+    },
   );
 
   // Helper to identify AttendX / Academix system invoices
   const isAttendxInvoice = (inv: Invoice) =>
     Boolean(
-      inv.invoice_number?.startsWith('INV-ATX-') ||
-      inv.notes?.includes('[AttendX') ||
-      inv.notes?.includes('[Academix')
+      inv.invoice_number?.startsWith("INV-ATX-") ||
+      inv.notes?.includes("[AttendX") ||
+      inv.notes?.includes("[Academix"),
     );
 
-  const standardCrmInvoices = invoices.filter(inv => !isAttendxInvoice(inv));
+  const standardCrmInvoices = invoices.filter((inv) => !isAttendxInvoice(inv));
 
   // Slice recent 10 invoices for dashboard list (excluding child invoices and AttendX invoices)
   const childInvoiceIds = new Set(recurringLogs.map((l) => l.child_invoice_id));
-  const topLevelInvoices = standardCrmInvoices.filter((inv) => !childInvoiceIds.has(inv.id));
+  const topLevelInvoices = standardCrmInvoices.filter(
+    (inv) => !childInvoiceIds.has(inv.id),
+  );
   const recentInvoices = topLevelInvoices.slice(0, 10);
 
   return (
@@ -399,8 +447,10 @@ export default function DashboardPage() {
           disabled={isGenerating}
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-emerald-600/20 shadow-lg px-6 py-3 rounded-lg font-black text-white text-xs uppercase tracking-widest transition-all"
         >
-          <i className={`fa-solid ${isGenerating ? 'fa-spinner animate-spin' : 'fa-arrows-rotate'}`}></i>
-          {isGenerating ? 'Processing...' : 'Generate Recurring'}
+          <i
+            className={`fa-solid ${isGenerating ? "fa-spinner animate-spin" : "fa-arrows-rotate"}`}
+          ></i>
+          {isGenerating ? "Processing..." : "Generate Recurring"}
         </button>
       </div>
 
@@ -414,7 +464,8 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                  {pendingRequests.length} Pending Payment Verification Request{pendingRequests.length > 1 ? 's' : ''}
+                  {pendingRequests.length} Pending Payment Verification Request
+                  {pendingRequests.length > 1 ? "s" : ""}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Clients have submitted payment proof on shared links.
@@ -422,7 +473,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/payment-methods?tab=requests')}
+              onClick={() => router.push("/payment-methods?tab=requests")}
               className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline uppercase tracking-wider"
             >
               Manage Requests →
@@ -431,23 +482,35 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {pendingRequests.slice(0, 4).map((req) => (
-              <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+              <div
+                key={req.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm"
+              >
                 <div className="space-y-0.5 min-w-0">
                   <div className="font-extrabold text-slate-900 dark:text-white truncate">
-                    {req.client_name || 'Client Submission'} ({req.invoice_number ? `#${req.invoice_number}` : 'Invoice'})
+                    {req.client_name || "Client Submission"} (
+                    {req.invoice_number ? `#${req.invoice_number}` : "Invoice"})
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Trx: <span className="text-slate-700 dark:text-slate-300 font-bold">{req.transaction_id}</span> | A/C: {req.account_number}
+                  <div className="text-[10px] text-slate-400 ">
+                    Trx:{" "}
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">
+                      {req.transaction_id}
+                    </span>{" "}
+                    | A/C: {req.account_number}
                   </div>
                   <div className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
-                    {req.amount ? `${req.currency || '৳'}${req.amount.toLocaleString()}` : 'Payment Proof'}
+                    {req.amount
+                      ? `${req.currency || "৳"}${req.amount.toLocaleString()}`
+                      : "Payment Proof"}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 ml-3">
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, 'approved')}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "approved")
+                    }
                     className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all flex items-center gap-1"
                   >
                     {reviewingRequestId === req.id ? (
@@ -457,7 +520,9 @@ export default function DashboardPage() {
                   </button>
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, 'rejected')}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "rejected")
+                    }
                     className="bg-slate-100 hover:bg-rose-100 disabled:opacity-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
                   >
                     Reject
@@ -470,10 +535,14 @@ export default function DashboardPage() {
       )}
 
       {/* Dashboard Stats Cards */}
-      <DashboardStats invoices={standardCrmInvoices.filter(inv => !inv.is_recurring)} />
+      <DashboardStats
+        invoices={standardCrmInvoices.filter((inv) => !inv.is_recurring)}
+      />
 
       {/* Revenue Analytics Charts */}
-      <RevenueCharts invoices={standardCrmInvoices.filter(inv => !inv.is_recurring)} />
+      <RevenueCharts
+        invoices={standardCrmInvoices.filter((inv) => !inv.is_recurring)}
+      />
 
       {/* Loan Stats Cards */}
       <div className="space-y-4">
@@ -505,12 +574,13 @@ export default function DashboardPage() {
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                   Lending Outstanding
                 </h3>
-                <p className={`font-black text-2xl tracking-tighter ${loanStats.givenOutstanding > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
+                <p
+                  className={`font-black text-2xl tracking-tighter ${loanStats.givenOutstanding > 0 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
+                >
                   ৳{loanStats.givenOutstanding.toLocaleString()}
                 </p>
               </div>
             </div>
-
           </div>
           <div className="bg-white dark:bg-slate-900 shadow-xl p-6 border border-slate-100 dark:border-slate-800/50 rounded-lg transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
@@ -536,7 +606,9 @@ export default function DashboardPage() {
                 <h3 className="mb-1 font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                   Borrowing Outstanding
                 </h3>
-                <p className={`font-black text-2xl tracking-tighter ${loanStats.takenOutstanding > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
+                <p
+                  className={`font-black text-2xl tracking-tighter ${loanStats.takenOutstanding > 0 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
+                >
                   ৳{loanStats.takenOutstanding.toLocaleString()}
                 </p>
               </div>
@@ -552,7 +624,7 @@ export default function DashboardPage() {
             Recent Records
           </h2>
           <button
-            onClick={() => router.push('/invoices/new')}
+            onClick={() => router.push("/invoices/new")}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg px-4 py-2 rounded-lg font-black text-white text-xs uppercase tracking-widest transition-colors"
           >
             <i className="fa-solid fa-plus"></i> New
@@ -576,35 +648,60 @@ export default function DashboardPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {recentInvoices.map((invoice) => {
                 const isTemplate = invoice.is_recurring;
-                const children = isTemplate ? getChildrenForParent(invoice.id) : [];
+                const children = isTemplate
+                  ? getChildrenForParent(invoice.id)
+                  : [];
                 const isExpanded = expandedTemplates[invoice.id];
 
-                const amount = invoice.items?.reduce((sum, i) => sum + (i.quantity * i.rate), 0) || 0;
+                const amount =
+                  invoice.items?.reduce(
+                    (sum, i) => sum + i.quantity * i.rate,
+                    0,
+                  ) || 0;
                 const paid = invoice.paid_amount || 0;
                 const due = amount - paid;
-                const calculatedStatus = paid >= amount ? 'paid' : paid > 0 ? 'partially_paid' : invoice.status;
+                const calculatedStatus =
+                  paid >= amount
+                    ? "paid"
+                    : paid > 0
+                      ? "partially_paid"
+                      : invoice.status;
 
                 // Combined children stats for templates
                 const totalChildrenCount = children.length;
                 const totalChildrenValue = children.reduce((sum, child) => {
-                  return sum + (child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0);
+                  return (
+                    sum +
+                    (child.items?.reduce(
+                      (s, i) => s + i.quantity * i.rate,
+                      0,
+                    ) || 0)
+                  );
                 }, 0);
-                const totalChildrenPaid = children.reduce((sum, child) => sum + (child.paid_amount || 0), 0);
+                const totalChildrenPaid = children.reduce(
+                  (sum, child) => sum + (child.paid_amount || 0),
+                  0,
+                );
                 const totalChildrenDue = totalChildrenValue - totalChildrenPaid;
-                const templateStatus = totalChildrenDue > 0 ? 'due' : 'paid';
+                const templateStatus = totalChildrenDue > 0 ? "due" : "paid";
 
                 if (isTemplate) {
                   return (
                     <React.Fragment key={invoice.id}>
                       {/* Accordion Header Row */}
                       <tr
-                        onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
-                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''} ${isExpanded ? 'border-l-4 border-indigo-500' : ''}`}
+                        onClick={() =>
+                          totalChildrenCount > 0 &&
+                          toggleExpandTemplate(invoice.id)
+                        }
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? "cursor-pointer" : ""} ${isExpanded ? "border-l-4 border-indigo-500" : ""}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             {totalChildrenCount > 0 && (
-                              <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                              <i
+                                className={`fa-solid ${isExpanded ? "fa-chevron-down" : "fa-chevron-right"} text-indigo-500 text-xs transition-transform duration-200`}
+                              ></i>
                             )}
                             <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
                               {invoice.invoice_number}
@@ -617,10 +714,10 @@ export default function DashboardPage() {
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm">
-                              {invoice.client?.name || '---'}
+                              {invoice.client?.name || "---"}
                             </span>
                             <span className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                              {invoice.company?.name || '---'}
+                              {invoice.company?.name || "---"}
                             </span>
                           </div>
                         </td>
@@ -630,10 +727,13 @@ export default function DashboardPage() {
                               Freq: {invoice.recurring_frequency}
                             </span>
                             <span className="text-[10px] text-slate-400">
-                              Next: {new Date(invoice.next_generation_date).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
+                              Next:{" "}
+                              {new Date(
+                                invoice.next_generation_date,
+                              ).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
                               })}
                             </span>
                           </div>
@@ -645,19 +745,31 @@ export default function DashboardPage() {
                           {invoice.currency}
                           {totalChildrenPaid.toLocaleString()}
                         </td>
-                        <td className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-black dark:text-white'}`}>
+                        <td
+                          className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-black dark:text-white"}`}
+                        >
                           {invoice.currency}
                           {totalChildrenDue.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}
+                          >
                             {templateStatus}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-6 py-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex justify-end gap-1">
                             <button
-                              onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
+                              onClick={() =>
+                                window.open(
+                                  `/invoices/${invoice.id}/print`,
+                                  "_blank",
+                                )
+                              }
                               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                               title="Print"
                             >
@@ -678,7 +790,9 @@ export default function DashboardPage() {
                               <i className="fa-solid fa-copy"></i>
                             </button>
                             <button
-                              onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
+                              onClick={() =>
+                                router.push(`/invoices/${invoice.id}?tab=edit`)
+                              }
                               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                               title="Edit"
                             >
@@ -698,19 +812,24 @@ export default function DashboardPage() {
                       {/* Accordion Content Row (Children Invoices) */}
                       {isExpanded && totalChildrenCount > 0 && (
                         <tr>
-                          <td colSpan={8} className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4">
+                          <td
+                            colSpan={8}
+                            className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4"
+                          >
                             <div className="space-y-3 pl-6">
                               <div className="flex justify-between items-center pb-2 border-slate-100 dark:border-slate-800 border-b">
                                 <span className="font-black text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                   Generated Invoices ({totalChildrenCount})
                                 </span>
                                 <span className="font-black text-[10px] text-indigo-500 uppercase">
-                                  Combined Total: {invoice.currency}{totalChildrenValue.toLocaleString()}
+                                  Combined Total: {invoice.currency}
+                                  {totalChildrenValue.toLocaleString()}
                                 </span>
                               </div>
                               {children.length === 0 ? (
                                 <p className="py-2 text-slate-400 text-xs italic">
-                                  No instances generated yet. Use the cron task or trigger manually from the gears panel.
+                                  No instances generated yet. Use the cron task
+                                  or trigger manually from the gears panel.
                                 </p>
                               ) : (
                                 <div className="bg-white dark:bg-slate-900/60 shadow-inner border border-slate-100 dark:border-slate-800/85 rounded-lg overflow-x-auto">
@@ -718,68 +837,119 @@ export default function DashboardPage() {
                                     <thead className="bg-slate-50 dark:bg-slate-950/40 border-slate-100 dark:border-slate-800 border-b font-black text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                       <tr>
                                         <th className="px-4 py-2">Invoice #</th>
-                                        <th className="px-4 py-2">Issue Date</th>
-                                        <th className="px-4 py-2">Total Amount</th>
-                                        <th className="px-4 py-2">Paid Amount</th>
-                                        <th className="px-4 py-2">Due Amount</th>
+                                        <th className="px-4 py-2">
+                                          Issue Date
+                                        </th>
+                                        <th className="px-4 py-2">
+                                          Total Amount
+                                        </th>
+                                        <th className="px-4 py-2">
+                                          Paid Amount
+                                        </th>
+                                        <th className="px-4 py-2">
+                                          Due Amount
+                                        </th>
                                         <th className="px-4 py-2">Status</th>
-                                        <th className="px-4 py-2 text-right">Actions</th>
+                                        <th className="px-4 py-2 text-right">
+                                          Actions
+                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
                                       {children.map((child) => {
-                                        const childAmount = child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0;
-                                        const childPaid = child.paid_amount || 0;
-                                        const childDue = childAmount - childPaid;
-                                        const childStatus = childPaid >= childAmount ? 'paid' : childPaid > 0 ? 'partially_paid' : child.status;
+                                        const childAmount =
+                                          child.items?.reduce(
+                                            (s, i) => s + i.quantity * i.rate,
+                                            0,
+                                          ) || 0;
+                                        const childPaid =
+                                          child.paid_amount || 0;
+                                        const childDue =
+                                          childAmount - childPaid;
+                                        const childStatus =
+                                          childPaid >= childAmount
+                                            ? "paid"
+                                            : childPaid > 0
+                                              ? "partially_paid"
+                                              : child.status;
                                         return (
                                           <tr
                                             key={child.id}
-                                            onClick={() => router.push(`/invoices/${child.id}`)}
+                                            onClick={() =>
+                                              router.push(
+                                                `/invoices/${child.id}`,
+                                              )
+                                            }
                                             className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors cursor-pointer"
                                           >
                                             <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-200">
                                               {child.invoice_number}
                                             </td>
                                             <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">
-                                              {new Date(child.date).toLocaleDateString(undefined, {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                year: 'numeric'
+                                              {new Date(
+                                                child.date,
+                                              ).toLocaleDateString(undefined, {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
                                               })}
                                             </td>
                                             <td className="px-4 py-2.5 font-bold">
-                                              {child.currency}{childAmount.toLocaleString()}
+                                              {child.currency}
+                                              {childAmount.toLocaleString()}
                                             </td>
                                             <td className="px-4 py-2.5 font-bold text-emerald-600 dark:text-emerald-400">
-                                              {child.currency}{childPaid.toLocaleString()}
+                                              {child.currency}
+                                              {childPaid.toLocaleString()}
                                             </td>
                                             <td className="px-4 py-2.5 font-bold text-rose-600 dark:text-rose-400">
-                                              {child.currency}{childDue.toLocaleString()}
+                                              {child.currency}
+                                              {childDue.toLocaleString()}
                                             </td>
                                             <td className="px-4 py-2.5">
-                                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}>
-                                                {childStatus === 'partially_paid' ? 'Partially Paid' : childStatus}
+                                              <span
+                                                className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}
+                                              >
+                                                {childStatus ===
+                                                "partially_paid"
+                                                  ? "Partially Paid"
+                                                  : childStatus}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <td
+                                              className="px-4 py-2.5 text-right"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
                                               <div className="flex justify-end gap-1">
                                                 <button
-                                                  onClick={() => window.open(`/invoices/${child.id}/print`, '_blank')}
+                                                  onClick={() =>
+                                                    window.open(
+                                                      `/invoices/${child.id}/print`,
+                                                      "_blank",
+                                                    )
+                                                  }
                                                   className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                                   title="Print"
                                                 >
                                                   <i className="fa-solid fa-print"></i>
                                                 </button>
                                                 <button
-                                                  onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
+                                                  onClick={() =>
+                                                    router.push(
+                                                      `/invoices/${child.id}?tab=edit`,
+                                                    )
+                                                  }
                                                   className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                                   title="Edit"
                                                 >
                                                   <i className="fa-solid fa-pen"></i>
                                                 </button>
                                                 <button
-                                                  onClick={(e) => handleDelete(child.id, e)}
+                                                  onClick={(e) =>
+                                                    handleDelete(child.id, e)
+                                                  }
                                                   className="p-1 text-slate-400 hover:text-red-500 transition-colors"
                                                   title="Delete"
                                                 >
@@ -815,19 +985,22 @@ export default function DashboardPage() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm">
-                            {invoice.client?.name || '---'}
+                            {invoice.client?.name || "---"}
                           </span>
                           <span className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                            {invoice.company?.name || '---'}
+                            {invoice.company?.name || "---"}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-500 text-xs">
-                        {new Date(invoice.created_at || '').toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
+                        {new Date(invoice.created_at || "").toLocaleDateString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
                       </td>
                       <td className="px-6 py-4 font-black text-slate-900 dark:text-white text-sm">
                         {invoice.currency}
@@ -844,16 +1017,26 @@ export default function DashboardPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(
-                            calculatedStatus
+                            calculatedStatus,
                           )}`}
                         >
-                          {calculatedStatus === 'partially_paid' ? 'Partially Paid' : calculatedStatus}
+                          {calculatedStatus === "partially_paid"
+                            ? "Partially Paid"
+                            : calculatedStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-6 py-4 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex justify-end gap-1">
                           <button
-                            onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
+                            onClick={() =>
+                              window.open(
+                                `/invoices/${invoice.id}/print`,
+                                "_blank",
+                              )
+                            }
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                             title="Print"
                           >
@@ -874,7 +1057,9 @@ export default function DashboardPage() {
                             <i className="fa-solid fa-copy"></i>
                           </button>
                           <button
-                            onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
+                            onClick={() =>
+                              router.push(`/invoices/${invoice.id}?tab=edit`)
+                            }
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                             title="Edit"
                           >
@@ -895,7 +1080,10 @@ export default function DashboardPage() {
               })}
               {recentInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-slate-400 dark:text-slate-500 text-sm text-center italic">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-slate-400 dark:text-slate-500 text-sm text-center italic"
+                  >
                     No records found.
                   </td>
                 </tr>
@@ -908,7 +1096,6 @@ export default function DashboardPage() {
       {selectedManageInvoice && (
         <div className="z-50 fixed inset-0 flex justify-center items-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800/80 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
-
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-slate-100 dark:border-slate-800 border-b">
               <div>
@@ -916,7 +1103,8 @@ export default function DashboardPage() {
                   Manage Invoice & Recurring
                 </h3>
                 <p className="mt-0.5 text-slate-500 dark:text-slate-400 text-xs">
-                  Configure metadata settings and trigger automated recurring instances.
+                  Configure metadata settings and trigger automated recurring
+                  instances.
                 </p>
               </div>
               <button
@@ -929,13 +1117,18 @@ export default function DashboardPage() {
 
             {/* Modal Body */}
             <div className="space-y-6 p-6">
-
               {/* Part 1: General Details */}
               <div className="space-y-4">
                 <h4 className="pb-2 border-indigo-50 dark:border-indigo-950/30 border-b font-black text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                   1. General Details
                 </h4>
-                <div className={manageIsRecurring ? "w-full" : "gap-4 grid grid-cols-1 md:grid-cols-2"}>
+                <div
+                  className={
+                    manageIsRecurring
+                      ? "w-full"
+                      : "gap-4 grid grid-cols-1 md:grid-cols-2"
+                  }
+                >
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
                       Invoice Number
@@ -976,7 +1169,12 @@ export default function DashboardPage() {
                             const newDate = e.target.value;
                             setManageDate(newDate);
                             if (manageIsRecurring && newDate) {
-                              setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
+                              setManageNextGenDate(
+                                calculateNextGenDate(
+                                  newDate,
+                                  manageRecurringFrequency,
+                                ),
+                              );
                             }
                           }}
                         />
@@ -1001,7 +1199,9 @@ export default function DashboardPage() {
                             type="number"
                             className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                             value={manageTaxRate}
-                            onChange={(e) => setManageTaxRate(Number(e.target.value))}
+                            onChange={(e) =>
+                              setManageTaxRate(Number(e.target.value))
+                            }
                           />
                         </div>
                       </div>
@@ -1039,11 +1239,19 @@ export default function DashboardPage() {
                       const checked = e.target.checked;
                       setManageIsRecurring(checked);
                       if (checked && manageDate) {
-                        setManageNextGenDate(calculateNextGenDate(manageDate, manageRecurringFrequency));
+                        setManageNextGenDate(
+                          calculateNextGenDate(
+                            manageDate,
+                            manageRecurringFrequency,
+                          ),
+                        );
                       }
                     }}
                   />
-                  <label htmlFor="modalIsRecurring" className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide cursor-pointer">
+                  <label
+                    htmlFor="modalIsRecurring"
+                    className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide cursor-pointer"
+                  >
                     Enable Recurring Invoicing for this Record
                   </label>
                 </div>
@@ -1061,7 +1269,9 @@ export default function DashboardPage() {
                           const newFreq = e.target.value;
                           setManageRecurringFrequency(newFreq);
                           if (manageIsRecurring && manageDate) {
-                            setManageNextGenDate(calculateNextGenDate(manageDate, newFreq));
+                            setManageNextGenDate(
+                              calculateNextGenDate(manageDate, newFreq),
+                            );
                           }
                         }}
                       >
@@ -1090,12 +1300,18 @@ export default function DashboardPage() {
                         className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                         value={parseBillingTiming(manageNotes)}
                         onChange={(e) => {
-                          const timingVal = e.target.value as 'advanced' | 'after_period';
-                          setManageNotes(appendBillingTiming(manageNotes, timingVal));
+                          const timingVal = e.target.value as
+                            | "advanced"
+                            | "after_period";
+                          setManageNotes(
+                            appendBillingTiming(manageNotes, timingVal),
+                          );
                         }}
                       >
                         <option value="advanced">In Advance (Default)</option>
-                        <option value="after_period">After Period (Arrears)</option>
+                        <option value="after_period">
+                          After Period (Arrears)
+                        </option>
                       </select>
                     </div>
                   </div>
@@ -1113,9 +1329,12 @@ export default function DashboardPage() {
                     {/* Stop Recurring Button */}
                     <div className="flex flex-col justify-between bg-slate-50 dark:bg-slate-950/40 p-4 border border-slate-100 dark:border-slate-800/60 rounded-xl">
                       <div>
-                        <span className="font-bold text-slate-800 dark:text-white text-xs">Active Recurrence</span>
+                        <span className="font-bold text-slate-800 dark:text-white text-xs">
+                          Active Recurrence
+                        </span>
                         <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
-                          Halt automated billing templates. Keeps invoice data intact.
+                          Halt automated billing templates. Keeps invoice data
+                          intact.
                         </p>
                       </div>
                       <button
@@ -1130,9 +1349,12 @@ export default function DashboardPage() {
                     {/* Generate Recurring Now Button */}
                     <div className="flex flex-col justify-between bg-slate-50 dark:bg-slate-950/40 p-4 border border-slate-100 dark:border-slate-800/60 rounded-xl">
                       <div>
-                        <span className="font-bold text-slate-800 dark:text-white text-xs">Run Generation Now</span>
+                        <span className="font-bold text-slate-800 dark:text-white text-xs">
+                          Run Generation Now
+                        </span>
                         <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
-                          Force-trigger the next scheduled invoice instance immediately.
+                          Force-trigger the next scheduled invoice instance
+                          immediately.
                         </p>
                       </div>
                       <button
@@ -1151,7 +1373,8 @@ export default function DashboardPage() {
                       Generate for Combined Months (Batch Mode)
                     </span>
                     <p className="mb-4 text-[10px] text-slate-400 leading-relaxed">
-                      Pre-generate invoice records in bulk for consecutive future periods.
+                      Pre-generate invoice records in bulk for consecutive
+                      future periods.
                     </p>
                     <div className="flex gap-2">
                       <div className="w-24">
@@ -1161,7 +1384,9 @@ export default function DashboardPage() {
                           max={12}
                           className="bg-white dark:bg-slate-900 p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full font-bold dark:text-white text-xs text-center"
                           value={batchMonths}
-                          onChange={(e) => setBatchMonths(Math.max(1, Number(e.target.value)))}
+                          onChange={(e) =>
+                            setBatchMonths(Math.max(1, Number(e.target.value)))
+                          }
                         />
                       </div>
                       <button
@@ -1176,7 +1401,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* Modal Footer */}
@@ -1192,17 +1416,16 @@ export default function DashboardPage() {
                 disabled={isSavingManager}
                 className="bg-slate-900 hover:bg-slate-800 dark:bg-white shadow-lg px-5 py-2.5 rounded-lg font-black text-white dark:text-slate-900 text-xs uppercase tracking-widest transition-colors"
               >
-                {isSavingManager ? 'Saving...' : 'Save Config'}
+                {isSavingManager ? "Saving..." : "Save Config"}
               </button>
             </div>
-
           </div>
         </div>
       )}
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={confirmModal.action}
         title={confirmModal.title}
         description={confirmModal.description}

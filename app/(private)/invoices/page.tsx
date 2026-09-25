@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   deleteInvoice,
   saveInvoice,
@@ -11,13 +11,17 @@ import {
   revokeInvoiceToken,
   listInvoiceTokens,
   listInvoiceViewLogs,
-} from '@/services/invoices';
-import { Invoice } from '@/types';
-import { useToast } from '@/components/ui/toast';
-import { calculateNextGenDate, parseBillingTiming, appendBillingTiming } from '@/lib/date-utils';
-import { TableSkeleton } from '@/components/skeleton';
+} from "@/services/invoices";
+import { Invoice } from "@/types";
+import { useToast } from "@/components/ui/toast";
+import {
+  calculateNextGenDate,
+  parseBillingTiming,
+  appendBillingTiming,
+} from "@/lib/date-utils";
+import { TableSkeleton } from "@/components/skeleton";
 
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function InvoicesPage() {
   const router = useRouter();
@@ -26,43 +30,51 @@ export default function InvoicesPage() {
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'recurring' | 'attendx'>('all');
+  const [filter, setFilter] = useState<
+    "all" | "draft" | "sent" | "paid" | "overdue" | "recurring" | "attendx"
+  >("all");
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
     description: string;
     confirmText?: string;
-    variant?: 'danger' | 'info';
+    variant?: "danger" | "info";
     action: () => Promise<void>;
   }>({
     isOpen: false,
-    title: '',
-    description: '',
+    title: "",
+    description: "",
     action: async () => {},
   });
 
   // Manage Invoice & Recurring Modal State
-  const [selectedManageInvoice, setSelectedManageInvoice] = useState<Invoice | null>(null);
-  const [manageInvoiceNumber, setManageInvoiceNumber] = useState('');
-  const [manageStatus, setManageStatus] = useState<string>('draft');
-  const [manageDate, setManageDate] = useState('');
-  const [manageNotes, setManageNotes] = useState('');
-  const [manageCurrency, setManageCurrency] = useState('');
+  const [selectedManageInvoice, setSelectedManageInvoice] =
+    useState<Invoice | null>(null);
+  const [manageInvoiceNumber, setManageInvoiceNumber] = useState("");
+  const [manageStatus, setManageStatus] = useState<string>("draft");
+  const [manageDate, setManageDate] = useState("");
+  const [manageNotes, setManageNotes] = useState("");
+  const [manageCurrency, setManageCurrency] = useState("");
   const [manageTaxRate, setManageTaxRate] = useState(0);
   const [manageIsRecurring, setManageIsRecurring] = useState(false);
-  const [manageRecurringFrequency, setManageRecurringFrequency] = useState<string>('monthly');
-  const [manageNextGenDate, setManageNextGenDate] = useState('');
+  const [manageRecurringFrequency, setManageRecurringFrequency] =
+    useState<string>("monthly");
+  const [manageNextGenDate, setManageNextGenDate] = useState("");
   const [isSavingManager, setIsSavingManager] = useState(false);
   const [batchMonths, setBatchMonths] = useState(3);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   const [recurringLogs, setRecurringLogs] = useState<any[]>([]);
-  const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
+  const [expandedTemplates, setExpandedTemplates] = useState<
+    Record<string, boolean>
+  >({});
 
   // Share Link Manager state
   const [shareInvoice, setShareInvoice] = useState<Invoice | null>(null);
-  const [shareTab, setShareTab] = useState<'create' | 'tokens' | 'logs'>('create');
-  const [shareLabel, setShareLabel] = useState('');
+  const [shareTab, setShareTab] = useState<"create" | "tokens" | "logs">(
+    "create",
+  );
+  const [shareLabel, setShareLabel] = useState("");
   const [shareNeverExpires, setShareNeverExpires] = useState(false);
   const [shareDays, setShareDays] = useState(30);
   const [shareTokens, setShareTokens] = useState<any[]>([]);
@@ -83,8 +95,8 @@ export default function InvoicesPage() {
 
   const openShareModal = useCallback(async (invoice: Invoice) => {
     setShareInvoice(invoice);
-    setShareTab('create');
-    setShareLabel('');
+    setShareTab("create");
+    setShareLabel("");
     setShareNeverExpires(false);
     setShareDays(30);
     setGeneratedLink(null);
@@ -116,10 +128,10 @@ export default function InvoicesPage() {
       setGeneratedLink(`${origin}/invoices/token/${tokenData.token}`);
       const tokens = await listInvoiceTokens(shareInvoice.id);
       setShareTokens(tokens);
-      setShareLabel('');
-      toast.success('Share link generated!');
+      setShareLabel("");
+      toast.success("Share link generated!");
     } catch (err: any) {
-      toast.error(err.message || 'Failed to generate link');
+      toast.error(err.message || "Failed to generate link");
     } finally {
       setShareLoading(false);
     }
@@ -128,36 +140,35 @@ export default function InvoicesPage() {
   const handleRevokeToken = (tokenId: string) => {
     setConfirmModal({
       isOpen: true,
-      title: 'Revoke Link',
-      description: 'Revoke this link? Anyone with it will no longer be able to view the invoice.',
-      confirmText: 'Revoke',
-      variant: 'danger',
+      title: "Revoke Link",
+      description:
+        "Revoke this link? Anyone with it will no longer be able to view the invoice.",
+      confirmText: "Revoke",
+      variant: "danger",
       action: async () => {
         try {
           await revokeInvoiceToken(tokenId);
           const tokens = await listInvoiceTokens(shareInvoice!.id);
           setShareTokens(tokens);
-          toast.success('Link revoked.');
+          toast.success("Link revoked.");
         } catch (err: any) {
-          toast.error(err.message || 'Failed to revoke');
+          toast.error(err.message || "Failed to revoke");
         }
       },
     });
   };
 
-
-
   const handleOpenManager = (invoice: Invoice) => {
     setSelectedManageInvoice(invoice);
-    setManageInvoiceNumber(invoice.invoice_number || '');
-    setManageStatus(invoice.status || 'draft');
-    setManageDate(invoice.date || '');
-    setManageNotes(invoice.notes || '');
-    setManageCurrency(invoice.currency || '৳ ');
+    setManageInvoiceNumber(invoice.invoice_number || "");
+    setManageStatus(invoice.status || "draft");
+    setManageDate(invoice.date || "");
+    setManageNotes(invoice.notes || "");
+    setManageCurrency(invoice.currency || "৳ ");
     setManageTaxRate(invoice.tax_rate || 0);
     setManageIsRecurring(invoice.is_recurring || false);
-    setManageRecurringFrequency(invoice.recurring_frequency || 'monthly');
-    setManageNextGenDate(invoice.next_generation_date || '');
+    setManageRecurringFrequency(invoice.recurring_frequency || "monthly");
+    setManageNextGenDate(invoice.next_generation_date || "");
     setBatchMonths(3);
   };
 
@@ -175,16 +186,18 @@ export default function InvoicesPage() {
         tax_rate: manageTaxRate,
         is_recurring: manageIsRecurring,
         recurring_frequency: manageRecurringFrequency as any,
-        next_generation_date: manageIsRecurring ? (manageNextGenDate || new Date().toISOString().split('T')[0]) : null,
+        next_generation_date: manageIsRecurring
+          ? manageNextGenDate || new Date().toISOString().split("T")[0]
+          : null,
       };
 
       await saveInvoice(updatedData, selectedManageInvoice.items || []);
-      toast.success('Invoice details updated successfully.');
+      toast.success("Invoice details updated successfully.");
       setSelectedManageInvoice(null);
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error updating invoice.');
+      toast.error(err.message || "Error updating invoice.");
     } finally {
       setIsSavingManager(false);
     }
@@ -200,11 +213,11 @@ export default function InvoicesPage() {
       };
       await saveInvoice(updatedData, selectedManageInvoice.items || []);
       setManageIsRecurring(false);
-      toast.success('Recurring billing stopped.');
+      toast.success("Recurring billing stopped.");
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error stopping recurring.');
+      toast.error(err.message || "Error stopping recurring.");
     } finally {
       setIsProcessingAction(false);
     }
@@ -214,15 +227,20 @@ export default function InvoicesPage() {
     if (!selectedManageInvoice) return;
     setIsProcessingAction(true);
     try {
-      const result = await generateRecurringInstanceAction(selectedManageInvoice.id, 1);
-      toast.success(`Successfully generated 1 invoice: ${result.generated[0].invoice_number}`);
+      const result = await generateRecurringInstanceAction(
+        selectedManageInvoice.id,
+        1,
+      );
+      toast.success(
+        `Successfully generated 1 invoice: ${result.generated[0].invoice_number}`,
+      );
       if (result.nextScheduledDate) {
         setManageNextGenDate(result.nextScheduledDate);
       }
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating recurring invoice.');
+      toast.error(err.message || "Error generating recurring invoice.");
     } finally {
       setIsProcessingAction(false);
     }
@@ -231,47 +249,61 @@ export default function InvoicesPage() {
   const handleGenerateMultipleMonths = async () => {
     if (!selectedManageInvoice) return;
     if (batchMonths <= 0) {
-      toast.error('Please enter a valid number of months.');
+      toast.error("Please enter a valid number of months.");
       return;
     }
     setIsProcessingAction(true);
     try {
-      const result = await generateRecurringInstanceAction(selectedManageInvoice.id, batchMonths);
-      toast.success(`Successfully generated ${result.generatedCount} invoice instance(s).`);
+      const result = await generateRecurringInstanceAction(
+        selectedManageInvoice.id,
+        batchMonths,
+      );
+      toast.success(
+        `Successfully generated ${result.generatedCount} invoice instance(s).`,
+      );
       if (result.nextScheduledDate) {
         setManageNextGenDate(result.nextScheduledDate);
       }
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Error generating recurring invoices.');
+      toast.error(err.message || "Error generating recurring invoices.");
     } finally {
       setIsProcessingAction(false);
     }
   };
 
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(
+    null,
+  );
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [invRes, logsRes, reqsRes] = await Promise.all([
         supabase
-          .from('invoices')
-          .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('recurring_invoices')
-          .select('*'),
-        fetch('/api/payment-requests?status=pending&type=invoice', { cache: 'no-store' }).then(r => r.ok ? r.json() : { requests: [] })
+          .from("invoices")
+          .select(
+            "*, items:invoice_items(*), client:clients(*), company:companies(*)",
+          )
+          .order("created_at", { ascending: false }),
+        supabase.from("recurring_invoices").select("*"),
+        fetch("/api/payment-requests?status=pending&type=invoice", {
+          cache: "no-store",
+        }).then((r) => (r.ok ? r.json() : { requests: [] })),
       ]);
 
       if (invRes.error) throw invRes.error;
 
       setInvoices(invRes.data || []);
       setRecurringLogs(logsRes.data || []);
-      setPendingRequests((reqsRes.requests || []).filter((r: any) => (r.type === 'invoice' || !r.type) && r.status === 'pending'));
+      setPendingRequests(
+        (reqsRes.requests || []).filter(
+          (r: any) =>
+            (r.type === "invoice" || !r.type) && r.status === "pending",
+        ),
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -279,24 +311,29 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleReviewVerificationRequest = async (requestId: string, action: 'approved' | 'rejected') => {
+  const handleReviewVerificationRequest = async (
+    requestId: string,
+    action: "approved" | "rejected",
+  ) => {
     if (reviewingRequestId) return;
     setReviewingRequestId(requestId);
     try {
       const res = await fetch(`/api/payment-requests/${requestId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
       if (res.ok) {
-        toast.success(`Verification request ${action === 'approved' ? 'approved' : 'rejected'}`);
+        toast.success(
+          `Verification request ${action === "approved" ? "approved" : "rejected"}`,
+        );
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Failed to review request');
+        toast.error(err.error || "Failed to review request");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error updating request');
+      toast.error(err.message || "Error updating request");
     } finally {
       setReviewingRequestId(null);
     }
@@ -308,17 +345,17 @@ export default function InvoicesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
-      case 'partially_paid':
-        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
-      case 'sent':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
-      case 'overdue':
-      case 'due':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      case "paid":
+        return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+      case "partially_paid":
+        return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+      case "sent":
+        return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
+      case "overdue":
+      case "due":
+        return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400";
       default:
-        return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400';
+        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400";
     }
   };
 
@@ -326,17 +363,18 @@ export default function InvoicesPage() {
     e.stopPropagation();
     setConfirmModal({
       isOpen: true,
-      title: 'Delete Invoice',
-      description: 'Are you sure you want to permanently delete this invoice? This action cannot be undone.',
-      confirmText: 'Delete',
-      variant: 'danger',
+      title: "Delete Invoice",
+      description:
+        "Are you sure you want to permanently delete this invoice? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
       action: async () => {
         try {
           await deleteInvoice(id);
-          toast.success('Invoice deleted successfully.');
+          toast.success("Invoice deleted successfully.");
           await fetchData();
         } catch (err: any) {
-          toast.error(err.message || 'Error deleting invoice');
+          toast.error(err.message || "Error deleting invoice");
         }
       },
     });
@@ -346,25 +384,28 @@ export default function InvoicesPage() {
     e.stopPropagation();
     setConfirmModal({
       isOpen: true,
-      title: 'Duplicate Invoice',
+      title: "Duplicate Invoice",
       description: `Create a draft copy of invoice #${invoice.invoice_number}?`,
-      confirmText: 'Duplicate',
-      variant: 'info',
+      confirmText: "Duplicate",
+      variant: "info",
       action: async () => {
         try {
-          const { id, items, client, company, created_at, ...cleanInvoice } = invoice;
+          const { id, items, client, company, created_at, ...cleanInvoice } =
+            invoice;
           const duplicatedData = {
             ...cleanInvoice,
             invoice_number: `${cleanInvoice.invoice_number}-COPY`,
-            status: 'draft' as const,
+            status: "draft" as const,
             paid_amount: 0,
           };
-          const cleanItems = items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) || [];
+          const cleanItems =
+            items?.map(({ id: _id, invoice_id: _inv_id, ...item }) => item) ||
+            [];
           await saveInvoice(duplicatedData, cleanItems);
-          toast.success('Invoice duplicated.');
+          toast.success("Invoice duplicated.");
           await fetchData();
         } catch (err: any) {
-          toast.error(err.message || 'Error duplicating invoice');
+          toast.error(err.message || "Error duplicating invoice");
         }
       },
     });
@@ -372,22 +413,23 @@ export default function InvoicesPage() {
 
   const isAttendxInvoice = (inv: Invoice) =>
     Boolean(
-      inv.invoice_number?.startsWith('INV-ATX-') ||
-      inv.notes?.includes('[AttendX') ||
-      inv.notes?.includes('[Academix')
+      inv.invoice_number?.startsWith("INV-ATX-") ||
+      inv.notes?.includes("[AttendX") ||
+      inv.notes?.includes("[Academix"),
     );
 
   const childInvoiceIds = new Set(recurringLogs.map((l) => l.child_invoice_id));
   const filteredInvoices = invoices.filter((inv) => {
-    if (filter === 'attendx') return isAttendxInvoice(inv);
+    if (filter === "attendx") return isAttendxInvoice(inv);
     // Hide AttendX invoices from standard CRM views by default
     if (isAttendxInvoice(inv)) return false;
-    if (filter === 'all') return true;
-    if (filter === 'recurring') return inv.is_recurring;
+    if (filter === "all") return true;
+    if (filter === "recurring") return inv.is_recurring;
     return inv.status === filter;
   });
 
-  const showGrouped = filter === 'all' || filter === 'recurring' || filter === 'attendx';
+  const showGrouped =
+    filter === "all" || filter === "recurring" || filter === "attendx";
 
   const displayInvoices = showGrouped
     ? filteredInvoices.filter((inv) => !childInvoiceIds.has(inv.id))
@@ -419,7 +461,7 @@ export default function InvoicesPage() {
           </p>
         </div>
         <button
-          onClick={() => router.push('/invoices/new')}
+          onClick={() => router.push("/invoices/new")}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20 shadow-lg px-6 py-3 rounded-lg font-black text-white text-xs uppercase tracking-widest transition-colors"
         >
           <i className="fa-solid fa-plus"></i> Create Invoice
@@ -436,7 +478,8 @@ export default function InvoicesPage() {
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                  {pendingRequests.length} Pending Payment Verification Request{pendingRequests.length > 1 ? 's' : ''}
+                  {pendingRequests.length} Pending Payment Verification Request
+                  {pendingRequests.length > 1 ? "s" : ""}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Clients have submitted payment proof for verification.
@@ -444,7 +487,7 @@ export default function InvoicesPage() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/payment-methods?tab=requests')}
+              onClick={() => router.push("/payment-methods?tab=requests")}
               className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline uppercase tracking-wider"
             >
               View All Requests →
@@ -453,23 +496,35 @@ export default function InvoicesPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {pendingRequests.slice(0, 4).map((req) => (
-              <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm">
+              <div
+                key={req.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs shadow-sm"
+              >
                 <div className="space-y-0.5 min-w-0">
                   <div className="font-extrabold text-slate-900 dark:text-white truncate">
-                    {req.client_name || 'Client Submission'} ({req.invoice_number ? `#${req.invoice_number}` : 'Invoice'})
+                    {req.client_name || "Client Submission"} (
+                    {req.invoice_number ? `#${req.invoice_number}` : "Invoice"})
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Trx: <span className="text-slate-700 dark:text-slate-300 font-bold">{req.transaction_id}</span> | A/C: {req.account_number}
+                  <div className="text-[10px] text-slate-400 ">
+                    Trx:{" "}
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">
+                      {req.transaction_id}
+                    </span>{" "}
+                    | A/C: {req.account_number}
                   </div>
                   <div className="font-black text-emerald-600 dark:text-emerald-400 text-xs">
-                    {req.amount ? `${req.currency || '৳'}${req.amount.toLocaleString()}` : 'Payment Proof'}
+                    {req.amount
+                      ? `${req.currency || "৳"}${req.amount.toLocaleString()}`
+                      : "Payment Proof"}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 ml-3">
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, 'approved')}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "approved")
+                    }
                     className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-[10px] px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-wider transition-all flex items-center gap-1"
                   >
                     {reviewingRequestId === req.id ? (
@@ -479,7 +534,9 @@ export default function InvoicesPage() {
                   </button>
                   <button
                     disabled={reviewingRequestId === req.id}
-                    onClick={() => handleReviewVerificationRequest(req.id, 'rejected')}
+                    onClick={() =>
+                      handleReviewVerificationRequest(req.id, "rejected")
+                    }
                     className="bg-slate-100 hover:bg-rose-100 disabled:opacity-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-400 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
                   >
                     Reject
@@ -493,16 +550,27 @@ export default function InvoicesPage() {
 
       {/* Filters Toolbar */}
       <div className="flex flex-wrap gap-2 mb-6 pb-4 border-slate-200 dark:border-slate-800 border-b">
-        {(['all', 'draft', 'sent', 'paid', 'overdue', 'recurring', 'attendx'] as const).map((t) => (
+        {(
+          [
+            "all",
+            "draft",
+            "sent",
+            "paid",
+            "overdue",
+            "recurring",
+            "attendx",
+          ] as const
+        ).map((t) => (
           <button
             key={t}
             onClick={() => setFilter(t as any)}
-            className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${filter === t
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
+            className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+              filter === t
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
           >
-            {t === 'attendx' ? 'AttendX / Academix' : t}
+            {t === "attendx" ? "AttendX / Academix" : t}
           </button>
         ))}
       </div>
@@ -526,35 +594,60 @@ export default function InvoicesPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {displayInvoices.map((invoice) => {
                 const isTemplate = invoice.is_recurring;
-                const children = isTemplate ? getChildrenForParent(invoice.id) : [];
+                const children = isTemplate
+                  ? getChildrenForParent(invoice.id)
+                  : [];
                 const isExpanded = expandedTemplates[invoice.id];
 
-                const amount = invoice.items?.reduce((sum, i) => sum + (i.quantity * i.rate), 0) || 0;
+                const amount =
+                  invoice.items?.reduce(
+                    (sum, i) => sum + i.quantity * i.rate,
+                    0,
+                  ) || 0;
                 const paid = invoice.paid_amount || 0;
                 const due = amount - paid;
-                const calculatedStatus = paid >= amount ? 'paid' : paid > 0 ? 'partially_paid' : invoice.status;
+                const calculatedStatus =
+                  paid >= amount
+                    ? "paid"
+                    : paid > 0
+                      ? "partially_paid"
+                      : invoice.status;
 
                 // Combined children stats for templates
                 const totalChildrenCount = children.length;
                 const totalChildrenValue = children.reduce((sum, child) => {
-                  return sum + (child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0);
+                  return (
+                    sum +
+                    (child.items?.reduce(
+                      (s, i) => s + i.quantity * i.rate,
+                      0,
+                    ) || 0)
+                  );
                 }, 0);
-                const totalChildrenPaid = children.reduce((sum, child) => sum + (child.paid_amount || 0), 0);
+                const totalChildrenPaid = children.reduce(
+                  (sum, child) => sum + (child.paid_amount || 0),
+                  0,
+                );
                 const totalChildrenDue = totalChildrenValue - totalChildrenPaid;
-                const templateStatus = totalChildrenDue > 0 ? 'due' : 'paid';
+                const templateStatus = totalChildrenDue > 0 ? "due" : "paid";
 
                 if (isTemplate && showGrouped) {
                   return (
                     <React.Fragment key={invoice.id}>
                       {/* Accordion Header Row */}
                       <tr
-                        onClick={() => totalChildrenCount > 0 && toggleExpandTemplate(invoice.id)}
-                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? 'cursor-pointer' : ''} ${isExpanded ? 'border-l-4 border-indigo-500' : ''}`}
+                        onClick={() =>
+                          totalChildrenCount > 0 &&
+                          toggleExpandTemplate(invoice.id)
+                        }
+                        className={`group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${totalChildrenCount > 0 ? "cursor-pointer" : ""} ${isExpanded ? "border-l-4 border-indigo-500" : ""}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             {totalChildrenCount > 0 && (
-                              <i className={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-indigo-500 text-xs transition-transform duration-200`}></i>
+                              <i
+                                className={`fa-solid ${isExpanded ? "fa-chevron-down" : "fa-chevron-right"} text-indigo-500 text-xs transition-transform duration-200`}
+                              ></i>
                             )}
                             <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
                               {invoice.invoice_number}
@@ -567,10 +660,10 @@ export default function InvoicesPage() {
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm">
-                              {invoice.client?.name || '---'}
+                              {invoice.client?.name || "---"}
                             </span>
                             <span className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                              {invoice.company?.name || '---'}
+                              {invoice.company?.name || "---"}
                             </span>
                           </div>
                         </td>
@@ -580,10 +673,13 @@ export default function InvoicesPage() {
                               Freq: {invoice.recurring_frequency}
                             </span>
                             <span className="text-[10px] text-slate-400">
-                              Next: {new Date(invoice.next_generation_date).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
+                              Next:{" "}
+                              {new Date(
+                                invoice.next_generation_date,
+                              ).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
                               })}
                             </span>
                           </div>
@@ -595,16 +691,23 @@ export default function InvoicesPage() {
                           {invoice.currency}
                           {totalChildrenPaid.toLocaleString()}
                         </td>
-                        <td className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-black dark:text-white'}`}>
+                        <td
+                          className={`px-6 py-4 font-black text-sm ${totalChildrenDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-black dark:text-white"}`}
+                        >
                           {invoice.currency}
                           {totalChildrenDue.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(templateStatus)}`}
+                          >
                             {templateStatus}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-6 py-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => openShareModal(invoice)}
@@ -614,7 +717,12 @@ export default function InvoicesPage() {
                               <i className="fa-solid fa-link"></i>
                             </button>
                             <button
-                              onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
+                              onClick={() =>
+                                window.open(
+                                  `/invoices/${invoice.id}/print`,
+                                  "_blank",
+                                )
+                              }
                               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                               title="Print"
                             >
@@ -648,14 +756,18 @@ export default function InvoicesPage() {
                       {/* Accordion Content Row (Children Invoices) */}
                       {isExpanded && totalChildrenCount > 0 && (
                         <tr>
-                          <td colSpan={8} className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4">
+                          <td
+                            colSpan={8}
+                            className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border-indigo-500 border-l-4"
+                          >
                             <div className="space-y-3 pl-6">
                               <div className="flex justify-between items-center pb-2 border-slate-100 dark:border-slate-800 border-b">
                                 <span className="font-black text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                   Generated Invoices ({totalChildrenCount})
                                 </span>
                                 <span className="font-black text-[10px] text-indigo-500 uppercase">
-                                  Combined Total: {invoice.currency}{totalChildrenValue.toLocaleString()}
+                                  Combined Total: {invoice.currency}
+                                  {totalChildrenValue.toLocaleString()}
                                 </span>
                               </div>
                               <div className="bg-white dark:bg-slate-900/60 shadow-inner border border-slate-100 dark:border-slate-800/85 rounded-lg overflow-x-auto">
@@ -664,67 +776,105 @@ export default function InvoicesPage() {
                                     <tr>
                                       <th className="px-4 py-2">Invoice #</th>
                                       <th className="px-4 py-2">Issue Date</th>
-                                      <th className="px-4 py-2">Total Amount</th>
+                                      <th className="px-4 py-2">
+                                        Total Amount
+                                      </th>
                                       <th className="px-4 py-2">Paid Amount</th>
                                       <th className="px-4 py-2">Due Amount</th>
                                       <th className="px-4 py-2">Status</th>
-                                      <th className="px-4 py-2 text-right">Actions</th>
+                                      <th className="px-4 py-2 text-right">
+                                        Actions
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
                                     {children.map((child) => {
-                                      const childAmount = child.items?.reduce((s, i) => s + (i.quantity * i.rate), 0) || 0;
+                                      const childAmount =
+                                        child.items?.reduce(
+                                          (s, i) => s + i.quantity * i.rate,
+                                          0,
+                                        ) || 0;
                                       const childPaid = child.paid_amount || 0;
                                       const childDue = childAmount - childPaid;
-                                      const childStatus = childPaid >= childAmount ? 'paid' : childPaid > 0 ? 'partially_paid' : child.status;
+                                      const childStatus =
+                                        childPaid >= childAmount
+                                          ? "paid"
+                                          : childPaid > 0
+                                            ? "partially_paid"
+                                            : child.status;
                                       return (
                                         <tr
                                           key={child.id}
-                                          onClick={() => router.push(`/invoices/${child.id}`)}
+                                          onClick={() =>
+                                            router.push(`/invoices/${child.id}`)
+                                          }
                                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors cursor-pointer"
                                         >
                                           <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-200">
                                             {child.invoice_number}
                                           </td>
                                           <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">
-                                            {new Date(child.date).toLocaleDateString(undefined, {
-                                              month: 'short',
-                                              day: 'numeric',
-                                              year: 'numeric'
+                                            {new Date(
+                                              child.date,
+                                            ).toLocaleDateString(undefined, {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
                                             })}
                                           </td>
                                           <td className="px-4 py-2.5 font-bold">
-                                            {child.currency}{childAmount.toLocaleString()}
+                                            {child.currency}
+                                            {childAmount.toLocaleString()}
                                           </td>
                                           <td className="px-4 py-2.5 font-bold text-emerald-600 dark:text-emerald-400">
-                                            {child.currency}{childPaid.toLocaleString()}
+                                            {child.currency}
+                                            {childPaid.toLocaleString()}
                                           </td>
                                           <td className="px-4 py-2.5 font-bold text-rose-600 dark:text-rose-400">
-                                            {child.currency}{childDue.toLocaleString()}
+                                            {child.currency}
+                                            {childDue.toLocaleString()}
                                           </td>
                                           <td className="px-4 py-2.5">
-                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}>
-                                              {childStatus === 'partially_paid' ? 'Partially Paid' : childStatus}
+                                            <span
+                                              className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(childStatus)}`}
+                                            >
+                                              {childStatus === "partially_paid"
+                                                ? "Partially Paid"
+                                                : childStatus}
                                             </span>
                                           </td>
-                                          <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                          <td
+                                            className="px-4 py-2.5 text-right"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
                                             <div className="flex justify-end gap-1">
                                               <button
-                                                onClick={() => window.open(`/invoices/${child.id}/print`, '_blank')}
+                                                onClick={() =>
+                                                  window.open(
+                                                    `/invoices/${child.id}/print`,
+                                                    "_blank",
+                                                  )
+                                                }
                                                 className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                                 title="Print"
                                               >
                                                 <i className="fa-solid fa-print"></i>
                                               </button>
                                               <button
-                                                onClick={() => router.push(`/invoices/${child.id}?tab=edit`)}
+                                                onClick={() =>
+                                                  router.push(
+                                                    `/invoices/${child.id}?tab=edit`,
+                                                  )
+                                                }
                                                 className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                                 title="Edit"
                                               >
                                                 <i className="fa-solid fa-pen"></i>
                                               </button>
                                               <button
-                                                onClick={(e) => handleDelete(child.id, e)}
+                                                onClick={(e) =>
+                                                  handleDelete(child.id, e)
+                                                }
                                                 className="p-1 text-slate-400 hover:text-red-500 transition-colors"
                                                 title="Delete"
                                               >
@@ -759,19 +909,22 @@ export default function InvoicesPage() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm">
-                            {invoice.client?.name || '---'}
+                            {invoice.client?.name || "---"}
                           </span>
                           <span className="font-black text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                            {invoice.company?.name || '---'}
+                            {invoice.company?.name || "---"}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-500 text-xs">
-                        {new Date(invoice.created_at || '').toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
+                        {new Date(invoice.created_at || "").toLocaleDateString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
                       </td>
                       <td className="px-6 py-4 font-black text-slate-900 dark:text-white text-sm">
                         {invoice.currency}
@@ -788,13 +941,18 @@ export default function InvoicesPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${getStatusColor(
-                            calculatedStatus
+                            calculatedStatus,
                           )}`}
                         >
-                          {calculatedStatus === 'partially_paid' ? 'Partially Paid' : calculatedStatus}
+                          {calculatedStatus === "partially_paid"
+                            ? "Partially Paid"
+                            : calculatedStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-6 py-4 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex justify-end gap-1">
                           <button
                             onClick={() => openShareModal(invoice)}
@@ -804,7 +962,12 @@ export default function InvoicesPage() {
                             <i className="fa-solid fa-link"></i>
                           </button>
                           <button
-                            onClick={() => window.open(`/invoices/${invoice.id}/print`, '_blank')}
+                            onClick={() =>
+                              window.open(
+                                `/invoices/${invoice.id}/print`,
+                                "_blank",
+                              )
+                            }
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                             title="Print"
                           >
@@ -825,7 +988,9 @@ export default function InvoicesPage() {
                             <i className="fa-solid fa-copy"></i>
                           </button>
                           <button
-                            onClick={() => router.push(`/invoices/${invoice.id}?tab=edit`)}
+                            onClick={() =>
+                              router.push(`/invoices/${invoice.id}?tab=edit`)
+                            }
                             className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
                             title="Edit"
                           >
@@ -846,7 +1011,10 @@ export default function InvoicesPage() {
               })}
               {filteredInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-slate-400 dark:text-slate-500 text-sm text-center italic">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-slate-400 dark:text-slate-500 text-sm text-center italic"
+                  >
                     No records found.
                   </td>
                 </tr>
@@ -858,7 +1026,6 @@ export default function InvoicesPage() {
       {selectedManageInvoice && (
         <div className="z-50 fixed inset-0 flex justify-center items-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800/80 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-up custom-scrollbar">
-
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-slate-100 dark:border-slate-800 border-b">
               <div>
@@ -866,7 +1033,8 @@ export default function InvoicesPage() {
                   Manage Invoice & Recurring
                 </h3>
                 <p className="mt-0.5 text-slate-500 dark:text-slate-400 text-xs">
-                  Configure metadata settings and trigger automated recurring instances.
+                  Configure metadata settings and trigger automated recurring
+                  instances.
                 </p>
               </div>
               <button
@@ -879,13 +1047,18 @@ export default function InvoicesPage() {
 
             {/* Modal Body */}
             <div className="space-y-6 p-6">
-
               {/* Part 1: General Details */}
               <div className="space-y-4">
                 <h4 className="pb-2 border-indigo-50 dark:border-indigo-950/30 border-b font-black text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                   1. General Details
                 </h4>
-                <div className={manageIsRecurring ? "w-full" : "gap-4 grid grid-cols-1 md:grid-cols-2"}>
+                <div
+                  className={
+                    manageIsRecurring
+                      ? "w-full"
+                      : "gap-4 grid grid-cols-1 md:grid-cols-2"
+                  }
+                >
                   <div>
                     <label className="block mb-1 ml-0.5 font-bold text-[10px] text-slate-500 uppercase tracking-wide">
                       Invoice Number
@@ -926,7 +1099,12 @@ export default function InvoicesPage() {
                             const newDate = e.target.value;
                             setManageDate(newDate);
                             if (manageIsRecurring && newDate) {
-                              setManageNextGenDate(calculateNextGenDate(newDate, manageRecurringFrequency));
+                              setManageNextGenDate(
+                                calculateNextGenDate(
+                                  newDate,
+                                  manageRecurringFrequency,
+                                ),
+                              );
                             }
                           }}
                         />
@@ -951,7 +1129,9 @@ export default function InvoicesPage() {
                             type="number"
                             className="bg-slate-50 dark:bg-slate-950/40 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                             value={manageTaxRate}
-                            onChange={(e) => setManageTaxRate(Number(e.target.value))}
+                            onChange={(e) =>
+                              setManageTaxRate(Number(e.target.value))
+                            }
                           />
                         </div>
                       </div>
@@ -989,11 +1169,19 @@ export default function InvoicesPage() {
                       const checked = e.target.checked;
                       setManageIsRecurring(checked);
                       if (checked && manageDate) {
-                        setManageNextGenDate(calculateNextGenDate(manageDate, manageRecurringFrequency));
+                        setManageNextGenDate(
+                          calculateNextGenDate(
+                            manageDate,
+                            manageRecurringFrequency,
+                          ),
+                        );
                       }
                     }}
                   />
-                  <label htmlFor="modalIsRecurringInvoicesPage" className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide cursor-pointer">
+                  <label
+                    htmlFor="modalIsRecurringInvoicesPage"
+                    className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wide cursor-pointer"
+                  >
                     Enable Recurring Invoicing for this Record
                   </label>
                 </div>
@@ -1011,7 +1199,9 @@ export default function InvoicesPage() {
                           const newFreq = e.target.value;
                           setManageRecurringFrequency(newFreq);
                           if (manageIsRecurring && manageDate) {
-                            setManageNextGenDate(calculateNextGenDate(manageDate, newFreq));
+                            setManageNextGenDate(
+                              calculateNextGenDate(manageDate, newFreq),
+                            );
                           }
                         }}
                       >
@@ -1040,12 +1230,18 @@ export default function InvoicesPage() {
                         className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full font-bold dark:text-white text-xs"
                         value={parseBillingTiming(manageNotes)}
                         onChange={(e) => {
-                          const timingVal = e.target.value as 'advanced' | 'after_period';
-                          setManageNotes(appendBillingTiming(manageNotes, timingVal));
+                          const timingVal = e.target.value as
+                            | "advanced"
+                            | "after_period";
+                          setManageNotes(
+                            appendBillingTiming(manageNotes, timingVal),
+                          );
                         }}
                       >
                         <option value="advanced">In Advance (Default)</option>
-                        <option value="after_period">After Period (Arrears)</option>
+                        <option value="after_period">
+                          After Period (Arrears)
+                        </option>
                       </select>
                     </div>
                   </div>
@@ -1063,9 +1259,12 @@ export default function InvoicesPage() {
                     {/* Stop Recurring Button */}
                     <div className="flex flex-col justify-between bg-slate-50 dark:bg-slate-950/40 p-4 border border-slate-100 dark:border-slate-800/60 rounded-xl">
                       <div>
-                        <span className="font-bold text-slate-800 dark:text-white text-xs">Active Recurrence</span>
+                        <span className="font-bold text-slate-800 dark:text-white text-xs">
+                          Active Recurrence
+                        </span>
                         <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
-                          Halt automated billing templates. Keeps invoice data intact.
+                          Halt automated billing templates. Keeps invoice data
+                          intact.
                         </p>
                       </div>
                       <button
@@ -1080,9 +1279,12 @@ export default function InvoicesPage() {
                     {/* Generate Recurring Now Button */}
                     <div className="flex flex-col justify-between bg-slate-50 dark:bg-slate-950/40 p-4 border border-slate-100 dark:border-slate-800/60 rounded-xl">
                       <div>
-                        <span className="font-bold text-slate-800 dark:text-white text-xs">Run Generation Now</span>
+                        <span className="font-bold text-slate-800 dark:text-white text-xs">
+                          Run Generation Now
+                        </span>
                         <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
-                          Force-trigger the next scheduled invoice instance immediately.
+                          Force-trigger the next scheduled invoice instance
+                          immediately.
                         </p>
                       </div>
                       <button
@@ -1101,7 +1303,8 @@ export default function InvoicesPage() {
                       Generate for Combined Months (Batch Mode)
                     </span>
                     <p className="mb-4 text-[10px] text-slate-400 leading-relaxed">
-                      Pre-generate invoice records in bulk for consecutive future periods.
+                      Pre-generate invoice records in bulk for consecutive
+                      future periods.
                     </p>
                     <div className="flex gap-2">
                       <div className="w-24">
@@ -1111,7 +1314,9 @@ export default function InvoicesPage() {
                           max={12}
                           className="bg-white dark:bg-slate-900 p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg outline-none w-full font-bold dark:text-white text-xs text-center"
                           value={batchMonths}
-                          onChange={(e) => setBatchMonths(Math.max(1, Number(e.target.value)))}
+                          onChange={(e) =>
+                            setBatchMonths(Math.max(1, Number(e.target.value)))
+                          }
                         />
                       </div>
                       <button
@@ -1126,7 +1331,6 @@ export default function InvoicesPage() {
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* Modal Footer */}
@@ -1142,10 +1346,9 @@ export default function InvoicesPage() {
                 disabled={isSavingManager}
                 className="bg-slate-900 hover:bg-slate-800 dark:bg-white shadow-lg px-5 py-2.5 rounded-lg font-black text-white dark:text-slate-900 text-xs uppercase tracking-widest transition-colors"
               >
-                {isSavingManager ? 'Saving...' : 'Save Config'}
+                {isSavingManager ? "Saving..." : "Save Config"}
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -1155,44 +1358,54 @@ export default function InvoicesPage() {
       {shareInvoice && (
         <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-
             {/* Header */}
             <div className="flex justify-between items-center p-6 border-slate-100 dark:border-slate-800 border-b">
               <div>
                 <h2 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">
                   Share Invoice
                 </h2>
-                <p className="mt-0.5 text-slate-400 text-xs">{shareInvoice.invoice_number}</p>
+                <p className="mt-0.5 text-slate-400 text-xs">
+                  {shareInvoice.invoice_number}
+                </p>
               </div>
-              <button onClick={() => setShareInvoice(null)} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+              <button
+                onClick={() => setShareInvoice(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+              >
                 <i className="text-lg fa-solid fa-xmark"></i>
               </button>
             </div>
 
             {/* Tabs */}
             <div className="flex gap-1 p-4 border-slate-100 dark:border-slate-800 border-b">
-              {(['create', 'tokens', 'logs'] as const).map((tab) => (
+              {(["create", "tokens", "logs"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setShareTab(tab)}
-                  className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${shareTab === tab
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
+                  className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+                    shareTab === tab
+                      ? "bg-indigo-600 text-white shadow-md"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
                 >
-                  {tab === 'create' ? 'New Link' : tab === 'tokens' ? `Links (${shareTokens.length})` : `View Log (${shareLogs.length})`}
+                  {tab === "create"
+                    ? "New Link"
+                    : tab === "tokens"
+                      ? `Links (${shareTokens.length})`
+                      : `View Log (${shareLogs.length})`}
                 </button>
               ))}
             </div>
 
             {/* Content */}
             <div className="flex-1 space-y-5 p-6 overflow-y-auto">
-
               {/* ---- CREATE TAB ---- */}
-              {shareTab === 'create' && (
+              {shareTab === "create" && (
                 <div className="space-y-5">
                   <div>
-                    <label className="block mb-1.5 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">Link Label (optional)</label>
+                    <label className="block mb-1.5 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">
+                      Link Label (optional)
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. Sent to John — June 2026"
@@ -1203,26 +1416,33 @@ export default function InvoicesPage() {
                   </div>
 
                   <div>
-                    <label className="block mb-2 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">Expiry</label>
+                    <label className="block mb-2 font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">
+                      Expiry
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       {[7, 14, 30, 90].map((d) => (
                         <button
                           key={d}
-                          onClick={() => { setShareNeverExpires(false); setShareDays(d); }}
-                          className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${!shareNeverExpires && shareDays === d
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                            }`}
+                          onClick={() => {
+                            setShareNeverExpires(false);
+                            setShareDays(d);
+                          }}
+                          className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
+                            !shareNeverExpires && shareDays === d
+                              ? "bg-indigo-600 text-white shadow-md"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                          }`}
                         >
                           {d} days
                         </button>
                       ))}
                       <button
                         onClick={() => setShareNeverExpires(true)}
-                        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${shareNeverExpires
-                          ? 'bg-emerald-600 text-white shadow-md'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                          }`}
+                        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
+                          shareNeverExpires
+                            ? "bg-emerald-600 text-white shadow-md"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
                       >
                         Never
                       </button>
@@ -1234,21 +1454,28 @@ export default function InvoicesPage() {
                     disabled={shareLoading}
                     className="flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 shadow-indigo-600/20 shadow-lg py-3 rounded-xl w-full font-black text-white text-xs uppercase tracking-widest transition-all"
                   >
-                    <i className={`fa-solid ${shareLoading ? 'fa-spinner animate-spin' : 'fa-link'}`}></i>
-                    {shareLoading ? 'Generating...' : 'Generate Share Link'}
+                    <i
+                      className={`fa-solid ${shareLoading ? "fa-spinner animate-spin" : "fa-link"}`}
+                    ></i>
+                    {shareLoading ? "Generating..." : "Generate Share Link"}
                   </button>
 
                   {generatedLink && (
                     <div className="space-y-3 bg-emerald-50 dark:bg-emerald-950/30 p-4 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
-                      <p className="font-black text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Link Ready</p>
+                      <p className="font-black text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                        Link Ready
+                      </p>
                       <div className="flex items-center gap-2">
                         <input
                           readOnly
                           value={generatedLink}
-                          className="flex-1 bg-white dark:bg-slate-900 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-mono text-slate-700 dark:text-slate-300 text-xs"
+                          className="flex-1 bg-white dark:bg-slate-900 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg outline-none  text-slate-700 dark:text-slate-300 text-xs"
                         />
                         <button
-                          onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success('Copied!'); }}
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedLink);
+                            toast.success("Copied!");
+                          }}
                           className="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg font-black text-white text-xs transition-colors"
                         >
                           <i className="fa-solid fa-copy"></i>
@@ -1260,52 +1487,82 @@ export default function InvoicesPage() {
               )}
 
               {/* ---- TOKENS TAB ---- */}
-              {shareTab === 'tokens' && (
+              {shareTab === "tokens" && (
                 <div className="space-y-3">
-                  {shareLoading && <p className="py-4 text-slate-400 text-xs text-center">Loading...</p>}
+                  {shareLoading && (
+                    <p className="py-4 text-slate-400 text-xs text-center">
+                      Loading...
+                    </p>
+                  )}
                   {!shareLoading && shareTokens.length === 0 && (
-                    <p className="py-6 text-slate-400 text-xs text-center italic">No share links yet. Create one from the New Link tab.</p>
+                    <p className="py-6 text-slate-400 text-xs text-center italic">
+                      No share links yet. Create one from the New Link tab.
+                    </p>
                   )}
                   {shareTokens.map((t) => {
                     const isRevoked = !!t.revoked_at;
-                    const isExpired = !t.never_expires && t.expires_at && new Date(t.expires_at) < new Date();
+                    const isExpired =
+                      !t.never_expires &&
+                      t.expires_at &&
+                      new Date(t.expires_at) < new Date();
                     return (
                       <div
                         key={t.id}
-                        className={`rounded-xl border p-4 flex items-start gap-4 ${isRevoked || isExpired
-                          ? 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                          }`}
+                        className={`rounded-xl border p-4 flex items-start gap-4 ${
+                          isRevoked || isExpired
+                            ? "bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                        }`}
                       >
-                        <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isRevoked ? 'bg-orange-500/10 text-orange-500' :
-                          isExpired ? 'bg-red-500/10 text-red-500' :
-                            'bg-emerald-500/10 text-emerald-500'
-                          }`}>
-                          <i className={`fa-solid text-xs ${isRevoked ? 'fa-ban' :
-                            isExpired ? 'fa-clock' :
-                              'fa-check'
-                            }`}></i>
+                        <div
+                          className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            isRevoked
+                              ? "bg-orange-500/10 text-orange-500"
+                              : isExpired
+                                ? "bg-red-500/10 text-red-500"
+                                : "bg-emerald-500/10 text-emerald-500"
+                          }`}
+                        >
+                          <i
+                            className={`fa-solid text-xs ${
+                              isRevoked
+                                ? "fa-ban"
+                                : isExpired
+                                  ? "fa-clock"
+                                  : "fa-check"
+                            }`}
+                          ></i>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
-                            {t.label || 'Untitled Link'}
+                            {t.label || "Untitled Link"}
                           </p>
                           <p className="mt-0.5 text-[10px] text-slate-400">
-                            {isRevoked ? `Revoked ${new Date(t.revoked_at).toLocaleDateString()}` :
-                              isExpired ? `Expired ${new Date(t.expires_at).toLocaleDateString()}` :
-                                t.never_expires ? 'Never expires' :
-                                  `Expires ${new Date(t.expires_at).toLocaleDateString()}`}
-                            {' · '}
-                            <span className="font-bold text-indigo-500">{t.view_count} view{t.view_count !== 1 ? 's' : ''}</span>
+                            {isRevoked
+                              ? `Revoked ${new Date(t.revoked_at).toLocaleDateString()}`
+                              : isExpired
+                                ? `Expired ${new Date(t.expires_at).toLocaleDateString()}`
+                                : t.never_expires
+                                  ? "Never expires"
+                                  : `Expires ${new Date(t.expires_at).toLocaleDateString()}`}
+                            {" · "}
+                            <span className="font-bold text-indigo-500">
+                              {t.view_count} view{t.view_count !== 1 ? "s" : ""}
+                            </span>
                           </p>
                           <div className="flex items-center gap-2 mt-2">
                             <input
                               readOnly
                               value={`${window.location.origin}/invoices/token/${t.token}`}
-                              className="flex-1 bg-slate-50 dark:bg-slate-950 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-mono text-[10px] text-slate-500"
+                              className="flex-1 bg-slate-50 dark:bg-slate-950 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-lg outline-none  text-[10px] text-slate-500"
                             />
                             <button
-                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/invoices/token/${t.token}`); toast.success('Copied!'); }}
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  `${window.location.origin}/invoices/token/${t.token}`,
+                                );
+                                toast.success("Copied!");
+                              }}
                               className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                               title="Copy"
                             >
@@ -1329,11 +1586,17 @@ export default function InvoicesPage() {
               )}
 
               {/* ---- LOGS TAB ---- */}
-              {shareTab === 'logs' && (
+              {shareTab === "logs" && (
                 <div>
-                  {shareLoading && <p className="py-4 text-slate-400 text-xs text-center">Loading...</p>}
+                  {shareLoading && (
+                    <p className="py-4 text-slate-400 text-xs text-center">
+                      Loading...
+                    </p>
+                  )}
                   {!shareLoading && shareLogs.length === 0 && (
-                    <p className="py-6 text-slate-400 text-xs text-center italic">No views recorded yet.</p>
+                    <p className="py-6 text-slate-400 text-xs text-center italic">
+                      No views recorded yet.
+                    </p>
                   )}
                   {shareLogs.length > 0 && (
                     <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
@@ -1350,20 +1613,38 @@ export default function InvoicesPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                           {shareLogs.map((log) => (
-                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                            <tr
+                              key={log.id}
+                              className="hover:bg-slate-50 dark:hover:bg-slate-800/20"
+                            >
                               <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
                                 {new Date(log.viewed_at).toLocaleString()}
                               </td>
-                              <td className="px-4 py-2.5 font-mono text-slate-700 dark:text-slate-300">{log.ip_address || '—'}</td>
-                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{log.browser || '—'}</td>
-                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{log.os || '—'}</td>
-                              <td className="px-4 py-2.5">
-                                <span className={`px-2 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${log.device === 'Mobile' ? 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400' :
-                                  log.device === 'Tablet' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' :
-                                    'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                                  }`}>{log.device || '—'}</span>
+                              <td className="px-4 py-2.5  text-slate-700 dark:text-slate-300">
+                                {log.ip_address || "—"}
                               </td>
-                              <td className="px-4 py-2.5 text-[10px] text-slate-400">{log.token?.label || 'Untitled'}</td>
+                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
+                                {log.browser || "—"}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
+                                {log.os || "—"}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
+                                    log.device === "Mobile"
+                                      ? "bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400"
+                                      : log.device === "Tablet"
+                                        ? "bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                                  }`}
+                                >
+                                  {log.device || "—"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-[10px] text-slate-400">
+                                {log.token?.label || "Untitled"}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1372,7 +1653,6 @@ export default function InvoicesPage() {
                   )}
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -1380,7 +1660,7 @@ export default function InvoicesPage() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={confirmModal.action}
         title={confirmModal.title}
         description={confirmModal.description}

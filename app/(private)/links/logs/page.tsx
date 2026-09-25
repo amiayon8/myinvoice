@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { listAllInvoiceViewLogs } from '@/services/invoices';
-import { useToast } from '@/components/ui/toast';
-import { TableSkeleton } from '@/components/skeleton';
+import React, { useState, useEffect } from "react";
+import { listAllInvoiceViewLogs } from "@/services/invoices";
+import { useToast } from "@/components/ui/toast";
+import { TableSkeleton } from "@/components/skeleton";
 
 export default function ActivityLogsPage() {
   const toast = useToast();
@@ -12,8 +12,10 @@ export default function ActivityLogsPage() {
   const [viewLogs, setViewLogs] = useState<any[]>([]);
 
   // Search & Filters states
-  const [logSearch, setLogSearch] = useState('');
-  const [deviceFilter, setDeviceFilter] = useState<'all' | 'Desktop' | 'Mobile' | 'Tablet'>('all');
+  const [logSearch, setLogSearch] = useState("");
+  const [deviceFilter, setDeviceFilter] = useState<
+    "all" | "Desktop" | "Mobile" | "Tablet"
+  >("all");
 
   const fetchData = async () => {
     setLoading(true);
@@ -22,7 +24,7 @@ export default function ActivityLogsPage() {
       setViewLogs(logsRes || []);
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to load activity logs.');
+      toast.error("Failed to load activity logs.");
     } finally {
       setLoading(false);
     }
@@ -34,28 +36,41 @@ export default function ActivityLogsPage() {
 
   // Calculate statistics
   const totalViewsCount = viewLogs.length;
-  const uniqueIpsCount = new Set(viewLogs.map(log => log.ip_address).filter(Boolean)).size;
-  const mobileVisitsCount = viewLogs.filter(log => log.device === 'Mobile').length;
-  const desktopVisitsCount = viewLogs.filter(log => !log.device || log.device === 'Desktop').length;
+  const uniqueIpsCount = new Set(
+    viewLogs.map((log) => log.ip_address).filter(Boolean),
+  ).size;
+  const mobileVisitsCount = viewLogs.filter(
+    (log) => log.device === "Mobile",
+  ).length;
+  const desktopVisitsCount = viewLogs.filter(
+    (log) => !log.device || log.device === "Desktop",
+  ).length;
 
   // Filter logs
   const filteredLogs = viewLogs.filter((log) => {
     // Device filter
-    if (deviceFilter !== 'all') {
-      const device = log.device || 'Desktop';
+    if (deviceFilter !== "all") {
+      const device = log.device || "Desktop";
       if (device.toLowerCase() !== deviceFilter.toLowerCase()) return false;
     }
 
     // Search query filter
     const query = logSearch.toLowerCase();
-    const ip = log.ip_address?.toLowerCase() || '';
-    const browser = log.browser?.toLowerCase() || '';
-    const os = log.os?.toLowerCase() || '';
-    const device = log.device?.toLowerCase() || 'desktop';
-    const label = log.token?.label?.toLowerCase() || '';
-    const invoiceNum = log.invoice?.invoice_number?.toLowerCase() || '';
-    
-    return ip.includes(query) || browser.includes(query) || os.includes(query) || device.includes(query) || label.includes(query) || invoiceNum.includes(query);
+    const ip = log.ip_address?.toLowerCase() || "";
+    const browser = log.browser?.toLowerCase() || "";
+    const os = log.os?.toLowerCase() || "";
+    const device = log.device?.toLowerCase() || "desktop";
+    const label = log.token?.label?.toLowerCase() || "";
+    const invoiceNum = log.invoice?.invoice_number?.toLowerCase() || "";
+
+    return (
+      ip.includes(query) ||
+      browser.includes(query) ||
+      os.includes(query) ||
+      device.includes(query) ||
+      label.includes(query) ||
+      invoiceNum.includes(query)
+    );
   });
 
   if (loading) {
@@ -74,7 +89,6 @@ export default function ActivityLogsPage() {
 
   return (
     <div className="space-y-8 mx-auto p-4 lg:p-12 max-w-7xl h-full font-sans">
-      
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -82,7 +96,8 @@ export default function ActivityLogsPage() {
             Activity & Share Logs
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs">
-            Audit history of when client invoices were accessed, including device specifics, browsers, and location IPs.
+            Audit history of when client invoices were accessed, including
+            device specifics, browsers, and location IPs.
           </p>
         </div>
         <button
@@ -96,12 +111,13 @@ export default function ActivityLogsPage() {
 
       {/* Stats Cards (4 Columns) */}
       <div className="gap-5 grid grid-cols-2 lg:grid-cols-4">
-        
         {/* Card 1 */}
         <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-5 rounded-2xl animate-fade-in">
           <div className="flex justify-between items-start">
             <div>
-              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">Total Views</span>
+              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
+                Total Views
+              </span>
               <h3 className="mt-1 font-black text-slate-850 dark:text-white text-2xl tracking-tight">
                 {totalViewsCount}
               </h3>
@@ -116,7 +132,9 @@ export default function ActivityLogsPage() {
         <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-5 rounded-2xl animate-fade-in">
           <div className="flex justify-between items-start">
             <div>
-              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">Unique IPs</span>
+              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
+                Unique IPs
+              </span>
               <h3 className="mt-1 font-black text-emerald-600 dark:text-emerald-400 text-2xl tracking-tight">
                 {uniqueIpsCount}
               </h3>
@@ -131,7 +149,9 @@ export default function ActivityLogsPage() {
         <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-5 rounded-2xl animate-fade-in">
           <div className="flex justify-between items-start">
             <div>
-              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">Mobile Views</span>
+              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
+                Mobile Views
+              </span>
               <h3 className="mt-1 font-black text-amber-600 dark:text-amber-400 text-2xl tracking-tight">
                 {mobileVisitsCount}
               </h3>
@@ -146,7 +166,9 @@ export default function ActivityLogsPage() {
         <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 p-5 rounded-2xl animate-fade-in">
           <div className="flex justify-between items-start">
             <div>
-              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">Desktop Views</span>
+              <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">
+                Desktop Views
+              </span>
               <h3 className="mt-1 font-black text-slate-850 dark:text-white text-2xl tracking-tight">
                 {desktopVisitsCount}
               </h3>
@@ -156,12 +178,10 @@ export default function ActivityLogsPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Full-width Logs Table */}
       <div className="bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800/60 rounded-2xl overflow-hidden">
-        
         {/* Filtering Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 p-6 border-slate-100 dark:border-slate-800 border-b">
           <div>
@@ -209,48 +229,67 @@ export default function ActivityLogsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                <tr
+                  key={log.id}
+                  className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors"
+                >
                   <td className="px-6 py-4 text-slate-500 text-xs whitespace-nowrap">
                     {new Date(log.viewed_at).toLocaleString()}
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-900 dark:text-slate-250 text-xs">
-                      {log.invoice?.invoice_number || 'Deleted Invoice'}
+                      {log.invoice?.invoice_number || "Deleted Invoice"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-mono text-slate-700 dark:text-slate-300 text-xs">
-                    {log.ip_address || '—'}
+                  <td className="px-6 py-4  text-slate-700 dark:text-slate-300 text-xs">
+                    {log.ip_address || "—"}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[9px] text-slate-600 dark:text-slate-400 font-semibold">
-                        {log.browser || 'Browser'}
+                        {log.browser || "Browser"}
                       </span>
                       <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[9px] text-slate-600 dark:text-slate-400 font-semibold">
-                        {log.os || 'OS'}
+                        {log.os || "OS"}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                      log.device === 'Mobile' ? 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400' :
-                      log.device === 'Tablet' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-650 dark:text-amber-400' :
-                      'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}>
-                      {log.device || 'Desktop'}
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        log.device === "Mobile"
+                          ? "bg-indigo-100 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400"
+                          : log.device === "Tablet"
+                            ? "bg-amber-100 dark:bg-amber-950/30 text-amber-650 dark:text-amber-400"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      {log.device || "Desktop"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-450 text-[10px] max-w-[150px] truncate" title={log.referrer}>
-                    {log.referrer || <span className="text-slate-400 italic">Direct View</span>}
+                  <td
+                    className="px-6 py-4 text-slate-450 text-[10px] max-w-[150px] truncate"
+                    title={log.referrer}
+                  >
+                    {log.referrer || (
+                      <span className="text-slate-400 italic">Direct View</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs">
-                    {log.token?.label || <span className="text-slate-400 italic">Untitled Link</span>}
+                    {log.token?.label || (
+                      <span className="text-slate-400 italic">
+                        Untitled Link
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
               {filteredLogs.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-slate-400 text-center italic text-xs">
+                  <td
+                    colSpan={7}
+                    className="px-6 py-12 text-slate-400 text-center italic text-xs"
+                  >
                     No access logs match the search query.
                   </td>
                 </tr>
@@ -258,9 +297,7 @@ export default function ActivityLogsPage() {
             </tbody>
           </table>
         </div>
-
       </div>
-
     </div>
   );
 }

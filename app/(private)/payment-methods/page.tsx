@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod, PaymentField, PaymentUpdateRequest, PRESET_PAYMENT_SVGS, PRESET_PAYMENT_COLORS, scopeSvgIds } from "@/types/payment-methods";
+import {
+  PaymentMethod,
+  PaymentField,
+  PaymentUpdateRequest,
+  PRESET_PAYMENT_SVGS,
+  PRESET_PAYMENT_COLORS,
+  scopeSvgIds,
+} from "@/types/payment-methods";
 import { createClient } from "@/lib/supabase/client";
 import {
   CreditCard,
@@ -22,7 +29,7 @@ import {
   Layers,
   Sparkles,
   Users,
-  Search
+  Search,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -44,11 +51,14 @@ export default function PaymentMethodsPage() {
 
   // Editor Modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<Partial<PaymentMethod> | null>(null);
+  const [editingMethod, setEditingMethod] =
+    useState<Partial<PaymentMethod> | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Request review modal
-  const [reviewingReq, setReviewingReq] = useState<PaymentUpdateRequest | null>(null);
+  const [reviewingReq, setReviewingReq] = useState<PaymentUpdateRequest | null>(
+    null,
+  );
   const [adminNotes, setAdminNotes] = useState("");
   const [reviewActionLoading, setReviewActionLoading] = useState(false);
 
@@ -58,7 +68,7 @@ export default function PaymentMethodsPage() {
       const [methodsRes, reqsRes, clientsRes] = await Promise.all([
         fetch("/api/payment-methods"),
         fetch("/api/payment-requests"),
-        supabase.from("clients").select("id, name, email").order("name")
+        supabase.from("clients").select("id, name, email").order("name"),
       ]);
 
       if (methodsRes.ok) {
@@ -101,9 +111,15 @@ export default function PaymentMethodsPage() {
         sort_order: methods.length + 1,
         instructions: "Please mention the invoice number as reference.",
         fields: [
-          { id: "f_" + Date.now(), label: "Account Number", value: "017XXXXXXXX", is_copyable: true, is_highlighted: true }
+          {
+            id: "f_" + Date.now(),
+            label: "Account Number",
+            value: "017XXXXXXXX",
+            is_copyable: true,
+            is_highlighted: true,
+          },
         ],
-        visibility: { mode: "all", client_ids: [] }
+        visibility: { mode: "all", client_ids: [] },
       });
     }
     setModalOpen(true);
@@ -116,11 +132,11 @@ export default function PaymentMethodsPage() {
       label: "Field Name",
       value: "",
       is_copyable: true,
-      is_highlighted: false
+      is_highlighted: false,
     };
     setEditingMethod({
       ...editingMethod,
-      fields: [...(editingMethod.fields || []), newField]
+      fields: [...(editingMethod.fields || []), newField],
     });
   };
 
@@ -128,15 +144,20 @@ export default function PaymentMethodsPage() {
     if (!editingMethod) return;
     setEditingMethod({
       ...editingMethod,
-      fields: (editingMethod.fields || []).filter(f => f.id !== fieldId)
+      fields: (editingMethod.fields || []).filter((f) => f.id !== fieldId),
     });
   };
 
-  const handleUpdateField = (fieldId: string, updates: Partial<PaymentField>) => {
+  const handleUpdateField = (
+    fieldId: string,
+    updates: Partial<PaymentField>,
+  ) => {
     if (!editingMethod) return;
     setEditingMethod({
       ...editingMethod,
-      fields: (editingMethod.fields || []).map(f => f.id === fieldId ? { ...f, ...updates } : f)
+      fields: (editingMethod.fields || []).map((f) =>
+        f.id === fieldId ? { ...f, ...updates } : f,
+      ),
     });
   };
 
@@ -149,14 +170,17 @@ export default function PaymentMethodsPage() {
       const payloadToSave = {
         ...editingMethod,
         icon_svg: editingMethod.icon_svg
-          ? scopeSvgIds(editingMethod.icon_svg, editingMethod.id || `pm-${Date.now()}`)
+          ? scopeSvgIds(
+              editingMethod.icon_svg,
+              editingMethod.id || `pm-${Date.now()}`,
+            )
           : null,
       };
 
       const res = await fetch("/api/payment-methods", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payloadToSave)
+        body: JSON.stringify(payloadToSave),
       });
 
       if (!res.ok) {
@@ -179,17 +203,22 @@ export default function PaymentMethodsPage() {
     setDeleteConfirmId(id);
   };
 
-  const handleReviewRequest = async (requestId: string, action: "approved" | "rejected") => {
+  const handleReviewRequest = async (
+    requestId: string,
+    action: "approved" | "rejected",
+  ) => {
     setReviewActionLoading(true);
     try {
       const res = await fetch(`/api/payment-requests/${requestId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, admin_notes: adminNotes })
+        body: JSON.stringify({ action, admin_notes: adminNotes }),
       });
 
       if (res.ok) {
-        toast.success(`Request ${action === "approved" ? "approved" : "rejected"} successfully`);
+        toast.success(
+          `Request ${action === "approved" ? "approved" : "rejected"} successfully`,
+        );
         setReviewingReq(null);
         setAdminNotes("");
         fetchData();
@@ -204,19 +233,23 @@ export default function PaymentMethodsPage() {
     }
   };
 
-  const pendingRequests = requests.filter(r => r.status === "pending");
+  const pendingRequests = requests.filter((r) => r.status === "pending");
 
-  const filteredMethods = methods.filter(m => {
+  const filteredMethods = methods.filter((m) => {
     const q = debouncedSearchQuery.toLowerCase();
     if (!q) return true;
     const nameMatch = m.name?.toLowerCase().includes(q);
     const typeMatch = m.type?.toLowerCase().includes(q);
     const badgeMatch = m.badge?.toLowerCase().includes(q);
-    const fieldMatch = m.fields?.some(f => f.label?.toLowerCase().includes(q) || f.value?.toLowerCase().includes(q));
+    const fieldMatch = m.fields?.some(
+      (f) =>
+        f.label?.toLowerCase().includes(q) ||
+        f.value?.toLowerCase().includes(q),
+    );
     return nameMatch || typeMatch || badgeMatch || fieldMatch;
   });
 
-  const filteredRequests = requests.filter(r => {
+  const filteredRequests = requests.filter((r) => {
     const q = debouncedSearchQuery.toLowerCase();
     if (!q) return true;
     const clientMatch = r.client_name?.toLowerCase().includes(q);
@@ -241,7 +274,8 @@ export default function PaymentMethodsPage() {
             Payment Information System
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure dynamic payment methods, SVG icons, client-level exclusions, and verify customer transactions.
+            Configure dynamic payment methods, SVG icons, client-level
+            exclusions, and verify customer transactions.
           </p>
         </div>
 
@@ -303,15 +337,22 @@ export default function PaymentMethodsPage() {
         <div className="space-y-6">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-64 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800"
+                ></div>
               ))}
             </div>
           ) : filteredMethods.length === 0 ? (
             <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
               <CreditCard className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">No payment methods found</h3>
-              <p className="text-xs text-slate-500">Try adjusting your search criteria or add a new method.</p>
+              <h3 className="font-bold text-slate-700 dark:text-slate-300">
+                No payment methods found
+              </h3>
+              <p className="text-xs text-slate-500">
+                Try adjusting your search criteria or add a new method.
+              </p>
               <button
                 onClick={() => handleOpenEditor()}
                 className="mt-2 inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
@@ -324,7 +365,8 @@ export default function PaymentMethodsPage() {
               {filteredMethods.map((method) => {
                 const accent = method.color || "#6366f1";
                 const visMode = method.visibility?.mode || "all";
-                const visClientsCount = method.visibility?.client_ids?.length || 0;
+                const visClientsCount =
+                  method.visibility?.client_ids?.length || 0;
 
                 return (
                   <div
@@ -336,7 +378,10 @@ export default function PaymentMethodsPage() {
                     }`}
                   >
                     {/* Color bar */}
-                    <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: accent }} />
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1.5"
+                      style={{ backgroundColor: accent }}
+                    />
 
                     <div className="space-y-4">
                       {/* Top info */}
@@ -346,14 +391,18 @@ export default function PaymentMethodsPage() {
                             <div
                               className="w-11 h-11 rounded-xl flex items-center justify-center p-1.5 text-white shadow-md shadow-slate-900/10 shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
                               style={{ backgroundColor: accent }}
-                              dangerouslySetInnerHTML={{ __html: scopeSvgIds(method.icon_svg, method.id) }}
+                              dangerouslySetInnerHTML={{
+                                __html: scopeSvgIds(method.icon_svg, method.id),
+                              }}
                             />
                           ) : (
                             <div
                               className="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-md shadow-slate-900/10 shrink-0"
                               style={{ backgroundColor: accent }}
                             >
-                              <i className={`fa-solid ${method.icon_name || "fa-credit-card"} text-lg`}></i>
+                              <i
+                                className={`fa-solid ${method.icon_name || "fa-credit-card"} text-lg`}
+                              ></i>
                             </div>
                           )}
                           <div>
@@ -370,7 +419,10 @@ export default function PaymentMethodsPage() {
                           {method.badge && (
                             <span
                               className="px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
-                              style={{ backgroundColor: `${accent}18`, color: accent }}
+                              style={{
+                                backgroundColor: `${accent}18`,
+                                color: accent,
+                              }}
                             >
                               {method.badge}
                             </span>
@@ -390,16 +442,25 @@ export default function PaymentMethodsPage() {
                       {/* Fields preview */}
                       <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800/60">
                         {method.fields && method.fields.length > 0 ? (
-                          method.fields.map(f => (
-                            <div key={f.id} className="flex justify-between items-center text-xs">
-                              <span className="text-slate-500 dark:text-slate-400 text-[11px] font-medium">{f.label}:</span>
-                              <span className={`font-bold text-[11px] ${f.is_highlighted ? "font-black text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"}`}>
+                          method.fields.map((f) => (
+                            <div
+                              key={f.id}
+                              className="flex justify-between items-center text-xs"
+                            >
+                              <span className="text-slate-500 dark:text-slate-400 text-[11px] font-medium">
+                                {f.label}:
+                              </span>
+                              <span
+                                className={`font-bold text-[11px] ${f.is_highlighted ? "font-black text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"}`}
+                              >
                                 {f.value}
                               </span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-400 italic">No custom fields</span>
+                          <span className="text-xs text-slate-400 italic">
+                            No custom fields
+                          </span>
                         )}
                       </div>
 
@@ -410,15 +471,17 @@ export default function PaymentMethodsPage() {
                           {visMode === "all"
                             ? "Visible to All Clients"
                             : visMode === "include"
-                            ? `Only visible to ${visClientsCount} client${visClientsCount === 1 ? "" : "s"}`
-                            : `Hidden from ${visClientsCount} client${visClientsCount === 1 ? "" : "s"}`}
+                              ? `Only visible to ${visClientsCount} client${visClientsCount === 1 ? "" : "s"}`
+                              : `Hidden from ${visClientsCount} client${visClientsCount === 1 ? "" : "s"}`}
                         </span>
                       </div>
                     </div>
 
                     {/* Actions */}
                     <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400">Order: #{method.sort_order}</span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        Order: #{method.sort_order}
+                      </span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEditor(method)}
@@ -450,8 +513,13 @@ export default function PaymentMethodsPage() {
           {requests.length === 0 ? (
             <div className="p-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
               <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">No payment verification requests</h3>
-              <p className="text-xs text-slate-500">Requests submitted by clients on shared invoices/subscriptions will appear here.</p>
+              <h3 className="font-bold text-slate-700 dark:text-slate-300">
+                No payment verification requests
+              </h3>
+              <p className="text-xs text-slate-500">
+                Requests submitted by clients on shared invoices/subscriptions
+                will appear here.
+              </p>
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
@@ -474,7 +542,10 @@ export default function PaymentMethodsPage() {
                       const isApproved = req.status === "approved";
 
                       return (
-                        <tr key={req.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        <tr
+                          key={req.id}
+                          className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                        >
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-900 dark:text-white">
                               {req.client_name || "Client Submission"}
@@ -491,27 +562,36 @@ export default function PaymentMethodsPage() {
 
                           <td className="px-6 py-4">
                             <span className="font-black text-slate-800 dark:text-slate-200">
-                              {req.invoice_number ? `#${req.invoice_number}` : req.type === "invoice" ? "Invoice" : "Subscription"}
+                              {req.invoice_number
+                                ? `#${req.invoice_number}`
+                                : req.type === "invoice"
+                                  ? "Invoice"
+                                  : "Subscription"}
                             </span>
                             {req.notes && (
-                              <p className="text-[10px] text-slate-400 italic truncate max-w-xs" title={req.notes}>
+                              <p
+                                className="text-[10px] text-slate-400 italic truncate max-w-xs"
+                                title={req.notes}
+                              >
                                 "{req.notes}"
                               </p>
                             )}
                           </td>
 
                           <td className="px-6 py-4">
-                            <span className="font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all cursor-pointer">
+                            <span className=" font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all cursor-pointer">
                               {req.transaction_id}
                             </span>
                           </td>
 
-                          <td className="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-300">
+                          <td className="px-6 py-4  font-bold text-slate-700 dark:text-slate-300">
                             {req.account_number}
                           </td>
 
                           <td className="px-6 py-4 font-black text-slate-900 dark:text-white">
-                            {req.amount ? `${req.currency || "৳"}${req.amount.toLocaleString()}` : "N/A"}
+                            {req.amount
+                              ? `${req.currency || "৳"}${req.amount.toLocaleString()}`
+                              : "N/A"}
                           </td>
 
                           <td className="px-6 py-4">
@@ -520,13 +600,17 @@ export default function PaymentMethodsPage() {
                                 isPending
                                   ? "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
                                   : isApproved
-                                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                                  : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
+                                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                    : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
                               }`}
                             >
                               {isPending && <Clock className="w-3 h-3" />}
-                              {isApproved && <CheckCircle2 className="w-3 h-3" />}
-                              {!isPending && !isApproved && <XCircle className="w-3 h-3" />}
+                              {isApproved && (
+                                <CheckCircle2 className="w-3 h-3" />
+                              )}
+                              {!isPending && !isApproved && (
+                                <XCircle className="w-3 h-3" />
+                              )}
                               <span>{req.status}</span>
                             </span>
                           </td>
@@ -535,14 +619,18 @@ export default function PaymentMethodsPage() {
                             {isPending ? (
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => handleReviewRequest(req.id, "approved")}
+                                  onClick={() =>
+                                    handleReviewRequest(req.id, "approved")
+                                  }
                                   disabled={reviewActionLoading}
                                   className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-sm transition-all cursor-pointer"
                                 >
                                   Approve & Record
                                 </button>
                                 <button
-                                  onClick={() => handleReviewRequest(req.id, "rejected")}
+                                  onClick={() =>
+                                    handleReviewRequest(req.id, "rejected")
+                                  }
                                   disabled={reviewActionLoading}
                                   className="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 text-[11px] font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer"
                                 >
@@ -551,7 +639,9 @@ export default function PaymentMethodsPage() {
                               </div>
                             ) : (
                               <span className="text-[10px] text-slate-400 italic">
-                                {req.reviewed_at ? `Reviewed on ${new Date(req.reviewed_at).toLocaleDateString()}` : "Completed"}
+                                {req.reviewed_at
+                                  ? `Reviewed on ${new Date(req.reviewed_at).toLocaleDateString()}`
+                                  : "Completed"}
                               </span>
                             )}
                           </td>
@@ -578,10 +668,13 @@ export default function PaymentMethodsPage() {
                 </div>
                 <div>
                   <h3 className="font-black text-base text-slate-900 dark:text-white uppercase tracking-tight">
-                    {editingMethod.id ? "Edit Payment Method" : "Create Payment Method"}
+                    {editingMethod.id
+                      ? "Edit Payment Method"
+                      : "Create Payment Method"}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Define custom fields, SVG icon, instructions, and client visibility.
+                    Define custom fields, SVG icon, instructions, and client
+                    visibility.
                   </p>
                 </div>
               </div>
@@ -594,7 +687,10 @@ export default function PaymentMethodsPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSaveMethod} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            <form
+              onSubmit={handleSaveMethod}
+              className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
+            >
               {/* Basic Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -606,7 +702,12 @@ export default function PaymentMethodsPage() {
                     required
                     placeholder="e.g. bKash Personal, City Bank Transfer"
                     value={editingMethod.name || ""}
-                    onChange={(e) => setEditingMethod({ ...editingMethod, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditingMethod({
+                        ...editingMethod,
+                        name: e.target.value,
+                      })
+                    }
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
@@ -617,10 +718,17 @@ export default function PaymentMethodsPage() {
                   </label>
                   <select
                     value={editingMethod.type || "mobile_banking"}
-                    onChange={(e) => setEditingMethod({ ...editingMethod, type: e.target.value as any })}
+                    onChange={(e) =>
+                      setEditingMethod({
+                        ...editingMethod,
+                        type: e.target.value as any,
+                      })
+                    }
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   >
-                    <option value="mobile_banking">Mobile Banking (bKash, Nagad, Rocket)</option>
+                    <option value="mobile_banking">
+                      Mobile Banking (bKash, Nagad, Rocket)
+                    </option>
                     <option value="bank_transfer">Direct Bank Transfer</option>
                     <option value="card">Credit / Debit Card</option>
                     <option value="crypto">Cryptocurrency / USDT</option>
@@ -636,7 +744,12 @@ export default function PaymentMethodsPage() {
                     type="text"
                     placeholder="e.g. Send Money Only, Direct Deposit"
                     value={editingMethod.badge || ""}
-                    onChange={(e) => setEditingMethod({ ...editingMethod, badge: e.target.value })}
+                    onChange={(e) =>
+                      setEditingMethod({
+                        ...editingMethod,
+                        badge: e.target.value,
+                      })
+                    }
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
@@ -649,14 +762,24 @@ export default function PaymentMethodsPage() {
                     <input
                       type="color"
                       value={editingMethod.color || "#6366f1"}
-                      onChange={(e) => setEditingMethod({ ...editingMethod, color: e.target.value })}
+                      onChange={(e) =>
+                        setEditingMethod({
+                          ...editingMethod,
+                          color: e.target.value,
+                        })
+                      }
                       className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border-0"
                     />
                     <input
                       type="text"
                       value={editingMethod.color || "#6366f1"}
-                      onChange={(e) => setEditingMethod({ ...editingMethod, color: e.target.value })}
-                      className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-mono font-bold"
+                      onChange={(e) =>
+                        setEditingMethod({
+                          ...editingMethod,
+                          color: e.target.value,
+                        })
+                      }
+                      className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs  font-bold"
                     />
                   </div>
                 </div>
@@ -676,12 +799,18 @@ export default function PaymentMethodsPage() {
                         setEditingMethod({
                           ...editingMethod,
                           icon_svg: svg,
-                          color: PRESET_PAYMENT_COLORS[key] || editingMethod.color || "#000000",
+                          color:
+                            PRESET_PAYMENT_COLORS[key] ||
+                            editingMethod.color ||
+                            "#000000",
                         })
                       }
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold capitalize"
                     >
-                      <div className="w-4 h-4" dangerouslySetInnerHTML={{ __html: svg }} />
+                      <div
+                        className="w-4 h-4"
+                        dangerouslySetInnerHTML={{ __html: svg }}
+                      />
                       <span>{key}</span>
                     </button>
                   ))}
@@ -690,8 +819,13 @@ export default function PaymentMethodsPage() {
                   rows={2}
                   placeholder="Paste custom SVG code here: <svg ...>...</svg>"
                   value={editingMethod.icon_svg || ""}
-                  onChange={(e) => setEditingMethod({ ...editingMethod, icon_svg: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  onChange={(e) =>
+                    setEditingMethod({
+                      ...editingMethod,
+                      icon_svg: e.target.value,
+                    })
+                  }
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs  text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
                 {editingMethod.icon_svg && (
                   <div className="flex items-center gap-3 p-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -700,9 +834,14 @@ export default function PaymentMethodsPage() {
                     </span>
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center p-1.5 shadow-sm shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
-                      style={{ backgroundColor: editingMethod.color || "#6366f1" }}
+                      style={{
+                        backgroundColor: editingMethod.color || "#6366f1",
+                      }}
                       dangerouslySetInnerHTML={{
-                        __html: scopeSvgIds(editingMethod.icon_svg, editingMethod.id || "preview"),
+                        __html: scopeSvgIds(
+                          editingMethod.icon_svg,
+                          editingMethod.id || "preview",
+                        ),
                       }}
                     />
                   </div>
@@ -726,26 +865,37 @@ export default function PaymentMethodsPage() {
 
                 <div className="space-y-2">
                   {(editingMethod.fields || []).map((field, idx) => (
-                    <div key={field.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <div
+                      key={field.id}
+                      className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800"
+                    >
                       <input
                         type="text"
                         placeholder="Label (e.g. Account Number)"
                         value={field.label}
-                        onChange={(e) => handleUpdateField(field.id, { label: e.target.value })}
+                        onChange={(e) =>
+                          handleUpdateField(field.id, { label: e.target.value })
+                        }
                         className="w-1/3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold"
                       />
                       <input
                         type="text"
                         placeholder="Value (e.g. 01870828373)"
                         value={field.value}
-                        onChange={(e) => handleUpdateField(field.id, { value: e.target.value })}
+                        onChange={(e) =>
+                          handleUpdateField(field.id, { value: e.target.value })
+                        }
                         className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs font-bold"
                       />
                       <label className="flex items-center gap-1 text-[10px] text-slate-500 font-bold select-none cursor-pointer">
                         <input
                           type="checkbox"
                           checked={field.is_highlighted || false}
-                          onChange={(e) => handleUpdateField(field.id, { is_highlighted: e.target.checked })}
+                          onChange={(e) =>
+                            handleUpdateField(field.id, {
+                              is_highlighted: e.target.checked,
+                            })
+                          }
                           className="rounded text-indigo-600"
                         />
                         <span>Highlight</span>
@@ -771,7 +921,12 @@ export default function PaymentMethodsPage() {
                   rows={2}
                   placeholder="Instructions displayed to clients when paying..."
                   value={editingMethod.instructions || ""}
-                  onChange={(e) => setEditingMethod({ ...editingMethod, instructions: e.target.value })}
+                  onChange={(e) =>
+                    setEditingMethod({
+                      ...editingMethod,
+                      instructions: e.target.value,
+                    })
+                  }
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
                 />
               </div>
@@ -785,25 +940,29 @@ export default function PaymentMethodsPage() {
                   </label>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Control which clients can see this payment method on shared invoices and subscriptions.
+                  Control which clients can see this payment method on shared
+                  invoices and subscriptions.
                 </p>
 
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: "all", label: "Show to All Clients" },
                     { id: "exclude", label: "Hide from Selected" },
-                    { id: "include", label: "Show Only to Selected" }
+                    { id: "include", label: "Show Only to Selected" },
                   ].map((mode) => (
                     <button
                       key={mode.id}
                       type="button"
-                      onClick={() => setEditingMethod({
-                        ...editingMethod,
-                        visibility: {
-                          mode: mode.id as any,
-                          client_ids: editingMethod.visibility?.client_ids || []
-                        }
-                      })}
+                      onClick={() =>
+                        setEditingMethod({
+                          ...editingMethod,
+                          visibility: {
+                            mode: mode.id as any,
+                            client_ids:
+                              editingMethod.visibility?.client_ids || [],
+                          },
+                        })
+                      }
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         editingMethod.visibility?.mode === mode.id
                           ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20"
@@ -818,27 +977,39 @@ export default function PaymentMethodsPage() {
                 {editingMethod.visibility?.mode !== "all" && (
                   <div className="mt-3 space-y-2">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Select Clients ({editingMethod.visibility?.mode === "exclude" ? "To Hide From" : "To Show To"}):
+                      Select Clients (
+                      {editingMethod.visibility?.mode === "exclude"
+                        ? "To Hide From"
+                        : "To Show To"}
+                      ):
                     </label>
                     <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto custom-scrollbar p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                       {clients.map((c) => {
-                        const isChecked = (editingMethod.visibility?.client_ids || []).includes(c.id);
+                        const isChecked = (
+                          editingMethod.visibility?.client_ids || []
+                        ).includes(c.id);
                         return (
-                          <label key={c.id} className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 p-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded cursor-pointer">
+                          <label
+                            key={c.id}
+                            className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 p-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded cursor-pointer"
+                          >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={(e) => {
-                                const currentIds = editingMethod.visibility?.client_ids || [];
+                                const currentIds =
+                                  editingMethod.visibility?.client_ids || [];
                                 const newIds = e.target.checked
                                   ? [...currentIds, c.id]
-                                  : currentIds.filter(id => id !== c.id);
+                                  : currentIds.filter((id) => id !== c.id);
                                 setEditingMethod({
                                   ...editingMethod,
                                   visibility: {
-                                    mode: editingMethod.visibility?.mode || "exclude",
-                                    client_ids: newIds
-                                  }
+                                    mode:
+                                      editingMethod.visibility?.mode ||
+                                      "exclude",
+                                    client_ids: newIds,
+                                  },
                                 });
                               }}
                               className="rounded text-indigo-600"
@@ -858,7 +1029,12 @@ export default function PaymentMethodsPage() {
                   <input
                     type="checkbox"
                     checked={editingMethod.is_active !== false}
-                    onChange={(e) => setEditingMethod({ ...editingMethod, is_active: e.target.checked })}
+                    onChange={(e) =>
+                      setEditingMethod({
+                        ...editingMethod,
+                        is_active: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   <span>Active & Enabled for Shared Invoices/Subs</span>
@@ -869,7 +1045,12 @@ export default function PaymentMethodsPage() {
                   <input
                     type="number"
                     value={editingMethod.sort_order || 1}
-                    onChange={(e) => setEditingMethod({ ...editingMethod, sort_order: parseInt(e.target.value) || 1 })}
+                    onChange={(e) =>
+                      setEditingMethod({
+                        ...editingMethod,
+                        sort_order: parseInt(e.target.value) || 1,
+                      })
+                    }
                     className="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-center font-bold"
                   />
                 </div>
@@ -903,7 +1084,10 @@ export default function PaymentMethodsPage() {
         onConfirm={async () => {
           if (!deleteConfirmId) return;
           try {
-            const res = await fetch(`/api/payment-methods?id=${encodeURIComponent(deleteConfirmId)}`, { method: "DELETE" });
+            const res = await fetch(
+              `/api/payment-methods?id=${encodeURIComponent(deleteConfirmId)}`,
+              { method: "DELETE" },
+            );
             if (res.ok) {
               toast.success("Payment method deleted successfully");
               fetchData();

@@ -1,13 +1,18 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
+import React, { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
+import { Printer, Sun, Moon } from "lucide-react";
 
 interface PublicHeaderProps {
   token?: string;
+  invoiceNumber?: string;
 }
 
-export const PublicHeader: React.FC<PublicHeaderProps> = ({ token }) => {
+export const PublicHeader: React.FC<PublicHeaderProps> = ({
+  token,
+  invoiceNumber,
+}) => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -15,40 +20,55 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ token }) => {
     setMounted(true);
   }, []);
 
-  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   const handlePrint = () => {
     if (token) {
-      window.open(`/invoices/token/${token}/print`, '_blank');
+      window.open(`/invoices/token/${token}/print`, "_blank");
     } else {
       window.print();
     }
   };
 
   return (
-    <div className="w-full max-w-[210mm] flex justify-between items-center mb-6 no-print bg-white dark:bg-slate-900 p-4 rounded-lg shadow border border-slate-200 dark:border-slate-800">
-      <div className="flex items-center gap-2">
-        <i className="fa-solid fa-shield-halved text-emerald-500"></i>
-        <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-          Invoice | The Nice Developer
+    <header className="w-full max-w-[210mm] flex items-center justify-between py-4 mb-6 no-print border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100">
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-semibold tracking-tight uppercase">
+          The Nice Developer
         </span>
+        {invoiceNumber && (
+          <span className=" text-xs text-zinc-500 dark:text-zinc-400">
+            #{invoiceNumber}
+          </span>
+        )}
       </div>
+
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={toggleTheme}
-          className="flex justify-center items-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full w-8 h-8 text-slate-500 dark:text-slate-300 transition-colors cursor-pointer"
-          title="Toggle Theme"
+          className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+          title="Toggle color mode"
+          aria-label="Toggle color mode"
         >
-          <i className={`fa-solid ${mounted && theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>
+          {mounted && theme === "dark" ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
         </button>
+
         <button
+          type="button"
           onClick={handlePrint}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest px-4 py-2 rounded transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
         >
-          <i className="fa-solid fa-print mr-2"></i> Print Invoice
+          <Printer className="w-3.5 h-3.5" />
+          Print Invoice
         </button>
       </div>
-    </div>
+    </header>
   );
 };
+
 export default PublicHeader;

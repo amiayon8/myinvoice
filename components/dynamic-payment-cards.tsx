@@ -5,11 +5,10 @@ import { PaymentMethod, scopeSvgIds } from "@/types/payment-methods";
 import {
   Copy,
   Check,
-  Send,
-  AlertCircle,
   ShieldCheck,
-  CreditCard,
-  ChevronDown,
+  AlertCircle,
+  X,
+  Loader2,
 } from "lucide-react";
 
 interface DynamicPaymentCardsProps {
@@ -41,13 +40,12 @@ export function DynamicPaymentCards({
   columns,
   className = "",
 }: DynamicPaymentCardsProps) {
-  const isFullWidth = fullWidth ?? !!subscriptionId;
+  const isFullWidth = fullWidth ?? Boolean(subscriptionId);
   const cols = columns ?? (isFullWidth ? 3 : 2);
   const [methods, setMethods] = useState<PaymentMethod[]>(initialMethods || []);
   const [loading, setLoading] = useState(!initialMethods);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Modal State for Payment Update Request
   const [modalOpen, setModalOpen] = useState(false);
   const [trxId, setTrxId] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -81,8 +79,8 @@ export function DynamicPaymentCards({
               setSelectedMethodId(data.payment_methods[0].id);
             }
           }
-        } catch (err) {
-          console.error("Failed to load payment methods:", err);
+        } catch {
+          setMethods([]);
         } finally {
           setLoading(false);
         }
@@ -92,9 +90,20 @@ export function DynamicPaymentCards({
   }, [clientId, initialMethods]);
 
   const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      const input = document.createElement("input");
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   const handleOpenModal = (methodId?: string) => {
@@ -158,12 +167,13 @@ export function DynamicPaymentCards({
 
   if (loading) {
     return (
-      <div className={`w-full ${isFullWidth ? "" : "max-w-[800px]"} bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse mb-6 ${className}`}>
-        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4 mb-4"></div>
-        <div className={`grid grid-cols-1 md:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""} gap-4`}>
-          <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
-          <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
-          {cols === 3 && <div className="h-32 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>}
+      <div
+        className={`w-full ${isFullWidth ? "" : "max-w-[210mm]"} border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 ${className}`}
+      >
+        <div className="h-3 bg-zinc-100 dark:bg-zinc-800 w-32 mb-4 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="h-20 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800/60 animate-pulse" />
+          <div className="h-20 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800/60 animate-pulse" />
         </div>
       </div>
     );
@@ -173,104 +183,81 @@ export function DynamicPaymentCards({
 
   const gridColsClass =
     cols === 3
-      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      ? "grid-cols-1 md:grid-cols-2"
       : cols === 1
-      ? "grid-cols-1"
-      : "grid-cols-1 md:grid-cols-2";
+        ? "grid-cols-1"
+        : "grid-cols-1 md:grid-cols-2";
 
   return (
-    <div className={`w-full ${isFullWidth ? "" : "max-w-[800px]"} mb-6 no-print space-y-4 ${className}`}>
-      {/* Header with Verification Request CTA */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 px-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
-            <CreditCard className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-wide">
-              Payment Information
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {isPaid
-                ? "Payment received. Keep for your records."
-                : "Choose your preferred payment method below."}
-            </p>
-          </div>
+    <div
+      className={`w-full ${isFullWidth ? "" : "max-w-[210mm]"} border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 text-zinc-900 dark:text-zinc-100 font-sans ${className}`}
+    >
+      <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800 mb-4">
+        <div>
+          <h3 className="text-xs font-semibold tracking-tight uppercase text-zinc-500">
+            Payment Details
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {isPaid
+              ? "All dues have been settled."
+              : "Direct transfer instructions for settlement."}
+          </p>
         </div>
 
-        {!isPaid && (
+        {!isPaid ? (
           <button
+            type="button"
             onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/25 transition-all duration-200 active:scale-95 cursor-pointer uppercase tracking-wider shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Submit Payment Verification</span>
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Submit Verification
           </button>
+        ) : (
+          <span className=" text-xs text-zinc-400">Settled</span>
         )}
       </div>
 
-      {/* Dynamic Payment Cards Grid */}
-      <div className={`grid ${gridColsClass} gap-4`}>
+      <div className={`grid ${gridColsClass} gap-3`}>
         {methods.map((method) => {
-          const accentColor = method.color || "#6366f1";
-
           return (
             <div
               key={method.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+              className="border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/40 dark:bg-zinc-950/40 p-4 flex flex-col justify-between"
             >
-              {/* Subtle top accent bar */}
-              <div
-                className="absolute top-0 left-0 right-0 h-1"
-                style={{ backgroundColor: accentColor }}
-              />
-
-              <div className="space-y-3">
-                {/* Method Title & Badge */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
+              <div>
+                <div className="flex items-start justify-between gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/60">
+                  <div className="flex items-center gap-2.5">
                     {method.icon_svg ? (
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center p-1.5 text-white shadow-sm shrink-0 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
-                        style={{ backgroundColor: accentColor }}
-                        dangerouslySetInnerHTML={{ __html: scopeSvgIds(method.icon_svg, method.id) }}
+                        style={{
+                          backgroundColor: method?.color,
+                        }}
+                        className="rounded size-10 p-1 overflow-hidden flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full"
+                        dangerouslySetInnerHTML={{
+                          __html: scopeSvgIds(method.icon_svg, method.id),
+                        }}
                       />
-                    ) : (
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
-                        style={{ backgroundColor: accentColor }}
-                      >
-                        <i
-                          className={`fa-solid ${method.icon_name || "fa-credit-card"} text-base`}
-                        ></i>
-                      </div>
-                    )}
+                    ) : null}
                     <div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-sm tracking-tight">
+                      <h4 className="font-medium text-xs text-zinc-900 dark:text-zinc-100 leading-tight">
                         {method.name}
                       </h4>
-                      <span className="text-[10px] font-bold text-slate-400 capitalize">
+                      <span className="text-[10px] text-zinc-400 uppercase  tracking-wider">
                         {method.type.replace("_", " ")}
                       </span>
                     </div>
                   </div>
 
                   {method.badge && (
-                    <span
-                      className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
-                      style={{
-                        backgroundColor: `${accentColor}18`,
-                        color: accentColor,
-                      }}
-                    >
+                    <span className="text-[10px]  text-zinc-500 border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5">
                       {method.badge}
                     </span>
                   )}
                 </div>
 
-                {/* Key-Value Fields */}
                 {method.fields && method.fields.length > 0 && (
-                  <div className="space-y-2 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                  <div className="mt-3 space-y-1.5">
                     {method.fields.map((field) => {
                       const isCopied = copiedId === `${method.id}-${field.id}`;
 
@@ -279,38 +266,29 @@ export function DynamicPaymentCards({
                           key={field.id}
                           className="flex items-center justify-between gap-2 text-xs"
                         >
-                          <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-                            {field.label}:
+                          <span className="text-zinc-500 text-[11px]">
+                            {field.label}
                           </span>
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <span
-                              className={`${
-                                field.is_highlighted
-                                  ? "text-slate-900 dark:text-white font-black text-[13px] tracking-tight"
-                                  : "text-slate-700 dark:text-slate-300 text-[11px]"
-                              }`}
-                            >
+                          <div className="flex items-center gap-1.5">
+                            <span className=" text-xs text-zinc-800 dark:text-zinc-200">
                               {field.value}
                             </span>
                             {field.is_copyable !== false && (
                               <button
+                                type="button"
                                 onClick={() =>
                                   handleCopy(
                                     field.value,
                                     `${method.id}-${field.id}`,
                                   )
                                 }
-                                className={`p-1 rounded-md transition-colors cursor-pointer ${
-                                  isCopied
-                                    ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
-                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800"
-                                }`}
-                                title="Copy to clipboard"
+                                className="p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                                title="Copy"
                               >
                                 {isCopied ? (
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  <Check className="w-3 h-3 text-zinc-900 dark:text-zinc-100" />
                                 ) : (
-                                  <Copy className="w-3.5 h-3.5" />
+                                  <Copy className="w-3 h-3" />
                                 )}
                               </button>
                             )}
@@ -321,23 +299,21 @@ export function DynamicPaymentCards({
                   </div>
                 )}
 
-                {/* Instructions */}
                 {method.instructions && (
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                  <p className="mt-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     {method.instructions}
                   </p>
                 )}
               </div>
 
-              {/* Quick Verify button for this method */}
               {!isPaid && (
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex justify-end">
+                <div className="mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/60 flex justify-end">
                   <button
+                    type="button"
                     onClick={() => handleOpenModal(method.id)}
-                    className="text-[11px] font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 underline transition-colors"
                   >
-                    <span>I paid via {method.name}</span>
-                    <Send className="w-3 h-3" />
+                    I paid via {method.name}
                   </button>
                 </div>
               )}
@@ -346,75 +322,70 @@ export function DynamicPaymentCards({
         })}
       </div>
 
-      {/* MODAL: Payment Update & Verification Request */}
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in font-sans">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100">
-            {/* Modal Header */}
-            <div className="p-6 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-600/30">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base text-slate-900 dark:text-white uppercase tracking-tight">
-                    Submit Payment Details
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {invoiceNumber
-                      ? `For Invoice #${invoiceNumber}`
-                      : "For Subscription Billing"}
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div>
+                <h4 className="text-sm font-semibold tracking-tight">
+                  Submit Payment Details
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {invoiceNumber
+                    ? `Invoice #${invoiceNumber}`
+                    : "Subscription dues verification"}
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold p-1 rounded-lg"
+                className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
+            <div className="mt-4">
               {submitSuccess ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-6 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-                    <Check className="w-6 h-6 stroke-[3]" />
+                <div className="py-6 text-center space-y-3">
+                  <div className="w-8 h-8 mx-auto flex items-center justify-center border border-zinc-200 dark:border-zinc-700 rounded-full text-zinc-900 dark:text-zinc-100">
+                    <Check className="w-4 h-4" />
                   </div>
-                  <h4 className="font-black text-emerald-800 dark:text-emerald-300 text-base">
-                    Verification Request Received!
-                  </h4>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                    Thank you! We have received your transaction ID (
-                    <strong>{trxId || "submitted"}</strong>). We will verify and
-                    update the invoice status shortly.
+                  <h5 className="text-xs font-semibold">
+                    Payment Details Submitted
+                  </h5>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xs mx-auto">
+                    Your reference has been logged. We will verify the
+                    transaction and update the balance.
                   </p>
                   <button
+                    type="button"
                     onClick={() => setModalOpen(false)}
-                    className="mt-4 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                    className="mt-3 px-4 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                   >
                     Done
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmitRequest} className="space-y-4">
+                <form
+                  onSubmit={handleSubmitRequest}
+                  className="space-y-3.5 text-xs"
+                >
                   {submitError && (
-                    <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3 flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-medium">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div className="border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 p-2.5 flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{submitError}</span>
                     </div>
                   )}
 
-                  {/* Payment Method Selector */}
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      Payment Method Used *
+                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Payment Method
                     </label>
                     <select
                       value={selectedMethodId}
                       onChange={(e) => setSelectedMethodId(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
                     >
                       {methods.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -424,90 +395,78 @@ export function DynamicPaymentCards({
                     </select>
                   </div>
 
-                  {/* Transaction ID */}
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      Transaction ID / Reference Number *
+                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Transaction ID / Reference
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 9J87AKL12, TRX-9982, EFT-102"
+                      placeholder="e.g. 9J87AKL12"
                       value={trxId}
                       onChange={(e) => setTrxId(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 
-                  {/* Sender Account Number */}
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      Sender Account Number / Mobile Number *
+                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Sender Account / Phone Number
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 017XXXXXXXX or Bank A/C Number"
+                      placeholder="e.g. 017XXXXXXXX"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 
-                  {/* Amount Paid */}
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                       Amount Paid ({currency})
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="e.g. 15000"
+                      placeholder="0.00"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 
-                  {/* Additional Notes */}
                   <div>
-                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      Notes / Remarks (Optional)
+                    <label className="block text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Notes (Optional)
                     </label>
                     <textarea
                       rows={2}
-                      placeholder="Any additional information or payment time..."
+                      placeholder="Additional details or transfer remarks"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                      className="w-full px-3 py-2 text-xs bg-transparent border border-zinc-300 dark:border-zinc-700 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-none font-sans"
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <div className="pt-2 flex items-center justify-end gap-3">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                     <button
                       type="button"
                       onClick={() => setModalOpen(false)}
-                      className="px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                      className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-black px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
                     >
-                      {submitting ? (
-                        <>
-                          <i className="fa-solid fa-spinner animate-spin text-sm"></i>
-                          <span>Submitting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          <span>Submit Verification</span>
-                        </>
+                      {submitting && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       )}
+                      <span>Submit Verification</span>
                     </button>
                   </div>
                 </form>
@@ -519,4 +478,5 @@ export function DynamicPaymentCards({
     </div>
   );
 }
+
 export default DynamicPaymentCards;

@@ -377,7 +377,8 @@ export default function TuitionCalendar({
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
             <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
               <strong>
-                {sessions.filter((s) => s.approvalStatus === "PENDING").length} class session(s)
+                {sessions.filter((s) => s.approvalStatus === "PENDING").length}{" "}
+                class session(s)
               </strong>{" "}
               recorded by teachers require admin review and approval.
             </p>
@@ -803,14 +804,7 @@ export default function TuitionCalendar({
                           )}
                         </div>
 
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
-                          <span className=" text-zinc-500 dark:text-zinc-400">
-                            {new Date(session.scheduledAt).toLocaleTimeString(
-                              "en-US",
-                              { hour: "numeric", minute: "2-digit" },
-                            )}
-                          </span>
-
+                        <div className="flex items-center justify-end text-xs pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {session.approvalStatus === "PENDING" ? (
                               <div className="flex items-center gap-1.5">
@@ -842,7 +836,7 @@ export default function TuitionCalendar({
                                 )}
                               </div>
                             ) : session.status === "TEACHER_ABSENT" ||
-                            session.attendance === "ABSENT" ? (
+                              session.attendance === "ABSENT" ? (
                               <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-1 py-0.5 rounded">
                                 Absent
                               </span>
@@ -976,12 +970,6 @@ export default function TuitionCalendar({
                           <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
                             {ev.eventType.replace("_", " ")}
                           </span>
-                          <span className=" text-xs text-zinc-500 dark:text-zinc-400">
-                            {new Date(ev.startAt).toLocaleTimeString("en-US", {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </span>
                         </div>
                         <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                           {ev.title}
@@ -1085,12 +1073,6 @@ export default function TuitionCalendar({
                                 </p>
                               )}
                             </div>
-                            <span className=" text-xs text-zinc-500 dark:text-zinc-400 shrink-0">
-                              {new Date(ev.startAt).toLocaleTimeString(
-                                "en-US",
-                                { hour: "numeric", minute: "2-digit" },
-                              )}
-                            </span>
                           </div>
                         );
                       }
@@ -1143,16 +1125,8 @@ export default function TuitionCalendar({
                                 )}
                               </div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                <span className="">
-                                  {new Date(
-                                    session.scheduledAt,
-                                  ).toLocaleTimeString("en-US", {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
                                 {session.notes?.length > 0 &&
-                                  ` · ${session.notes.length} notes`}
+                                  `${session.notes.length} notes`}
                               </div>
                             </div>
                           </div>
@@ -1174,28 +1148,30 @@ export default function TuitionCalendar({
                               </span>
                             )}
 
-                            {session.approvalStatus === "PENDING" && onApproveSession && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onApproveSession(session.id);
-                                }}
-                                className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 hover:text-emerald-950 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded transition-colors cursor-pointer"
-                              >
-                                Approve
-                              </button>
-                            )}
-                            {session.approvalStatus === "PENDING" && onRejectSession && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRejectSession(session.id);
-                                }}
-                                className="text-[11px] font-medium text-rose-800 dark:text-rose-300 hover:text-rose-950 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 rounded transition-colors cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            )}
+                            {session.approvalStatus === "PENDING" &&
+                              onApproveSession && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onApproveSession(session.id);
+                                  }}
+                                  className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 hover:text-emerald-950 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded transition-colors cursor-pointer"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                            {session.approvalStatus === "PENDING" &&
+                              onRejectSession && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRejectSession(session.id);
+                                  }}
+                                  className="text-[11px] font-medium text-rose-800 dark:text-rose-300 hover:text-rose-950 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 rounded transition-colors cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              )}
 
                             {session.status === "TEACHER_ABSENT" ||
                             session.attendance === "ABSENT" ? (
