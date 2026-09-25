@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/sidebar';
 import { useTheme } from 'next-themes';
+import { Menu, Sun, Moon } from 'lucide-react';
 
 export default function PrivateLayout({
   children,
@@ -34,7 +35,6 @@ export default function PrivateLayout({
     router.refresh();
   };
 
-  // Map active route to ViewType ID
   let currentView = 'dashboard';
   if (pathname.startsWith('/tuition')) {
     currentView = 'tuition';
@@ -82,8 +82,7 @@ export default function PrivateLayout({
   };
 
   return (
-    <div className="flex bg-slate-50 dark:bg-[#020617] w-full min-h-screen">
-
+    <div className="flex bg-zinc-100/60 dark:bg-zinc-950 w-full min-h-screen">
       <Sidebar
         currentView={currentView}
         onViewChange={handleViewChange}
@@ -93,39 +92,35 @@ export default function PrivateLayout({
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
       />
-      <main className="relative flex flex-col flex-1 h-screen overflow-hidden">
-        {/* Floating toggle button for desktop/tablet when sidebar is closed */}
-        {mounted && !isSidebarOpen && (
+      <main className="relative flex flex-col flex-1 h-screen overflow-hidden min-w-0">
+        <div className="md:hidden flex justify-between items-center bg-zinc-50 dark:bg-zinc-950 px-4 py-3 border-zinc-200 dark:border-zinc-800 border-b no-print shrink-0">
           <button
+            type="button"
             onClick={() => setIsSidebarOpen(true)}
-            className="hidden md:flex absolute left-6 top-6 z-40 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800/80 shadow-lg hover:shadow-xl rounded-full w-10 h-10 items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 cursor-pointer active:scale-95 group"
-            title="Open Sidebar"
+            className="p-1.5 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            aria-label="Open sidebar"
           >
-            <i className="text-base fa-solid fa-bars transition-transform group-hover:scale-110"></i>
+            <Menu className="w-5 h-5" strokeWidth={1.75} />
           </button>
-        )}
-
-        {/* Toggle button for mobile sidebar */}
-        <div className="md:hidden flex justify-between items-center bg-white dark:bg-slate-900 p-4 border-slate-200 dark:border-slate-800 border-b no-print">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg text-slate-500 transition-colors"
-          >
-            <i className="text-xl fa-solid fa-bars"></i>
-          </button>
-          <span className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-            Invoice | The Nice Developer
+          <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs tracking-tight">
+            My Invoice
           </span>
           <button
+            type="button"
             onClick={toggleTheme}
-            className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white dark:text-slate-400"
+            className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 dark:text-zinc-400"
+            aria-label="Toggle theme"
           >
-            <i className={`fa-solid ${mounted && theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>
+            {mounted && theme === 'dark' ? (
+              <Sun className="w-4 h-4" strokeWidth={1.75} />
+            ) : (
+              <Moon className="w-4 h-4" strokeWidth={1.75} />
+            )}
           </button>
         </div>
 
         <div className="flex-1 h-full overflow-y-auto custom-scrollbar">
-          <div className={`pb-8 transition-all duration-300 ${mounted && !isSidebarOpen ? 'md:pl-12' : ''}`}>{children}</div>
+          <div className="pb-8">{children}</div>
         </div>
       </main>
     </div>

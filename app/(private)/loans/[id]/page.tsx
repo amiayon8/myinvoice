@@ -211,7 +211,7 @@ export default function LoanDetailsPage() {
                   {loan.type === 'given' ? 'Lending Recipient' : 'Borrowing Provider'}
                 </span>
                 <span className="font-black text-slate-950 dark:text-slate-200 mt-1 block">
-                  {loan.type === 'given' ? loan.client?.name : loan.provider_name}
+                  {loan.type === 'given' ? (loan.client?.name || loan.provider_name || '---') : (loan.provider_name || '---')}
                 </span>
               </div>
               <div>

@@ -237,7 +237,7 @@ export default function LoansDashboardPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-900 dark:text-slate-200 text-sm">
-                      {loan.type === 'given' ? loan.client?.name || '---' : loan.provider_name || '---'}
+                      {loan.type === 'given' ? (loan.client?.name || loan.provider_name || '---') : (loan.provider_name || '---')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs">

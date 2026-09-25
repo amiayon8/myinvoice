@@ -23,9 +23,9 @@ export async function disburseLoan(loanData: DisburseLoanData) {
     .from('loans')
     .insert({
       type: loanData.type,
-      client_id: loanData.type === 'given' ? loanData.client_id : null,
-      provider_name: loanData.type === 'taken' ? loanData.provider_name : null,
-      source_id: loanData.type === 'taken' ? loanData.source_id : null,
+      client_id: loanData.type === 'given' ? (loanData.client_id || null) : null,
+      provider_name: loanData.provider_name || null,
+      source_id: loanData.type === 'taken' ? (loanData.source_id || null) : null,
       principal_amount: loanData.principal_amount,
       interest_rate: loanData.interest_rate,
       disbursement_date: loanData.disbursement_date,

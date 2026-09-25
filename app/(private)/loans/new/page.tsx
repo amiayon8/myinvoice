@@ -17,9 +17,10 @@ export default function NewLoanPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form Fields
   const [type, setType] = useState<'given' | 'taken'>('given');
+  const [recipientMode, setRecipientMode] = useState<'custom' | 'client'>('custom');
   const [clientId, setClientId] = useState('');
+  const [customRecipientName, setCustomRecipientName] = useState('');
   const [providerName, setProviderName] = useState('');
   const [sourceId, setSourceId] = useState('');
   const [principalAmount, setPrincipalAmount] = useState('');
@@ -50,9 +51,15 @@ export default function NewLoanPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (type === 'given' && !clientId) {
-      toast.error('Please select a lending client.');
-      return;
+    if (type === 'given') {
+      if (recipientMode === 'client' && !clientId) {
+        toast.error('Please select a lending client or switch to custom name.');
+        return;
+      }
+      if (recipientMode === 'custom' && !customRecipientName.trim()) {
+        toast.error('Please enter the recipient name.');
+        return;
+      }
     }
     if (type === 'taken' && !sourceId) {
       toast.error('Please select a loan source.');
@@ -65,11 +72,21 @@ export default function NewLoanPage() {
 
     setIsSaving(true);
     try {
+      const selectedClient = clients.find((c) => c.id === clientId);
       const selectedSource = sources.find((s) => s.id === sourceId);
+
       await disburseLoan({
         type,
-        client_id: type === 'given' ? clientId : undefined,
-        provider_name: type === 'taken' ? (selectedSource?.name || '') : undefined,
+        client_id:
+          type === 'given' && recipientMode === 'client'
+            ? clientId
+            : undefined,
+        provider_name:
+          type === 'given'
+            ? recipientMode === 'custom'
+              ? customRecipientName.trim()
+              : selectedClient?.name || ''
+            : selectedSource?.name || '',
         source_id: type === 'taken' ? sourceId : undefined,
         principal_amount: Number(principalAmount),
         interest_rate: Number(interestRate),
@@ -151,25 +168,70 @@ export default function NewLoanPage() {
           </div>
         </div>
 
-        {/* Entity Selector */}
         {type === 'given' ? (
           <div>
-            <label className="block mb-1 ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
-              Lending Recipient (Client)
-            </label>
-            <select
-              required
-              className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-            >
-              <option value="">Select recipient client</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block ml-1 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                Lending Recipient (Client)
+              </label>
+              <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRecipientMode('custom')}
+                  className={`px-3 py-1 rounded-md font-bold text-[10px] uppercase tracking-wider transition-all ${
+                    recipientMode === 'custom'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Custom Name
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientMode('client')}
+                  className={`px-3 py-1 rounded-md font-bold text-[10px] uppercase tracking-wider transition-all ${
+                    recipientMode === 'client'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Select Client
+                </button>
+              </div>
+            </div>
+
+            {recipientMode === 'custom' ? (
+              <input
+                type="text"
+                required
+                className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
+                placeholder="Enter recipient name (e.g. John Doe, Sarah)"
+                value={customRecipientName}
+                onChange={(e) => setCustomRecipientName(e.target.value)}
+              />
+            ) : (
+              <select
+                required
+                className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full dark:text-white text-sm"
+                value={clientId}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setRecipientMode('custom');
+                    setClientId('');
+                  } else {
+                    setClientId(e.target.value);
+                  }
+                }}
+              >
+                <option value="">Select recipient client</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+                <option value="__custom__">+ Enter custom name instead</option>
+              </select>
+            )}
           </div>
         ) : (
           <div>
