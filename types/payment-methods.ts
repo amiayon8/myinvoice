@@ -29,6 +29,13 @@ export interface PaymentMethod {
   updated_at?: string;
 }
 
+export interface SlotAllocationBreakdown {
+  subscription_id: string;
+  amount: number;
+  user_name?: string;
+  plan_name?: string;
+}
+
 export interface PaymentUpdateRequest {
   id: string;
   type: "invoice" | "subscription";
@@ -48,6 +55,7 @@ export interface PaymentUpdateRequest {
   screenshot_url?: string;
   status: "pending" | "approved" | "rejected";
   admin_notes?: string;
+  allocations?: SlotAllocationBreakdown[] | Record<string, number> | null;
   submitted_at: string;
   reviewed_at?: string;
 }

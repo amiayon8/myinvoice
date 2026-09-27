@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod, scopeSvgIds } from "@/types/payment-methods";
+import { PaymentMethod, SlotAllocationBreakdown, scopeSvgIds } from "@/types/payment-methods";
 import {
   Copy,
   Check,
@@ -28,6 +28,7 @@ interface DynamicPaymentCardsProps {
   defaultNotes?: string;
   externalModalOpen?: boolean;
   onExternalModalClose?: () => void;
+  allocations?: SlotAllocationBreakdown[] | Record<string, number> | null;
 }
 
 export function DynamicPaymentCards({
@@ -47,6 +48,7 @@ export function DynamicPaymentCards({
   defaultNotes = "",
   externalModalOpen = false,
   onExternalModalClose,
+  allocations,
 }: DynamicPaymentCardsProps) {
   const isFullWidth = fullWidth ?? Boolean(subscriptionId);
   const cols = columns ?? (isFullWidth ? 3 : 2);
@@ -147,6 +149,43 @@ export function DynamicPaymentCards({
     setSubmitError(null);
 
     const selectedMethod = methods.find((m) => m.id === selectedMethodId);
+    const numericPaidAmount = paidAmount ? parseFloat(paidAmount) : undefined;
+    let computedAllocations = allocations || undefined;
+
+    if (allocations && numericPaidAmount !== undefined && numericPaidAmount > 0) {
+      if (Array.isArray(allocations)) {
+        const totalAllocated = allocations.reduce(
+          (sum, item) => sum + (Number(item.amount) || 0),
+          0,
+        );
+        if (
+          totalAllocated > 0 &&
+          Math.abs(totalAllocated - numericPaidAmount) > 0.01
+        ) {
+          const ratio = numericPaidAmount / totalAllocated;
+          computedAllocations = allocations.map((item) => ({
+            ...item,
+            amount: Math.round(Number(item.amount) * ratio * 100) / 100,
+          }));
+        }
+      } else if (typeof allocations === "object") {
+        const totalAllocated = Object.values(allocations).reduce(
+          (sum, val) => sum + (Number(val) || 0),
+          0,
+        );
+        if (
+          totalAllocated > 0 &&
+          Math.abs(totalAllocated - numericPaidAmount) > 0.01
+        ) {
+          const ratio = numericPaidAmount / totalAllocated;
+          const scaled: Record<string, number> = {};
+          Object.entries(allocations).forEach(([key, val]) => {
+            scaled[key] = Math.round(Number(val) * ratio * 100) / 100;
+          });
+          computedAllocations = scaled;
+        }
+      }
+    }
 
     try {
       const res = await fetch("/api/payment-requests", {
@@ -163,9 +202,10 @@ export function DynamicPaymentCards({
           account_number: accountNumber.trim(),
           payment_method_id: selectedMethodId,
           payment_method_name: selectedMethod?.name,
-          amount: paidAmount ? parseFloat(paidAmount) : undefined,
+          amount: numericPaidAmount,
           currency,
           notes: notes.trim(),
+          allocations: computedAllocations,
         }),
       });
 

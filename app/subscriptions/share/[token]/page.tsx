@@ -10,6 +10,7 @@ import {
   getStartMonthStr,
 } from "@/lib/date-utils";
 import { DynamicPaymentCards } from "@/components/dynamic-payment-cards";
+import { SlotAllocationBreakdown } from "@/types/payment-methods";
 import {
   Sun,
   Moon,
@@ -451,6 +452,17 @@ export default function PublicSharedSubscriptionPage({
 
     return `[${settlementMode === "auto" ? "Auto-Settle" : "Manual"}] ${breakdownItems.join(", ")}`;
   }, [activeSlotItems, currentAllocations, settlementMode]);
+
+  const structuredAllocations = useMemo<SlotAllocationBreakdown[]>(() => {
+    return activeSlotItems
+      .filter((s) => (currentAllocations[s.id] || 0) > 0)
+      .map((s) => ({
+        subscription_id: s.id,
+        amount: currentAllocations[s.id],
+        user_name: s.userName,
+        plan_name: s.planName,
+      }));
+  }, [activeSlotItems, currentAllocations]);
 
   if (loading) {
     return (
@@ -926,7 +938,11 @@ export default function PublicSharedSubscriptionPage({
               (scope?.type === "client" ? scope?.clientId : null)
             }
             clientName={scope?.label}
-            subscriptionId={subscriptions[0]?.id}
+            subscriptionId={
+              structuredAllocations.length === 1
+                ? structuredAllocations[0].subscription_id
+                : subscriptions[0]?.id
+            }
             currency="৳"
             totalDue={
               totalAllocatedAmount > 0
@@ -936,6 +952,7 @@ export default function PublicSharedSubscriptionPage({
                   : monthlyRateTotal
             }
             defaultNotes={itemizedNote}
+            allocations={structuredAllocations}
             externalModalOpen={isPaymentModalOpen}
             onExternalModalClose={() => setIsPaymentModalOpen(false)}
             isPaid={false}

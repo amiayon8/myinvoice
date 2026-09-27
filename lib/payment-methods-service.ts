@@ -229,6 +229,7 @@ export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest
     currency: data.currency || '৳',
     notes: data.notes || null,
     screenshot_url: data.screenshot_url || null,
+    allocations: data.allocations || null,
     status: 'pending',
     submitted_at: now
   };
@@ -255,6 +256,56 @@ export async function submitPaymentUpdateRequest(data: Omit<PaymentUpdateRequest
     ...dbPayload,
     id: savedId
   };
+}
+
+function extractAllocationsFromNotes(
+  notes: string | undefined | null,
+  allSubscriptions: any[]
+): Array<{ subscriptionId: string; amount: number; userName?: string }> {
+  if (!notes) return [];
+
+  const extracted: Array<{ subscriptionId: string; amount: number; userName?: string }> = [];
+  const pattern = /([^:,\[\]\n\r]+?)(?:\s*\(([^)]+)\))?\s*:\s*[৳$]?\s*(\d+(?:\.\d+)?)/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = pattern.exec(notes)) !== null) {
+    const rawName = match[1]?.trim();
+    const rawPlan = match[2]?.trim();
+    const amount = parseFloat(match[3]);
+
+    if (!rawName || isNaN(amount) || amount <= 0) continue;
+
+    const matchedSubscription = allSubscriptions.find((sub) => {
+      const userName = sub.user?.name?.toLowerCase().trim();
+      const planName = sub.plan?.name?.toLowerCase().trim();
+      const targetUser = rawName.toLowerCase();
+      const targetPlan = rawPlan ? rawPlan.toLowerCase() : null;
+
+      const userMatches =
+        userName === targetUser ||
+        (userName && userName.includes(targetUser)) ||
+        (targetUser && targetUser.includes(userName));
+      if (!userMatches) return false;
+      if (targetPlan && planName) {
+        return (
+          planName === targetPlan ||
+          planName.includes(targetPlan) ||
+          targetPlan.includes(planName)
+        );
+      }
+      return true;
+    });
+
+    if (matchedSubscription) {
+      extracted.push({
+        subscriptionId: matchedSubscription.id,
+        amount,
+        userName: matchedSubscription.user?.name || rawName
+      });
+    }
+  }
+
+  return extracted;
 }
 
 export async function reviewPaymentUpdateRequest(
@@ -287,93 +338,142 @@ export async function reviewPaymentUpdateRequest(
 
     if (isApproved) {
       if (currentReq.type === 'subscription' || currentReq.subscription_id) {
-        let subscriptionId = currentReq.subscription_id && isUuid(currentReq.subscription_id)
-          ? currentReq.subscription_id
-          : null;
+        let targetAllocations: Array<{ subscriptionId: string; amount: number; userName?: string }> = [];
 
-        if (!subscriptionId && currentReq.client_id && isUuid(currentReq.client_id)) {
-          const { data: clientSub } = await supabase
+        if (currentReq.allocations) {
+          if (Array.isArray(currentReq.allocations)) {
+            targetAllocations = currentReq.allocations
+              .map((item: any) => ({
+                subscriptionId: item.subscription_id || item.subscriptionId || item.id,
+                amount: Number(item.amount) || 0,
+                userName: item.user_name || item.userName
+              }))
+              .filter((item: any) => isUuid(item.subscriptionId) && item.amount > 0);
+          } else if (typeof currentReq.allocations === 'object') {
+            targetAllocations = Object.entries(currentReq.allocations)
+              .map(([subId, amount]) => ({
+                subscriptionId: subId,
+                amount: Number(amount) || 0
+              }))
+              .filter((item) => isUuid(item.subscriptionId) && item.amount > 0);
+          }
+        }
+
+        if (targetAllocations.length === 0 && currentReq.notes) {
+          const { data: allSubscriptions } = await supabase
             .from('subscriptions')
-            .select('id')
-            .eq('user_id', currentReq.client_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (clientSub) subscriptionId = clientSub.id;
+            .select('id, start_date, months_paid, total_amount_paid, price_per_slot, slots_count, user:subscription_users(name), plan:subscription_plans(name)');
+
+          if (allSubscriptions) {
+            targetAllocations = extractAllocationsFromNotes(currentReq.notes, allSubscriptions);
+          }
         }
 
-        if (!subscriptionId) {
-          const { data: latestSub } = await supabase
+        if (targetAllocations.length === 0) {
+          let fallbackSubId = currentReq.subscription_id && isUuid(currentReq.subscription_id)
+            ? currentReq.subscription_id
+            : null;
+
+          if (!fallbackSubId && currentReq.client_id && isUuid(currentReq.client_id)) {
+            const { data: clientSub } = await supabase
+              .from('subscriptions')
+              .select('id')
+              .eq('user_id', currentReq.client_id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (clientSub) fallbackSubId = clientSub.id;
+          }
+
+          if (!fallbackSubId) {
+            const { data: latestSub } = await supabase
+              .from('subscriptions')
+              .select('id')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (latestSub) fallbackSubId = latestSub.id;
+          }
+
+          if (!fallbackSubId) {
+            return { success: false, error: 'Subscription not found for this verification request' };
+          }
+
+          const { data: fallbackSub } = await supabase
             .from('subscriptions')
-            .select('id')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (latestSub) subscriptionId = latestSub.id;
+            .select('price_per_slot, slots_count')
+            .eq('id', fallbackSubId)
+            .single();
+
+          const monthlyRate = fallbackSub
+            ? (Number(fallbackSub.price_per_slot) || 0) * (Number(fallbackSub.slots_count) || 1)
+            : 0;
+          const amount = Number(currentReq.amount) || monthlyRate;
+
+          targetAllocations = [{ subscriptionId: fallbackSubId, amount }];
         }
 
-        if (!subscriptionId) {
-          return { success: false, error: 'Subscription not found for this verification request' };
-        }
+        for (const allocation of targetAllocations) {
+          const { data: sub, error: subErr } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('id', allocation.subscriptionId)
+            .single();
 
-        const { data: sub, error: subErr } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('id', subscriptionId)
-          .single();
+          if (subErr || !sub) {
+            continue;
+          }
 
-        if (subErr || !sub) {
-          return { success: false, error: 'Target subscription not found' };
-        }
+          const pricePerSlot = Number(sub.price_per_slot) || 0;
+          const slotsCount = Number(sub.slots_count) || 1;
+          const monthlyRate = pricePerSlot * slotsCount;
+          const slotAmount = allocation.amount;
 
-        const pricePerSlot = Number(sub.price_per_slot) || 0;
-        const slotsCount = Number(sub.slots_count) || 1;
-        const monthlyRate = pricePerSlot * slotsCount;
-        const amount = Number(currentReq.amount) || monthlyRate;
+          let months = 1;
+          if (monthlyRate > 0 && slotAmount > 0) {
+            months = Math.round((slotAmount / monthlyRate) * 100) / 100;
+            if (months <= 0) months = 1;
+          }
 
-        let months = 1;
-        if (monthlyRate > 0 && amount > 0) {
-          months = Math.round((amount / monthlyRate) * 100) / 100;
-          if (months <= 0) months = 1;
-        }
+          const notesParts = [
+            currentReq.payment_method_name ? `Method: ${currentReq.payment_method_name}` : null,
+            currentReq.transaction_id ? `Trx: ${currentReq.transaction_id}` : null,
+            currentReq.account_number ? `Acc: ${currentReq.account_number}` : null,
+            targetAllocations.length > 1 ? `Slot allocation: ৳${slotAmount}` : null,
+            currentReq.notes ? `Note: ${currentReq.notes}` : null
+          ].filter(Boolean);
 
-        const notesParts = [
-          currentReq.payment_method_name ? `Method: ${currentReq.payment_method_name}` : null,
-          currentReq.transaction_id ? `Trx: ${currentReq.transaction_id}` : null,
-          currentReq.account_number ? `Acc: ${currentReq.account_number}` : null,
-          currentReq.notes ? `Note: ${currentReq.notes}` : null
-        ].filter(Boolean);
+          const paymentNotes = notesParts.join(' | ') || 'Verified client payment';
 
-        const paymentNotes = notesParts.join(' | ') || 'Verified client payment';
+          const { error: subPayErr } = await supabase
+            .from('subscription_payments')
+            .insert({
+              subscription_id: allocation.subscriptionId,
+              amount: slotAmount,
+              months,
+              notes: paymentNotes
+            });
 
-        const { error: subPayErr } = await supabase
-          .from('subscription_payments')
-          .insert({
-            subscription_id: subscriptionId,
-            amount,
-            months,
-            notes: paymentNotes
-          });
+          if (subPayErr) {
+            console.error('Error inserting subscription_payments:', subPayErr);
+            return { success: false, error: `Failed to record subscription payment: ${subPayErr.message}` };
+          }
 
-        if (subPayErr) {
-          console.error('Error inserting subscription_payments:', subPayErr);
-          return { success: false, error: `Failed to record subscription payment: ${subPayErr.message}` };
-        }
+          const newMonthsPaid = Math.round(((Number(sub.months_paid) || 0) + months) * 100) / 100;
+          const newTotalPaid = (Number(sub.total_amount_paid) || 0) + slotAmount;
 
-        const newMonthsPaid = Math.round(((Number(sub.months_paid) || 0) + months) * 100) / 100;
-        const newTotalPaid = (Number(sub.total_amount_paid) || 0) + amount;
+          const { error: updateSubErr } = await supabase
+            .from('subscriptions')
+            .update({
+              months_paid: newMonthsPaid,
+              total_amount_paid: newTotalPaid
+            })
+            .eq('id', allocation.subscriptionId);
 
-        const { error: updateSubErr } = await supabase
-          .from('subscriptions')
-          .update({
-            months_paid: newMonthsPaid,
-            total_amount_paid: newTotalPaid
-          })
-          .eq('id', subscriptionId);
-
-        if (updateSubErr) {
-          console.error('Error updating subscription aggregates:', updateSubErr);
-          return { success: false, error: `Failed to update subscription aggregates: ${updateSubErr.message}` };
+          if (updateSubErr) {
+            console.error('Error updating subscription aggregates:', updateSubErr);
+            return { success: false, error: `Failed to update subscription aggregates: ${updateSubErr.message}` };
+          }
         }
       } else if (currentReq.type === 'invoice' || currentReq.invoice_id || currentReq.invoice_number) {
         let invoiceId = currentReq.invoice_id && isUuid(currentReq.invoice_id)

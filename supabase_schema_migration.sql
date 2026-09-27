@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS public.payment_update_requests (
     currency TEXT DEFAULT '৳',
     notes TEXT,
     screenshot_url TEXT,
+    allocations JSONB,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     admin_notes TEXT,
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
