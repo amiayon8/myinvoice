@@ -10,6 +10,7 @@ import {
   StickyNote,
   Files,
   Users,
+  Target,
   Building2,
   Landmark,
   CreditCard,
@@ -50,6 +51,7 @@ const navigationGroups: NavigationGroup[] = [
     title: "Primary Tools",
     links: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "leads", label: "Leads Engine", icon: Target },
       { id: "invoices", label: "Invoices", icon: Receipt },
       { id: "subscriptions", label: "Subscriptions", icon: Repeat },
       { id: "tuition", label: "Tuition", icon: GraduationCap },
