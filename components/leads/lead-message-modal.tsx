@@ -5,6 +5,7 @@ import {
   WeddingLead,
   RestaurantLead,
   LeadType,
+  OutreachStatus,
   OutreachAngle,
   MessageGeneratorSettings,
 } from '@/types/leads';
@@ -33,7 +34,7 @@ interface LeadMessageModalProps {
   onClose: () => void;
   lead: WeddingLead | RestaurantLead | null;
   leadType: LeadType;
-  onStatusUpdated?: () => void;
+  onStatusUpdated?: (id: string | number, newStatus: OutreachStatus) => void;
 }
 
 const DEFAULT_SETTINGS: MessageGeneratorSettings = {
@@ -102,7 +103,7 @@ export const LeadMessageModal: React.FC<LeadMessageModalProps> = ({
     } catch (err) {
       console.error(err);
     }
-    if (onStatusUpdated) onStatusUpdated();
+    if (onStatusUpdated) onStatusUpdated(id, 'contacted');
   };
 
   const handleOpenInstagram = () => {
