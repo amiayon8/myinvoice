@@ -59,6 +59,72 @@ function parseUserAgent(ua: string) {
   return { browser, os, device };
 }
 
+export async function generateMetadata({
+  params,
+  searchParams,
+}: PublicInvoicePageProps) {
+  const { token } = await params;
+  const { bill: selectedBillId } = await searchParams;
+  const supabase = createServiceRoleClient();
+
+  const { data: tokenRecord } = await supabase
+    .from("invoice_access_tokens")
+    .select("invoice_id")
+    .eq("token", token)
+    .single();
+
+  if (!tokenRecord) return { title: "Invoice" };
+
+  const { data: parentInvoice } = await supabase
+    .from("invoices")
+    .select("id, invoice_number, is_recurring")
+    .eq("id", tokenRecord.invoice_id)
+    .single();
+
+  if (!parentInvoice) return { title: "Invoice" };
+
+  if (parentInvoice.is_recurring) {
+    const { data: mappingLogs } = await supabase
+      .from("recurring_invoices")
+      .select("child_invoice_id")
+      .eq("parent_invoice_id", parentInvoice.id);
+
+    if (mappingLogs && mappingLogs.length > 0) {
+      const childIds = mappingLogs.map((m: any) => m.child_invoice_id);
+      const { data: childInvoices } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, date, created_at")
+        .in("id", childIds)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      const sortedChildren = (childInvoices || []).sort((a: any, b: any) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+
+      if (
+        selectedBillId &&
+        selectedBillId !== parentInvoice.id &&
+        selectedBillId !== "main" &&
+        selectedBillId !== "parent"
+      ) {
+        const matched = sortedChildren.find((b: any) => b.id === selectedBillId);
+        if (matched) {
+          return { title: `Invoice #${matched.invoice_number}` };
+        }
+      } else if (!selectedBillId && sortedChildren.length > 0) {
+        return { title: `Invoice #${sortedChildren[0].invoice_number}` };
+      }
+    }
+  }
+
+  return {
+    title: `Invoice #${parentInvoice.invoice_number}`,
+  };
+}
+
 export default async function PublicInvoicePage({
   params,
   searchParams,
@@ -139,18 +205,36 @@ export default async function PublicInvoicePage({
         .from("invoices")
         .select("*, items:invoice_items(*)")
         .in("id", childIds)
-        .order("date", { ascending: false });
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
 
-      childBills = childInvoices || [];
+      childBills = (childInvoices || []).sort((a: any, b: any) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
     }
   }
 
   let activeInvoice = parentInvoice;
-  if (selectedBillId && parentInvoice.is_recurring) {
-    const matchedBill = childBills.find((b: any) => b.id === selectedBillId);
-    if (matchedBill) {
+  if (parentInvoice.is_recurring) {
+    if (
+      selectedBillId &&
+      selectedBillId !== parentInvoice.id &&
+      selectedBillId !== "main" &&
+      selectedBillId !== "parent"
+    ) {
+      const matchedBill = childBills.find((b: any) => b.id === selectedBillId);
+      if (matchedBill) {
+        activeInvoice = {
+          ...matchedBill,
+          client: parentInvoice.client,
+          company: parentInvoice.company,
+        };
+      }
+    } else if (!selectedBillId && childBills.length > 0) {
       activeInvoice = {
-        ...matchedBill,
+        ...childBills[0],
         client: parentInvoice.client,
         company: parentInvoice.company,
       };
@@ -210,19 +294,41 @@ export default async function PublicInvoicePage({
       <PublicHeader
         token={token}
         invoiceNumber={activeInvoice.invoice_number}
+        billId={activeInvoice.id !== parentInvoice.id ? activeInvoice.id : undefined}
       />
 
-      {activeInvoice.id !== parentInvoice.id && (
+      {parentInvoice.is_recurring && childBills.length > 0 && (
         <div className="mb-6 w-full max-w-[210mm] border border-zinc-200 dark:border-zinc-800 p-3.5 flex items-center justify-between text-xs no-print bg-white dark:bg-zinc-900">
-          <span className="text-zinc-600 dark:text-zinc-400">
-            Viewing recurring bill #{activeInvoice.invoice_number}
-          </span>
-          <Link
-            href={`/invoices/token/${token}`}
-            className="text-xs font-medium underline text-zinc-900 dark:text-zinc-100 hover:text-zinc-600 dark:hover:text-zinc-300"
-          >
-            Back to main invoice
-          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {activeInvoice.id === parentInvoice.id
+                ? `Viewing recurring template #${parentInvoice.invoice_number}`
+                : `Viewing recurring bill #${activeInvoice.invoice_number}`}
+            </span>
+            {activeInvoice.id === childBills[0]?.id && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                Latest
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {activeInvoice.id !== childBills[0]?.id && (
+              <Link
+                href={`/invoices/token/${token}`}
+                className="text-xs font-medium underline text-zinc-900 dark:text-zinc-100 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                Go to latest bill
+              </Link>
+            )}
+            {activeInvoice.id !== parentInvoice.id && (
+              <Link
+                href={`/invoices/token/${token}?bill=${parentInvoice.id}`}
+                className="text-xs font-medium underline text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+              >
+                View main template
+              </Link>
+            )}
+          </div>
         </div>
       )}
       <ResponsiveInvoiceWrapper>
@@ -255,7 +361,7 @@ export default async function PublicInvoicePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                {childBills.map((bill) => {
+                {childBills.map((bill, index) => {
                   const billSubtotal =
                     bill.items?.reduce(
                       (sum: number, item: any) =>
@@ -278,9 +384,14 @@ export default async function PublicInvoicePage({
                       <td className="py-2.5 pr-4">
                         <Link
                           href={`/invoices/token/${token}?bill=${bill.id}`}
-                          className=" font-medium hover:underline text-zinc-900 dark:text-zinc-100"
+                          className="font-medium hover:underline text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5"
                         >
-                          #{bill.invoice_number}
+                          <span>#{bill.invoice_number}</span>
+                          {index === 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                              Latest
+                            </span>
+                          )}
                         </Link>
                       </td>
                       <td className="py-2.5 px-4  text-zinc-500 dark:text-zinc-400">

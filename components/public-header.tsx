@@ -7,11 +7,13 @@ import { Printer, Sun, Moon } from "lucide-react";
 interface PublicHeaderProps {
   token?: string;
   invoiceNumber?: string;
+  billId?: string;
 }
 
 export const PublicHeader: React.FC<PublicHeaderProps> = ({
   token,
   invoiceNumber,
+  billId,
 }) => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -24,7 +26,10 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
 
   const handlePrint = () => {
     if (token) {
-      window.open(`/invoices/token/${token}/print`, "_blank");
+      const printUrl = billId
+        ? `/invoices/token/${token}/print?bill=${encodeURIComponent(billId)}`
+        : `/invoices/token/${token}/print`;
+      window.open(printUrl, "_blank");
     } else {
       window.print();
     }

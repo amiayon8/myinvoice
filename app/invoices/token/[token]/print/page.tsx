@@ -5,10 +5,12 @@ import { CompanyProfile } from '@/types';
 
 interface TokenPrintInvoicePageProps {
   params: Promise<{ token: string }>;
+  searchParams?: Promise<{ bill?: string }>;
 }
 
-export async function generateMetadata({ params }: TokenPrintInvoicePageProps) {
+export async function generateMetadata({ params, searchParams }: TokenPrintInvoicePageProps) {
   const { token } = await params;
+  const { bill: selectedBillId } = (await searchParams) || {};
   const supabase = createServiceRoleClient();
 
   const { data: tokenRecord } = await supabase
@@ -19,22 +21,59 @@ export async function generateMetadata({ params }: TokenPrintInvoicePageProps) {
 
   if (!tokenRecord) return { title: 'Invoice' };
 
-  const { data: invoice } = await supabase
+  const { data: parentInvoice } = await supabase
     .from('invoices')
-    .select('invoice_number')
+    .select('id, invoice_number, is_recurring')
     .eq('id', tokenRecord.invoice_id)
     .single();
 
+  if (!parentInvoice) return { title: 'Invoice' };
+
+  if (parentInvoice.is_recurring) {
+    const { data: mappingLogs } = await supabase
+      .from('recurring_invoices')
+      .select('child_invoice_id')
+      .eq('parent_invoice_id', parentInvoice.id);
+
+    if (mappingLogs && mappingLogs.length > 0) {
+      const childIds = mappingLogs.map((m: any) => m.child_invoice_id);
+      const { data: childInvoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, date, created_at')
+        .in('id', childIds)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      const sortedChildren = (childInvoices || []).sort((a: any, b: any) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+
+      if (
+        selectedBillId &&
+        selectedBillId !== parentInvoice.id &&
+        selectedBillId !== 'main' &&
+        selectedBillId !== 'parent'
+      ) {
+        const matched = sortedChildren.find((b: any) => b.id === selectedBillId);
+        if (matched) return { title: matched.invoice_number };
+      } else if (!selectedBillId && sortedChildren.length > 0) {
+        return { title: sortedChildren[0].invoice_number };
+      }
+    }
+  }
+
   return {
-    title: invoice ? invoice.invoice_number : 'Invoice',
+    title: parentInvoice.invoice_number || 'Invoice',
   };
 }
 
-export default async function TokenPrintInvoicePage({ params }: TokenPrintInvoicePageProps) {
+export default async function TokenPrintInvoicePage({ params, searchParams }: TokenPrintInvoicePageProps) {
   const { token } = await params;
+  const { bill: selectedBillId } = (await searchParams) || {};
   const supabase = createServiceRoleClient();
 
-  // Validate token using service-role (no RLS issues on Vercel)
   const { data: tokenRecord, error: tokenError } = await supabase
     .from('invoice_access_tokens')
     .select('*')
@@ -43,55 +82,98 @@ export default async function TokenPrintInvoicePage({ params }: TokenPrintInvoic
 
   if (tokenError || !tokenRecord) return notFound();
 
-  // Check revoked
   if (tokenRecord.revoked_at || !tokenRecord.is_public) {
     return <InvalidPage />;
   }
 
-  // Check expiry — respect never_expires flag
   if (!tokenRecord.never_expires && tokenRecord.expires_at) {
     if (new Date(tokenRecord.expires_at) < new Date()) {
       return <InvalidPage />;
     }
   }
 
-  // Fetch invoice
-  const { data: invoice, error: invError } = await supabase
+  const { data: parentInvoice, error: invError } = await supabase
     .from('invoices')
     .select('*, items:invoice_items(*), client:clients(*), company:companies(*)')
     .eq('id', tokenRecord.invoice_id)
     .single();
 
-  if (invError || !invoice) return notFound();
+  if (invError || !parentInvoice) return notFound();
 
-  // Fetch payments
+  let activeInvoice = parentInvoice;
+
+  if (parentInvoice.is_recurring) {
+    const { data: mappingLogs } = await supabase
+      .from('recurring_invoices')
+      .select('child_invoice_id')
+      .eq('parent_invoice_id', parentInvoice.id);
+
+    if (mappingLogs && mappingLogs.length > 0) {
+      const childIds = mappingLogs.map((m: any) => m.child_invoice_id);
+      const { data: childInvoices } = await supabase
+        .from('invoices')
+        .select('*, items:invoice_items(*)')
+        .in('id', childIds)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      const sortedChildren = (childInvoices || []).sort((a: any, b: any) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+
+      if (
+        selectedBillId &&
+        selectedBillId !== parentInvoice.id &&
+        selectedBillId !== 'main' &&
+        selectedBillId !== 'parent'
+      ) {
+        const matched = sortedChildren.find((b: any) => b.id === selectedBillId);
+        if (matched) {
+          activeInvoice = {
+            ...matched,
+            client: parentInvoice.client,
+            company: parentInvoice.company,
+          };
+        }
+      } else if (!selectedBillId && sortedChildren.length > 0) {
+        activeInvoice = {
+          ...sortedChildren[0],
+          client: parentInvoice.client,
+          company: parentInvoice.company,
+        };
+      }
+    }
+  }
+
   const { data: payments } = await supabase
     .from('invoice_payments')
     .select('amount')
-    .eq('invoice_id', invoice.id);
+    .eq('invoice_id', activeInvoice.id);
 
   const totalPaid = (payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
-  const subtotal = invoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
-  const taxAmount = subtotal * ((invoice.tax_rate || 0) / 100);
+  const subtotal = activeInvoice.items?.reduce((sum: number, item: any) => sum + item.quantity * item.rate, 0) || 0;
+  const taxAmount = subtotal * ((activeInvoice.tax_rate || 0) / 100);
   const totalAmount = subtotal + taxAmount;
 
   const previewData = {
-    invoiceNumber: invoice.invoice_number,
-    date: invoice.date,
-    companyId: invoice.company_id,
-    client: invoice.client || { name: 'Recipient', email: '', address: '' },
-    items: invoice.items || [],
-    notes: invoice.notes,
-    currency: invoice.currency,
-    taxRate: invoice.tax_rate,
-    isRecurring: invoice.is_recurring,
-    recurringFrequency: invoice.recurring_frequency,
+    invoiceNumber: activeInvoice.invoice_number,
+    date: activeInvoice.date,
+    companyId: activeInvoice.company_id,
+    client: activeInvoice.client || { name: 'Recipient', email: '', address: '' },
+    items: activeInvoice.items || [],
+    notes: activeInvoice.notes,
+    currency: activeInvoice.currency,
+    taxRate: activeInvoice.tax_rate,
+    isRecurring: activeInvoice.is_recurring,
+    recurringFrequency: activeInvoice.recurring_frequency,
     paid_amount: totalPaid,
-    status: totalPaid >= totalAmount ? 'paid' : totalPaid > 0 ? 'partially_paid' : invoice.status,
+    status: totalPaid >= totalAmount ? 'paid' : totalPaid > 0 ? 'partially_paid' : activeInvoice.status,
   };
 
   return (
-    <PrintPageContent previewData={previewData} company={invoice.company as CompanyProfile} />
+    <PrintPageContent previewData={previewData} company={activeInvoice.company as CompanyProfile} />
   );
 }
 
