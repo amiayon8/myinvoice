@@ -11,32 +11,52 @@ import {
 const USER_META_STORAGE_PREFIX = 'lead_meta_';
 
 export function getLeadUserMeta(type: string, id: string | number, lead?: WeddingLead | RestaurantLead | null): LeadUserMeta {
-  if (lead) {
-    const rawStatus = (lead.status as OutreachStatus) || 'new';
-    const rawNotes = lead.notes || '';
-    const rawUpdated =
-      lead.updated_at ||
-      ('created_at' in lead && typeof lead.created_at === 'string'
-        ? lead.created_at
-        : '');
-    return {
-      status: rawStatus,
-      notes: rawNotes,
-      updatedAt: rawUpdated,
-    };
+  const dbNotes = lead?.notes || '';
+  const dbUpdated =
+    lead?.updated_at ||
+    (lead && 'created_at' in lead && typeof lead.created_at === 'string'
+      ? lead.created_at
+      : '');
+
+  const isValidOutreachStatus = (s: string): s is OutreachStatus =>
+    ['new', 'contacted', 'replied', 'in_discussion', 'converted', 'not_interested'].includes(s);
+
+  if (lead?.status) {
+    const normalized = lead.status.trim().toLowerCase().replace(/[\s-]/g, '_');
+    if (isValidOutreachStatus(normalized)) {
+      return {
+        status: normalized,
+        notes: dbNotes,
+        updatedAt: dbUpdated || '',
+      };
+    }
   }
+
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem(`${USER_META_STORAGE_PREFIX}${type}_${id}`);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.status) {
+          const normalized = (parsed.status as string).trim().toLowerCase().replace(/[\s-]/g, '_');
+          if (isValidOutreachStatus(normalized)) {
+            return {
+              status: normalized,
+              notes: parsed.notes || dbNotes,
+              updatedAt: parsed.updatedAt || dbUpdated || '',
+            };
+          }
+        }
+      }
     } catch (err) {
       console.error(err);
     }
   }
+
   return {
     status: 'new',
-    notes: '',
-    updatedAt: '',
+    notes: dbNotes,
+    updatedAt: dbUpdated || '',
   };
 }
 
@@ -76,9 +96,23 @@ export async function saveLeadUserMeta(
   meta: Partial<LeadUserMeta>
 ): Promise<LeadUserMeta> {
   const nowIso = new Date().toISOString();
+
+  let existingNotes = '';
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`${USER_META_STORAGE_PREFIX}${type}_${id}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        existingNotes = parsed.notes || '';
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   const updated: LeadUserMeta = {
     status: meta.status || 'new',
-    notes: meta.notes || '',
+    notes: meta.notes !== undefined ? meta.notes : existingNotes,
     updatedAt: nowIso,
   };
 
@@ -117,36 +151,43 @@ export function getAllSavedLeadMetas(): Record<string, LeadUserMeta> {
   return metas;
 }
 
-const SOCIAL_AND_GOOGLE_PATTERNS = [
-  '%g.co%',
-  '%goo.gl%',
-  '%google.%',
+const SOCIAL_AND_REDIRECT_PATTERNS = [
+  '%facebook.com%',
   '%instagram.com%',
   '%instagr.am%',
-  '%facebook.com%',
-  '%fb.com%',
-  '%fb.me%',
-  '%whatsapp.com%',
-  '%wa.me%',
+  '%wa.me/%',
+  '%//wa.me%',
   '%wa.link%',
-  '%youtube.com%',
-  '%youtu.be%',
-  '%tiktok.com%',
-  '%twitter.com%',
-  '%x.com%',
-  '%linkedin.com%',
-  '%pinterest.com%',
-  '%threads.net%',
+  '%whatsapp.com%',
   '%linktr.ee%',
   '%linktree.com%',
   '%bio.link%',
   '%oia.bio%',
   '%beacons.ai%',
   '%taplink.cc%',
-  '%opener.one%',
   '%bit.ly%',
   '%tinyurl.com%',
+  '%tiktok.com%',
+  '%youtube.com%',
+  '%youtu.be%',
+  '%business.site%',
+  '%g.co/%',
+  '%goo.gl/%',
+  '%google.com/maps%',
+  '%google.com/search%',
+  '%fb.me%',
+  '%fb.com/%',
+  '%//x.com%',
+  '%twitter.com%',
 ];
+
+function sanitizeSearchTerm(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/["'(),;\\%]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export async function fetchWeddingLeads(
   filters: WeddingFilterOptions
@@ -154,8 +195,9 @@ export async function fetchWeddingLeads(
   const supabase = createClient();
   let query = supabase.from('places_wedding').select('*', { count: 'exact' });
 
-  if (filters.search.trim()) {
-    const term = `%${filters.search.trim()}%`;
+  const cleanSearch = sanitizeSearchTerm(filters.search);
+  if (cleanSearch) {
+    const term = `%${cleanSearch}%`;
     query = query.or(
       `name.ilike.${term},location.ilike.${term},instagram.ilike.${term},bio.ilike.${term}`
     );
@@ -169,15 +211,17 @@ export async function fetchWeddingLeads(
     query = query.eq('location', filters.location);
   }
 
-  if (filters.websiteStatus === 'no_website') {
+  if (filters.websiteStatus === 'missing_url') {
+    query = query.or('website.is.null,website.eq.');
+  } else if (filters.websiteStatus === 'no_website') {
     const conditions = [
       'website.is.null',
-      ...SOCIAL_AND_GOOGLE_PATTERNS.map((p) => `website.ilike.${p}`),
+      ...SOCIAL_AND_REDIRECT_PATTERNS.map((p) => `website.ilike.${p}`),
     ];
     query = query.or(conditions.join(','));
   } else if (filters.websiteStatus === 'has_website') {
-    query = query.not('website', 'is', null);
-    for (const pattern of SOCIAL_AND_GOOGLE_PATTERNS) {
+    query = query.not('website', 'is', null).neq('website', '');
+    for (const pattern of SOCIAL_AND_REDIRECT_PATTERNS) {
       query = query.not('website', 'ilike', pattern);
     }
   }
@@ -200,7 +244,7 @@ export async function fetchWeddingLeads(
 
   if (filters.outreachStatus && filters.outreachStatus !== 'all') {
     if (filters.outreachStatus === 'new') {
-      query = query.or('status.eq.new,status.is.null');
+      query = query.or('status.eq.new,status.is.null,status.eq.');
     } else {
       query = query.eq('status', filters.outreachStatus);
     }
@@ -230,8 +274,9 @@ export async function fetchRestaurantLeads(
   const supabase = createClient();
   let query = supabase.from('places').select('*', { count: 'exact' });
 
-  if (filters.search.trim()) {
-    const term = `%${filters.search.trim()}%`;
+  const cleanSearch = sanitizeSearchTerm(filters.search);
+  if (cleanSearch) {
+    const term = `%${cleanSearch}%`;
     query = query.or(
       `name.ilike.${term},address.ilike.${term},main_category.ilike.${term},phone.ilike.${term},query.ilike.${term}`
     );
@@ -241,15 +286,17 @@ export async function fetchRestaurantLeads(
     query = query.eq('main_category', filters.mainCategory);
   }
 
-  if (filters.websiteStatus === 'no_website') {
+  if (filters.websiteStatus === 'missing_url') {
+    query = query.or('website.is.null,website.eq.');
+  } else if (filters.websiteStatus === 'no_website') {
     const conditions = [
       'website.is.null',
-      ...SOCIAL_AND_GOOGLE_PATTERNS.map((p) => `website.ilike.${p}`),
+      ...SOCIAL_AND_REDIRECT_PATTERNS.map((p) => `website.ilike.${p}`),
     ];
     query = query.or(conditions.join(','));
   } else if (filters.websiteStatus === 'has_website') {
-    query = query.not('website', 'is', null);
-    for (const pattern of SOCIAL_AND_GOOGLE_PATTERNS) {
+    query = query.not('website', 'is', null).neq('website', '');
+    for (const pattern of SOCIAL_AND_REDIRECT_PATTERNS) {
       query = query.not('website', 'ilike', pattern);
     }
   }
@@ -276,7 +323,7 @@ export async function fetchRestaurantLeads(
 
   if (filters.outreachStatus && filters.outreachStatus !== 'all') {
     if (filters.outreachStatus === 'new') {
-      query = query.or('status.eq.new,status.is.null');
+      query = query.or('status.eq.new,status.is.null,status.eq.');
     } else {
       query = query.eq('status', filters.outreachStatus);
     }
@@ -300,21 +347,51 @@ export async function fetchRestaurantLeads(
   };
 }
 
+export async function fetchWeddingCategories(): Promise<string[]> {
+  const supabase = createClient();
+  const set = new Set<string>();
+  let from = 0;
+  const step = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('places_wedding')
+      .select('category')
+      .not('category', 'is', null)
+      .range(from, from + step - 1);
+
+    if (error || !data || data.length === 0) break;
+    data.forEach((row) => {
+      if (row.category && row.category.trim()) {
+        set.add(row.category.trim());
+      }
+    });
+    if (data.length < step) break;
+    from += step;
+  }
+  return Array.from(set).sort();
+}
+
 export async function fetchWeddingLocations(): Promise<string[]> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from('places_wedding')
-    .select('location')
-    .not('location', 'is', null)
-    .limit(1000);
-
-  if (!data) return [];
   const set = new Set<string>();
-  data.forEach((row) => {
-    if (row.location && row.location.trim()) {
-      set.add(row.location.trim());
-    }
-  });
+  let from = 0;
+  const step = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('places_wedding')
+      .select('location')
+      .not('location', 'is', null)
+      .range(from, from + step - 1);
+
+    if (error || !data || data.length === 0) break;
+    data.forEach((row) => {
+      if (row.location && row.location.trim()) {
+        set.add(row.location.trim());
+      }
+    });
+    if (data.length < step) break;
+    from += step;
+  }
   return Array.from(set).sort();
 }
 

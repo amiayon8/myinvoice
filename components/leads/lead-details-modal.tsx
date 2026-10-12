@@ -12,7 +12,7 @@ import {
   getLeadUserMeta,
   saveLeadUserMeta,
 } from '@/services/leads-service';
-import { cleanLeadName } from '@/lib/lead-message-generator';
+import { cleanLeadName, hasIndependentWebsite } from '@/lib/lead-message-generator';
 import {
   X,
   ExternalLink,
@@ -20,11 +20,15 @@ import {
   MapPin,
   Star,
   Users,
-  MessageSquare,
   Globe,
   Sparkles,
   Save,
   CheckCircle2,
+  AlertCircle,
+  Building,
+  Clock,
+  DollarSign,
+  ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
@@ -34,7 +38,7 @@ interface LeadDetailsModalProps {
   lead: WeddingLead | RestaurantLead | null;
   leadType: LeadType;
   onGenerateMessage: (lead: WeddingLead | RestaurantLead) => void;
-  onMetaSaved?: () => void;
+  onMetaSaved?: (id: string | number, newStatus: OutreachStatus, notes: string) => void;
 }
 
 const OUTREACH_STATUSES: { id: OutreachStatus; label: string; color: string }[] = [
@@ -74,6 +78,7 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
   const wedding = leadType === 'wedding' ? (lead as WeddingLead) : null;
   const restaurant = leadType === 'places' ? (lead as RestaurantLead) : null;
   const cleanName = cleanLeadName(lead.name);
+  const hasWeb = hasIndependentWebsite(lead.website);
 
   const handleSaveMeta = async () => {
     setIsSaving(true);
@@ -81,8 +86,8 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
       const id = leadType === 'wedding' ? wedding!.id : restaurant!.place_id;
       const updated = await saveLeadUserMeta(leadType, id, meta);
       setMeta(updated);
-      toast.success('Lead status and notes saved to database');
-      if (onMetaSaved) onMetaSaved();
+      toast.success('Lead status and notes saved');
+      if (onMetaSaved) onMetaSaved(id, updated.status, updated.notes);
     } catch {
       toast.error('Failed to save lead updates');
     } finally {
@@ -93,14 +98,34 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-zinc-950/70 backdrop-blur-xs animate-fade-in">
       <div className="relative flex flex-col w-full max-w-2xl max-h-[92vh] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
-          <div className="min-w-0 pr-4">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {leadType === 'wedding' ? (wedding?.category || 'Wedding Vendor') : (restaurant?.main_category || 'Restaurant')}
-            </span>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate mt-0.5">
-              {cleanName || lead.name || 'Lead Details'}
-            </h2>
+          <div className="flex items-center gap-3 min-w-0 pr-4">
+            {wedding?.dp_url ? (
+              <img
+                src={wedding.dp_url}
+                alt={cleanName || 'Lead avatar'}
+                className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
+              />
+            ) : restaurant?.featured_image ? (
+              <img
+                src={restaurant.featured_image}
+                alt={cleanName || 'Place image'}
+                className="w-10 h-10 rounded-lg object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-300 shrink-0">
+                {(cleanName || 'L').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                {leadType === 'wedding' ? (wedding?.category || 'Wedding Vendor') : (restaurant?.main_category || 'Place')}
+              </span>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate mt-0.5">
+                {cleanName || lead.name || 'Lead Details'}
+              </h2>
+            </div>
           </div>
           <button
             type="button"
@@ -112,7 +137,25 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
           </button>
         </div>
 
+        {/* Content */}
         <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 text-xs">
+          {/* Featured Image Banner for Restaurant */}
+          {restaurant?.featured_image && (
+            <div className="relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 max-h-48">
+              <img
+                src={restaurant.featured_image}
+                alt={cleanName || 'Place photo'}
+                className="w-full h-44 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
+                <span className="text-white text-xs font-medium">
+                  {restaurant.main_category || 'Venue'} • {restaurant.rating ? `${restaurant.rating} ★` : ''} ({restaurant.reviews || 0} reviews)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Outreach Status & Notes */}
           <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/60 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -152,7 +195,7 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
               <textarea
                 value={meta.notes}
                 onChange={(e) => setMeta({ ...meta, notes: e.target.value })}
-                placeholder="Add notes (e.g. Sent DM on Oct 6, waiting for reply on package quote...)"
+                placeholder="Add notes (e.g. Sent DM on Instagram, sent quote, waiting for callback...)"
                 rows={3}
                 className="w-full p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 resize-none text-xs"
               />
@@ -166,11 +209,12 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-opacity cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
-                Save Notes
+                {isSaving ? 'Saving...' : 'Save Notes'}
               </button>
             </div>
           </div>
 
+          {/* Quick Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {wedding && (
               <>
@@ -178,8 +222,20 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
                   <span className="text-[11px] text-zinc-400">Category & Location</span>
                   <p className="font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                    {wedding.category} in {wedding.location || 'Unknown'}
+                    {wedding.category || 'Wedding Vendor'} in {wedding.location || 'Unknown'}
                   </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    {wedding.is_featured && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
+                        Featured Vendor
+                      </span>
+                    )}
+                    {wedding.has_multiple_cities && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-semibold">
+                        Multi-City Presence
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-1">
@@ -187,15 +243,22 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
                   <p className="font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-3">
                     <span className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      {wedding.rating ?? 'N/A'} ({wedding.user_rating_count ?? 0})
+                      {wedding.rating ?? 'N/A'} ({wedding.user_rating_count ?? 0} reviews)
                     </span>
                     {wedding.followers_count != null && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
                         <Users className="w-3.5 h-3.5 text-zinc-400" />
                         {wedding.followers_count.toLocaleString()} followers
                       </span>
                     )}
                   </p>
+                  <div className="pt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      hasWeb ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                    }`}>
+                      {hasWeb ? 'Has Independent Website' : 'Instagram / Social Only (Prime Target)'}
+                    </span>
+                  </div>
                 </div>
               </>
             )}
@@ -203,31 +266,56 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
             {restaurant && (
               <>
                 <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-1">
-                  <span className="text-[11px] text-zinc-400">Address</span>
+                  <span className="text-[11px] text-zinc-400">Address & Timing</span>
                   <p className="font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                    {restaurant.address || 'Not specified'}
+                    {restaurant.address || 'Address not listed'}
                   </p>
+                  {restaurant.workday_timing && (
+                    <p className="text-[11px] text-zinc-500 flex items-center gap-1 pt-1">
+                      <Clock className="w-3 h-3 text-zinc-400" />
+                      {restaurant.workday_timing}
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-1">
-                  <span className="text-[11px] text-zinc-400">Reviews & Ads</span>
+                  <span className="text-[11px] text-zinc-400">Reviews & Pitch Signals</span>
                   <p className="font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-3">
                     <span className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      {restaurant.rating ?? 'N/A'} ({restaurant.reviews ?? 0} reviews)
+                      {restaurant.rating ?? 'N/A'} ({restaurant.reviews?.toLocaleString() ?? 0} reviews)
                     </span>
+                    {restaurant.price_range && (
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px]">
+                        {restaurant.price_range}
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {restaurant.can_claim && (
+                      <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 font-semibold text-[10px] flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3" />
+                        Unclaimed Listing
+                      </span>
+                    )}
                     {restaurant.is_spending_on_ads && (
                       <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-semibold text-[10px]">
                         Spends on Ads
                       </span>
                     )}
-                  </p>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                      hasWeb ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                    }`}>
+                      {hasWeb ? 'Has Website' : 'Missing Official Site'}
+                    </span>
+                  </div>
                 </div>
               </>
             )}
           </div>
 
+          {/* Description / Bio */}
           {wedding?.bio && (
             <div className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-1.5">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
@@ -239,17 +327,18 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
             </div>
           )}
 
-          {restaurant?.workday_timing && (
+          {restaurant?.description && (
             <div className="p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-1.5">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-                Hours & Timing
+                Description
               </span>
-              <p className="text-zinc-700 dark:text-zinc-300">
-                {restaurant.workday_timing}
+              <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                {restaurant.description}
               </p>
             </div>
           )}
 
+          {/* External Links & Actions */}
           <div className="flex flex-wrap gap-2 pt-2">
             {wedding?.instagram && (
               <a
@@ -272,7 +361,20 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 <Globe className="w-3.5 h-3.5 text-blue-500" />
-                Visit Website
+                {hasWeb ? 'Visit Website' : 'Link / Social'}
+                <ExternalLink className="w-3 h-3 text-zinc-400" />
+              </a>
+            )}
+
+            {wedding?.vendor_url && (
+              <a
+                href={wedding.vendor_url.startsWith('http') ? wedding.vendor_url : `https://www.wedmegood.com${wedding.vendor_url}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <Building className="w-3.5 h-3.5 text-purple-500" />
+                Vendor Directory
                 <ExternalLink className="w-3 h-3 text-zinc-400" />
               </a>
             )}
@@ -315,6 +417,7 @@ export const LeadDetailsModal: React.FC<LeadDetailsModalProps> = ({
           </div>
         </div>
 
+        {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
           <span className="text-[11px] text-zinc-500">
             {leadType === 'wedding' ? 'ID: ' + wedding?.id : 'Place ID: ' + restaurant?.place_id}

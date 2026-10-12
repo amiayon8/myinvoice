@@ -1,5 +1,5 @@
 export interface WeddingLead {
-  id: number;
+  id: number | string;
   name: string | null;
   category: string | null;
   rating: number | null;
@@ -77,6 +77,22 @@ export interface RestaurantLead {
   query: string | null;
   price: string | null;
   hotel_stars: number | null;
+  sleeps?: string | null;
+  bedrooms?: string | null;
+  beds?: string | null;
+  bathrooms?: string | null;
+  min_nights?: string | null;
+  checkin_date?: string | null;
+  checkout_date?: string | null;
+  checkin_time?: string | null;
+  checkout_time?: string | null;
+  amenities?: unknown;
+  booking_platforms?: unknown;
+  additional_results_from_web?: unknown;
+  location_summary?: unknown;
+  nearby_rentals?: unknown;
+  nearby_hotels?: unknown;
+  featured_partner_reviews?: unknown;
   notes?: string | null;
   updated_at?: string | null;
 }
@@ -101,13 +117,13 @@ export interface WeddingFilterOptions {
   search: string;
   category: string;
   location: string;
-  websiteStatus: 'all' | 'no_website' | 'has_website';
+  websiteStatus: 'all' | 'no_website' | 'has_website' | 'missing_url';
   minRating: number;
   minFollowers: number;
   featuredOnly: boolean;
   multipleCitiesOnly: boolean;
   outreachStatus: string;
-  sortBy: 'rating' | 'user_rating_count' | 'followers_count' | 'name' | 'id';
+  sortBy: 'rating' | 'user_rating_count' | 'followers_count' | 'name' | 'id' | 'updated_at';
   sortOrder: 'asc' | 'desc';
   page: number;
   pageSize: number;
@@ -116,14 +132,14 @@ export interface WeddingFilterOptions {
 export interface PlacesFilterOptions {
   search: string;
   mainCategory: string;
-  websiteStatus: 'all' | 'no_website' | 'has_website';
+  websiteStatus: 'all' | 'no_website' | 'has_website' | 'missing_url';
   minRating: number;
   minReviews: number;
   spendingAdsOnly: boolean;
   canClaimOnly: boolean;
   openOnly: boolean;
   outreachStatus: string;
-  sortBy: 'reviews' | 'rating' | 'name' | 'is_spending_on_ads';
+  sortBy: 'reviews' | 'rating' | 'name' | 'is_spending_on_ads' | 'updated_at';
   sortOrder: 'asc' | 'desc';
   page: number;
   pageSize: number;

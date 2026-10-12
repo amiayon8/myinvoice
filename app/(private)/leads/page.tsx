@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   WeddingLead,
   RestaurantLead,
@@ -12,6 +12,7 @@ import {
 import {
   fetchWeddingLeads,
   fetchRestaurantLeads,
+  fetchWeddingCategories,
   fetchWeddingLocations,
   fetchRestaurantCategories,
   getLeadUserMeta,
@@ -27,7 +28,6 @@ import { useToast } from '@/components/ui/toast';
 import {
   Search,
   Filter,
-  ArrowUpDown,
   Download,
   RotateCcw,
   Sparkles,
@@ -38,12 +38,14 @@ import {
   Users,
   Eye,
   CheckCircle2,
-  AlertCircle,
   Building,
   HeartHandshake,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  ShieldAlert,
+  Globe,
+  Radio,
 } from 'lucide-react';
 
 const INITIAL_WEDDING_FILTERS: WeddingFilterOptions = {
@@ -89,7 +91,6 @@ const OUTREACH_STATUS_OPTIONS: { id: OutreachStatus; label: string }[] = [
 
 export default function LeadsPage() {
   const toast = useToast();
-  const [, startTransition] = useTransition();
 
   const [activeTab, setActiveTab] = useState<LeadType>('wedding');
 
@@ -102,11 +103,11 @@ export default function LeadsPage() {
   const [restaurantLeads, setRestaurantLeads] = useState<RestaurantLead[]>([]);
   const [restaurantTotalCount, setRestaurantTotalCount] = useState<number>(0);
 
+  const [weddingCategories, setWeddingCategories] = useState<string[]>([]);
   const [weddingLocations, setWeddingLocations] = useState<string[]>([]);
   const [restaurantCategories, setRestaurantCategories] = useState<string[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [leadMetaUpdates, setLeadMetaUpdates] = useState<number>(0);
 
   const [selectedLeadForMessage, setSelectedLeadForMessage] = useState<WeddingLead | RestaurantLead | null>(null);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState<boolean>(false);
@@ -117,14 +118,16 @@ export default function LeadsPage() {
   useEffect(() => {
     async function loadMetaFilters() {
       try {
-        const [locs, cats] = await Promise.all([
+        const [wedCats, locs, placeCats] = await Promise.all([
+          fetchWeddingCategories(),
           fetchWeddingLocations(),
           fetchRestaurantCategories(),
         ]);
+        setWeddingCategories(wedCats);
         setWeddingLocations(locs);
-        setRestaurantCategories(cats);
+        setRestaurantCategories(placeCats);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load filter metadata', err);
       }
     }
     loadMetaFilters();
@@ -167,31 +170,94 @@ export default function LeadsPage() {
   const handleStatusChange = async (
     type: LeadType,
     id: string | number,
-    newStatus: OutreachStatus
+    newStatus: OutreachStatus,
+    newNotes?: string,
+    skipPersist = false
   ) => {
     try {
+      const nowIso = new Date().toISOString();
       if (type === 'wedding') {
         setWeddingLeads((prev) =>
           prev.map((item) =>
-            item.id === id
-              ? { ...item, status: newStatus, updated_at: new Date().toISOString() }
+            String(item.id) === String(id)
+              ? {
+                ...item,
+                status: newStatus,
+                notes: newNotes !== undefined ? newNotes : item.notes,
+                updated_at: nowIso,
+              }
               : item
           )
         );
       } else {
         setRestaurantLeads((prev) =>
           prev.map((item) =>
-            item.place_id === id
-              ? { ...item, status: newStatus, updated_at: new Date().toISOString() }
+            String(item.place_id) === String(id)
+              ? {
+                ...item,
+                status: newStatus,
+                notes: newNotes !== undefined ? newNotes : item.notes,
+                updated_at: nowIso,
+              }
               : item
           )
         );
       }
-      await saveLeadUserMeta(type, id, { status: newStatus });
-      setLeadMetaUpdates((prev) => prev + 1);
-      toast.success(`Status updated to ${newStatus.replace('_', ' ')}`);
+
+      setSelectedLeadForDetails((prev) => {
+        if (!prev) return null;
+        const currentId = type === 'wedding' ? (prev as WeddingLead).id : (prev as RestaurantLead).place_id;
+        if (String(currentId) === String(id)) {
+          return {
+            ...prev,
+            status: newStatus,
+            notes: newNotes !== undefined ? newNotes : prev.notes,
+            updated_at: nowIso,
+          };
+        }
+        return prev;
+      });
+
+      setSelectedLeadForMessage((prev) => {
+        if (!prev) return null;
+        const currentId = type === 'wedding' ? (prev as WeddingLead).id : (prev as RestaurantLead).place_id;
+        if (String(currentId) === String(id)) {
+          return {
+            ...prev,
+            status: newStatus,
+            notes: newNotes !== undefined ? newNotes : prev.notes,
+            updated_at: nowIso,
+          };
+        }
+        return prev;
+      });
+
+      if (!skipPersist) {
+        await saveLeadUserMeta(type, id, {
+          status: newStatus,
+          ...(newNotes !== undefined ? { notes: newNotes } : {}),
+        });
+        toast.success(`Status updated to ${newStatus.replace('_', ' ')}`);
+      }
     } catch {
       toast.error('Failed to update status in database');
+    }
+  };
+
+  const getStatusSelectStyle = (status: string) => {
+    switch (status) {
+      case 'contacted':
+        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-semibold';
+      case 'replied':
+        return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 font-semibold';
+      case 'in_discussion':
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 font-semibold';
+      case 'converted':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-semibold';
+      case 'not_interested':
+        return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-semibold';
+      default:
+        return 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 font-medium';
     }
   };
 
@@ -204,7 +270,7 @@ export default function LeadsPage() {
           const meta = getLeadUserMeta('wedding', w.id, w);
           const hasWeb = hasIndependentWebsite(w.website);
           const row = [
-            w.id,
+            `"${w.id}"`,
             `"${cleanLeadName(w.name).replace(/"/g, '""')}"`,
             `"${(w.category || '').replace(/"/g, '""')}"`,
             `"${(w.location || '').replace(/"/g, '""')}"`,
@@ -272,21 +338,14 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6 mx-auto p-4 lg:p-8 max-w-7xl h-full font-sans animate-fade-in">
+      {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Supabase Lead Intelligence
-            </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
-              Zero AI Trace Outreach
-            </span>
-          </div>
           <h1 className="text-xl lg:text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
             Lead Discovery & Outreach Engine
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-2xl">
-            Filter high-intent wedding vendors and restaurants, identify missing websites or ad spenders, and generate tailored cold messages that read 100% human.
+            Live database of wedding vendors and commercial venues. Filter missing websites, unclaimed listings, and generate human cold messages.
           </p>
         </div>
 
@@ -311,17 +370,17 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800">
         <button
           type="button"
           onClick={() => {
             setActiveTab('wedding');
           }}
-          className={`flex items-center gap-2.5 pb-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'wedding'
+          className={`flex items-center gap-2.5 pb-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${activeTab === 'wedding'
               ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100'
               : 'border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
-          }`}
+            }`}
         >
           <HeartHandshake className="w-4 h-4" />
           <span>Wedding & Event Vendors</span>
@@ -335,11 +394,10 @@ export default function LeadsPage() {
           onClick={() => {
             setActiveTab('places');
           }}
-          className={`flex items-center gap-2.5 pb-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'places'
+          className={`flex items-center gap-2.5 pb-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${activeTab === 'places'
               ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100'
               : 'border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
-          }`}
+            }`}
         >
           <Building className="w-4 h-4" />
           <span>Restaurants & Places</span>
@@ -349,33 +407,45 @@ export default function LeadsPage() {
         </button>
       </div>
 
+      {/* Filter Toolbar */}
       <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-xs space-y-4">
         {activeTab === 'wedding' ? (
           <>
+            {/* Dynamic Category Chips */}
             <div className="flex flex-wrap items-center gap-2">
-              {[
-                { id: 'all', label: 'All Categories' },
-                { id: 'Photographer', label: 'Photographers' },
-                { id: 'Makeup Artist', label: 'Makeup Artists' },
-                { id: 'Event Decorator', label: 'Event Decorators' },
-              ].map((cat) => (
+              <button
+                type="button"
+                onClick={() =>
+                  setWeddingFilters({
+                    ...weddingFilters,
+                    category: 'all',
+                    page: 1,
+                  })
+                }
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${weddingFilters.category === 'all'
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }`}
+              >
+                All Categories
+              </button>
+              {(weddingCategories.length > 0 ? weddingCategories : ['Photographer', 'Makeup Artist', 'Event Decorator']).map((cat) => (
                 <button
-                  key={cat.id}
+                  key={cat}
                   type="button"
                   onClick={() =>
                     setWeddingFilters({
                       ...weddingFilters,
-                      category: cat.id,
+                      category: cat,
                       page: 1,
                     })
                   }
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    weddingFilters.category === cat.id
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${weddingFilters.category === cat
                       ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
                       : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
+                    }`}
                 >
-                  {cat.label}
+                  {cat}
                 </button>
               ))}
             </div>
@@ -432,7 +502,7 @@ export default function LeadsPage() {
                   }
                   className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
-                  <option value="all">All Locations</option>
+                  <option value="all">All Locations ({weddingLocations.length})</option>
                   {weddingLocations.map((loc) => (
                     <option key={loc} value={loc}>
                       {loc}
@@ -447,15 +517,16 @@ export default function LeadsPage() {
                   onChange={(e) =>
                     setWeddingFilters({
                       ...weddingFilters,
-                      websiteStatus: e.target.value as 'all' | 'no_website' | 'has_website',
+                      websiteStatus: e.target.value as WeddingFilterOptions['websiteStatus'],
                       page: 1,
                     })
                   }
                   className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
                   <option value="all">Website: All</option>
-                  <option value="no_website">No Official Website (Prime)</option>
-                  <option value="has_website">Has Website</option>
+                  <option value="no_website">No Official Site (Social / Empty)</option>
+                  <option value="missing_url">Completely Missing Website</option>
+                  <option value="has_website">Has Independent Website</option>
                 </select>
               </div>
 
@@ -540,10 +611,9 @@ export default function LeadsPage() {
                   <select
                     value={`${weddingFilters.sortBy}_${weddingFilters.sortOrder}`}
                     onChange={(e) => {
-                      const [by, order] = e.target.value.split('_') as [
-                        WeddingFilterOptions['sortBy'],
-                        'asc' | 'desc'
-                      ];
+                      const lastUnderscore = e.target.value.lastIndexOf('_');
+                      const by = e.target.value.slice(0, lastUnderscore) as WeddingFilterOptions['sortBy'];
+                      const order = e.target.value.slice(lastUnderscore + 1) as 'asc' | 'desc';
                       setWeddingFilters({
                         ...weddingFilters,
                         sortBy: by,
@@ -556,6 +626,7 @@ export default function LeadsPage() {
                     <option value="rating_desc">Highest Rating</option>
                     <option value="user_rating_count_desc">Most Reviews</option>
                     <option value="followers_count_desc">Most Followers</option>
+                    <option value="updated_at_desc">Recently Updated</option>
                     <option value="name_asc">Name A-Z</option>
                     <option value="id_desc">Recently Added</option>
                   </select>
@@ -578,7 +649,7 @@ export default function LeadsPage() {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-400" />
                 <input
                   type="text"
-                  placeholder="Search restaurant, cuisine, address..."
+                  placeholder="Search venue, cuisine, address..."
                   value={restaurantFilters.search}
                   onChange={(e) =>
                     setRestaurantFilters({
@@ -625,7 +696,7 @@ export default function LeadsPage() {
                   }
                   className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
-                  <option value="all">All Cuisines & Types</option>
+                  <option value="all">All Cuisines & Types ({restaurantCategories.length})</option>
                   {restaurantCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -640,15 +711,16 @@ export default function LeadsPage() {
                   onChange={(e) =>
                     setRestaurantFilters({
                       ...restaurantFilters,
-                      websiteStatus: e.target.value as 'all' | 'no_website' | 'has_website',
+                      websiteStatus: e.target.value as PlacesFilterOptions['websiteStatus'],
                       page: 1,
                     })
                   }
                   className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 >
                   <option value="all">Website: All</option>
-                  <option value="no_website">Missing Official Site (Hot)</option>
-                  <option value="has_website">Has Website</option>
+                  <option value="no_website">No Official Site (Social / Empty)</option>
+                  <option value="missing_url">Completely Missing Website</option>
+                  <option value="has_website">Has Independent Website</option>
                 </select>
               </div>
 
@@ -697,22 +769,6 @@ export default function LeadsPage() {
                 <label className="inline-flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={restaurantFilters.spendingAdsOnly}
-                    onChange={(e) =>
-                      setRestaurantFilters({
-                        ...restaurantFilters,
-                        spendingAdsOnly: e.target.checked,
-                        page: 1,
-                      })
-                    }
-                    className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-500"
-                  />
-                  <span>Spending on Ads (High Budget)</span>
-                </label>
-
-                <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
                     checked={restaurantFilters.canClaimOnly}
                     onChange={(e) =>
                       setRestaurantFilters({
@@ -723,7 +779,23 @@ export default function LeadsPage() {
                     }
                     className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-500"
                   />
-                  <span>Unclaimed GMB Listing</span>
+                  <span>Unclaimed GMB Listing (High Value)</span>
+                </label>
+
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={restaurantFilters.spendingAdsOnly}
+                    onChange={(e) =>
+                      setRestaurantFilters({
+                        ...restaurantFilters,
+                        spendingAdsOnly: e.target.checked,
+                        page: 1,
+                      })
+                    }
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-500"
+                  />
+                  <span>Spending on Ads</span>
                 </label>
               </div>
 
@@ -733,10 +805,9 @@ export default function LeadsPage() {
                   <select
                     value={`${restaurantFilters.sortBy}_${restaurantFilters.sortOrder}`}
                     onChange={(e) => {
-                      const [by, order] = e.target.value.split('_') as [
-                        PlacesFilterOptions['sortBy'],
-                        'asc' | 'desc'
-                      ];
+                      const lastUnderscore = e.target.value.lastIndexOf('_');
+                      const by = e.target.value.slice(0, lastUnderscore) as PlacesFilterOptions['sortBy'];
+                      const order = e.target.value.slice(lastUnderscore + 1) as 'asc' | 'desc';
                       setRestaurantFilters({
                         ...restaurantFilters,
                         sortBy: by,
@@ -748,6 +819,7 @@ export default function LeadsPage() {
                   >
                     <option value="reviews_desc">Most Reviews</option>
                     <option value="rating_desc">Highest Rating</option>
+                    <option value="updated_at_desc">Recently Updated</option>
                     <option value="name_asc">Name A-Z</option>
                     <option value="is_spending_on_ads_desc">Ad Spenders First</option>
                   </select>
@@ -766,13 +838,14 @@ export default function LeadsPage() {
         )}
       </div>
 
+      {/* Main Leads Table */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/70 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 <th className="py-3 px-4">Lead</th>
-                <th className="py-3 px-4">Location / Area</th>
+                <th className="py-3 px-4">Location / Address</th>
                 <th className="py-3 px-4">Reputation & Reach</th>
                 <th className="py-3 px-4">Online Presence</th>
                 <th className="py-3 px-4">Outreach Status</th>
@@ -784,8 +857,13 @@ export default function LeadsPage() {
                 Array.from({ length: 8 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
                     <td className="py-4 px-4">
-                      <div className="h-4 w-40 bg-zinc-200 dark:bg-zinc-800 rounded mb-1"></div>
-                      <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-900 rounded"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-800"></div>
+                        <div>
+                          <div className="h-4 w-36 bg-zinc-200 dark:bg-zinc-800 rounded mb-1"></div>
+                          <div className="h-3 w-20 bg-zinc-100 dark:bg-zinc-900 rounded"></div>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="h-3 w-28 bg-zinc-100 dark:bg-zinc-900 rounded"></div>
@@ -820,23 +898,38 @@ export default function LeadsPage() {
 
                     return (
                       <tr
-                        key={w.id}
+                        key={String(w.id)}
                         className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
                       >
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                            <span className="truncate max-w-[220px]" title={w.name || ''}>
-                              {cleanName || 'Unnamed Vendor'}
-                            </span>
-                            {w.is_featured && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
-                                Featured
-                              </span>
+                          <div className="flex items-center gap-3">
+                            {w.dp_url ? (
+                              <img
+                                src={w.dp_url}
+                                alt={cleanName || 'Vendor avatar'}
+                                className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-500 shrink-0">
+                                {(cleanName || 'W').charAt(0).toUpperCase()}
+                              </div>
                             )}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                                <span className="truncate max-w-[200px]" title={w.name || ''}>
+                                  {cleanName || 'Unnamed Vendor'}
+                                </span>
+                                {w.is_featured && (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
+                                    Featured
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-zinc-500">
+                                {w.category || 'Wedding Vendor'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-[11px] text-zinc-500">
-                            {w.category || 'Wedding Vendor'}
-                          </span>
                         </td>
 
                         <td className="py-3 px-4">
@@ -857,7 +950,8 @@ export default function LeadsPage() {
                             </span>
                           </div>
                           {w.followers_count != null && (
-                            <span className="text-[11px] text-zinc-500">
+                            <span className="text-[11px] text-zinc-500 flex items-center gap-1 mt-0.5">
+                              <Users className="w-3 h-3 text-zinc-400" />
                               {w.followers_count.toLocaleString()} followers
                             </span>
                           )}
@@ -866,13 +960,14 @@ export default function LeadsPage() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                hasWeb
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${hasWeb
                                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
-                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                              }`}
+                                  : w.website
+                                    ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                }`}
                             >
-                              {hasWeb ? 'Has Website' : 'Instagram Only'}
+                              {hasWeb ? 'Has Website' : w.website ? 'Social Link Only' : 'Instagram Only'}
                             </span>
 
                             {instaClean && (
@@ -911,10 +1006,16 @@ export default function LeadsPage() {
                                 e.target.value as OutreachStatus
                               )
                             }
-                            className="px-2 py-1 rounded text-[11px] font-medium border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-hidden cursor-pointer"
+                            className={`px-2 py-1 rounded text-[11px] border focus:outline-hidden cursor-pointer transition-colors ${getStatusSelectStyle(
+                              meta.status
+                            )}`}
                           >
                             {OUTREACH_STATUS_OPTIONS.map((opt) => (
-                              <option key={opt.id} value={opt.id}>
+                              <option
+                                key={opt.id}
+                                value={opt.id}
+                                className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                              >
                                 {opt.label}
                               </option>
                             ))}
@@ -964,19 +1065,39 @@ export default function LeadsPage() {
                       className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
                     >
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                          <span className="truncate max-w-[220px]" title={r.name || ''}>
-                            {cleanName || 'Unnamed Venue'}
-                          </span>
-                          {r.is_spending_on_ads && (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
-                              Ads
-                            </span>
+                        <div className="flex items-center gap-3">
+                          {r.featured_image ? (
+                            <img
+                              src={r.featured_image}
+                              alt={cleanName || 'Place image'}
+                              className="w-9 h-9 rounded-lg object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-500 shrink-0">
+                              <Building className="w-4 h-4 text-zinc-400" />
+                            </div>
                           )}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                              <span className="truncate max-w-[200px]" title={r.name || ''}>
+                                {cleanName || 'Unnamed Venue'}
+                              </span>
+                              {r.can_claim && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-semibold" title="Unclaimed Google Listing">
+                                  Unclaimed
+                                </span>
+                              )}
+                              {r.is_spending_on_ads && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
+                                  Ads
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-zinc-500">
+                              {r.main_category || 'Commercial Venue'}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[11px] text-zinc-500">
-                          {r.main_category || 'Restaurant'}
-                        </span>
                       </td>
 
                       <td className="py-3 px-4">
@@ -993,7 +1114,7 @@ export default function LeadsPage() {
                             {r.rating ?? 'N/A'}
                           </span>
                           <span className="text-zinc-400">
-                            ({r.reviews?.toLocaleString() ?? 0} reviews)
+                            ({r.reviews?.toLocaleString() ?? 0})
                           </span>
                         </div>
                         {r.phone && (
@@ -1007,13 +1128,14 @@ export default function LeadsPage() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              hasWeb
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${hasWeb
                                 ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
-                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                            }`}
+                                : r.website
+                                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                              }`}
                           >
-                            {hasWeb ? 'Has Website' : 'No Official Site'}
+                            {hasWeb ? 'Has Website' : r.website ? 'Social Link Only' : 'Missing Website'}
                           </span>
 
                           {r.website && (
@@ -1052,10 +1174,16 @@ export default function LeadsPage() {
                               e.target.value as OutreachStatus
                             )
                           }
-                          className="px-2 py-1 rounded text-[11px] font-medium border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-hidden cursor-pointer"
+                          className={`px-2 py-1 rounded text-[11px] border focus:outline-hidden cursor-pointer transition-colors ${getStatusSelectStyle(
+                            meta.status
+                          )}`}
                         >
                           {OUTREACH_STATUS_OPTIONS.map((opt) => (
-                            <option key={opt.id} value={opt.id}>
+                            <option
+                              key={opt.id}
+                              value={opt.id}
+                              className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                            >
                               {opt.label}
                             </option>
                           ))}
@@ -1091,9 +1219,10 @@ export default function LeadsPage() {
           </table>
         </div>
 
+        {/* Pagination Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 text-xs text-zinc-500">
           <div>
-            Showing {(currentPage - 1) * currentPageSize + 1} to{' '}
+            Showing {currentCount === 0 ? 0 : (currentPage - 1) * currentPageSize + 1} to{' '}
             {Math.min(currentPage * currentPageSize, currentCount)} of{' '}
             {currentCount.toLocaleString()} leads
           </div>
@@ -1148,6 +1277,7 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Modals */}
       <LeadMessageModal
         isOpen={isMessageModalOpen}
         onClose={() => {
@@ -1156,7 +1286,9 @@ export default function LeadsPage() {
         }}
         lead={selectedLeadForMessage}
         leadType={activeTab}
-        onStatusUpdated={() => setLeadMetaUpdates((prev) => prev + 1)}
+        onStatusUpdated={(id, newStatus) => {
+          handleStatusChange(activeTab, id, newStatus, undefined, true);
+        }}
       />
 
       <LeadDetailsModal
@@ -1172,7 +1304,9 @@ export default function LeadsPage() {
           setSelectedLeadForMessage(lead);
           setIsMessageModalOpen(true);
         }}
-        onMetaSaved={() => setLeadMetaUpdates((prev) => prev + 1)}
+        onMetaSaved={(id, newStatus, newNotes) => {
+          handleStatusChange(activeTab, id, newStatus, newNotes, true);
+        }}
       />
     </div>
   );
