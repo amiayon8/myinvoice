@@ -137,13 +137,10 @@ export default function TuitionPage() {
     TuitionStorage.saveTeachers(newTeachers);
   };
 
-  // 1. Auto-complete past scheduled sessions:
-  // Once a scheduled session's date/time passes, it is automatically marked as COMPLETED.
-  // Historical completed classes remain permanent.
   const autoCompletePastSessions = async (
     currentSessions: ClassSession[],
     currentTeachers: Teacher[]
-  ): Promise<ClassSession[]> => {
+  ): Promise<{ sessions: ClassSession[]; teachers: Teacher[] }> => {
     const now = Date.now();
     const pastScheduled = currentSessions.filter(s => {
       if (s.status !== "SCHEDULED") return false;
@@ -151,16 +148,23 @@ export default function TuitionPage() {
       return sessionTime < now;
     });
 
-    if (pastScheduled.length === 0) return currentSessions;
+    if (pastScheduled.length === 0) {
+      return { sessions: currentSessions, teachers: currentTeachers };
+    }
 
     const updatedSessions = [...currentSessions];
+    const teacherMap = new Map(
+      currentTeachers.map(t => [t.id, { ...t, paymentPolicy: { ...t.paymentPolicy } }])
+    );
+    const modifiedTeacherIds = new Set<string>();
+
     for (const session of pastScheduled) {
-      const teacher = currentTeachers.find(t => t.id === session.teacherId);
+      const teacher = teacherMap.get(session.teacherId);
       let newPaymentStatus: PaymentStatus = session.paymentStatus;
 
       if (session.isFree || session.paymentStatus === "FREE") {
         newPaymentStatus = "FREE";
-      } else if (session.paymentStatus === "UNPAID") {
+      } else if (session.paymentStatus === "UNPAID" || session.paymentStatus === "COVERED_BY_ADVANCE") {
         if (
           teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
           (teacher.paymentPolicy.advanceBalance || 0) >= session.fee
@@ -170,6 +174,9 @@ export default function TuitionPage() {
             0,
             (teacher.paymentPolicy.advanceBalance || 0) - session.fee
           );
+          modifiedTeacherIds.add(teacher.id);
+        } else {
+          newPaymentStatus = "UNPAID";
         }
       }
 
@@ -190,12 +197,21 @@ export default function TuitionPage() {
       }
     }
 
-    return updatedSessions;
+    const updatedTeachers = currentTeachers.map(t => teacherMap.get(t.id) || t);
+    for (const teacherId of modifiedTeacherIds) {
+      const teacherToSave = teacherMap.get(teacherId);
+      if (teacherToSave) {
+        try {
+          await dbSaveTeacher(teacherToSave);
+        } catch (e) {
+          console.error("Failed to persist teacher advance balance:", e);
+        }
+      }
+    }
+
+    return { sessions: updatedSessions, teachers: updatedTeachers };
   };
 
-  // 2. Auto-schedule teacher weekdays:
-  // Generates upcoming SCHEDULED sessions for configured teacher weekdays (next 30 days).
-  // Changing weekdays NEVER affects completed or historical classes!
   const syncTeacherRoutines = async (
     currentTeachers: Teacher[],
     currentSubjects: Subject[],
@@ -233,8 +249,6 @@ export default function TuitionPage() {
           if (!alreadyExists) {
             const scheduledAt = `${dateStr}T${defTime}:00`;
             const isPast = new Date(scheduledAt).getTime() < Date.now();
-            const hasAdvance = teacher.paymentPolicy?.type === "ADVANCE_CYCLE" &&
-              (teacher.paymentPolicy.advanceBalance || 0) >= rate;
 
             newSessionsToCreate.push({
               teacherId: teacher.id,
@@ -246,7 +260,7 @@ export default function TuitionPage() {
               isExtra: false,
               attendance: "PRESENT",
               status: isPast ? "COMPLETED" : "SCHEDULED",
-              paymentStatus: hasAdvance ? "COVERED_BY_ADVANCE" : "UNPAID",
+              paymentStatus: "UNPAID",
               notes: [],
             });
           }
@@ -281,11 +295,9 @@ export default function TuitionPage() {
     return currentSessions;
   };
 
-  // Load from Supabase on client mount with local cache fallback
   useEffect(() => {
     setMounted(true);
 
-    // Optimistically check local storage cache
     const cachedSubs = TuitionStorage.getSubjects();
     const cachedTeachers = TuitionStorage.getTeachers();
     const cachedScheds = TuitionStorage.getSchedules();
@@ -306,23 +318,27 @@ export default function TuitionPage() {
       try {
         const dbData = await fetchTuitionData();
         setSubjects(dbData.subjects);
-        setTeachers(dbData.teachers);
         setSchedules(dbData.schedules);
         setPayments(dbData.payments);
         setEvents(dbData.events);
 
-        // Keep local cache synced
         TuitionStorage.saveSubjects(dbData.subjects);
-        TuitionStorage.saveTeachers(dbData.teachers);
         TuitionStorage.saveSchedules(dbData.schedules);
         TuitionStorage.savePayments(dbData.payments);
         TuitionStorage.saveEvents(dbData.events);
 
-        // Auto-complete any past sessions that passed
-        const completedSessions = await autoCompletePastSessions(dbData.sessions, dbData.teachers);
-        // Auto-schedule missing upcoming weekday sessions for teachers
-        const finalSessions = await syncTeacherRoutines(dbData.teachers, dbData.subjects, completedSessions);
+        const { sessions: completedSessions, teachers: refreshedTeachers } = await autoCompletePastSessions(
+          dbData.sessions,
+          dbData.teachers
+        );
+        const finalSessions = await syncTeacherRoutines(
+          refreshedTeachers,
+          dbData.subjects,
+          completedSessions
+        );
 
+        setTeachers(refreshedTeachers);
+        TuitionStorage.saveTeachers(refreshedTeachers);
         setSessions(finalSessions);
         TuitionStorage.saveSessions(finalSessions);
       } catch (err) {
@@ -361,34 +377,65 @@ export default function TuitionPage() {
       unpaidSessionsByTeacher[s.teacherId].push(s);
     });
 
-  // Action: Toggle Free Class on a session (Instantly excluded/included in payment calculations)
   const handleToggleFreeClass = async (sessionId: string, makeFree: boolean) => {
     const targetSession = sessions.find(s => s.id === sessionId);
     if (!targetSession) return;
 
     const teacher = teachers.find(t => t.id === targetSession.teacherId);
     const defaultRate = (teacher?.dailyRate ?? teacher?.hourlyRate) || 500;
+    let updatedTeacherToPersist: Teacher | null = null;
+    let newPaymentStatus: PaymentStatus = makeFree ? "FREE" : "UNPAID";
+
+    if (makeFree && targetSession.paymentStatus === "COVERED_BY_ADVANCE" && teacher) {
+      const ut = {
+        ...teacher,
+        paymentPolicy: {
+          ...teacher.paymentPolicy,
+          advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+        },
+      };
+      updatedTeacherToPersist = ut;
+      updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+    } else if (
+      !makeFree &&
+      targetSession.status === "COMPLETED" &&
+      teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
+      (teacher.paymentPolicy.advanceBalance || 0) >= defaultRate
+    ) {
+      newPaymentStatus = "COVERED_BY_ADVANCE";
+      const ut = {
+        ...teacher,
+        paymentPolicy: {
+          ...teacher.paymentPolicy,
+          advanceBalance: Math.max(0, (teacher.paymentPolicy.advanceBalance || 0) - defaultRate),
+        },
+      };
+      updatedTeacherToPersist = ut;
+      updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+    }
 
     const updatedSession: ClassSession = {
       ...targetSession,
       isFree: makeFree,
       fee: makeFree ? 0 : defaultRate,
-      paymentStatus: makeFree ? "FREE" : "UNPAID",
+      paymentStatus: newPaymentStatus,
       paidAt: makeFree ? undefined : targetSession.paidAt,
     };
 
-    const updated = sessions.map(s => s.id === sessionId ? updatedSession : s);
+    const updated = sessions.map(s => (s.id === sessionId ? updatedSession : s));
     updateSessions(updated);
-    toast.info(makeFree ? "Class set as Free (Excluded from payment & settlement cycles)" : "Class reverted to Paid");
+    toast.info(makeFree ? "Class set as Free" : "Class reverted to Paid");
 
     try {
       await dbSaveSession(updatedSession);
+      if (updatedTeacherToPersist) {
+        await dbSaveTeacher(updatedTeacherToPersist);
+      }
     } catch (err) {
       console.error("Failed to update free class in Supabase:", err);
     }
   };
 
-  // Action: Mark single session as paid immediately
   const handleMarkSessionPaid = async (sessionId: string) => {
     const targetSession = sessions.find(s => s.id === sessionId);
     if (!targetSession) return;
@@ -418,26 +465,47 @@ export default function TuitionPage() {
     updatePayments([newPayment, ...payments]);
     toast.success(`Marked session as paid (৳${targetSession.fee.toFixed(2)})`);
 
-    // Supabase DB persist
     try {
       const savedPay = await dbCreatePayment(newPayment);
       if (savedPay) {
-        setPayments(prev => prev.map(p => p.id === newPayment.id ? savedPay : p));
+        setPayments(prev => prev.map(p => (p.id === newPayment.id ? savedPay : p)));
       }
-      await dbUpdateSessionStatus(sessionId, targetSession.status, nowIso);
+      await dbUpdateSessionStatus(sessionId, targetSession.status, nowIso, "PAID");
     } catch (err) {
       console.error("Failed to sync payment to Supabase:", err);
     }
   };
 
-  // Action: Update attendance status of session
   const handleUpdateSessionStatus = async (sessionId: string, newStatus: ClassStatus) => {
     const targetSession = sessions.find(s => s.id === sessionId);
     if (!targetSession) return;
 
+    const teacher = teachers.find(t => t.id === targetSession.teacherId);
+    let updatedTeacherToPersist: Teacher | null = null;
+
     if (newStatus === "TEACHER_ABSENT") {
+      if (targetSession.paymentStatus === "COVERED_BY_ADVANCE" && teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+          },
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+      }
+
       const updated = sessions.map(s =>
-        s.id === sessionId ? { ...s, status: newStatus, attendance: "ABSENT" as const, fee: 0, paymentStatus: "WAIVED" as PaymentStatus } : s
+        s.id === sessionId
+          ? {
+              ...s,
+              status: newStatus,
+              attendance: "ABSENT" as const,
+              fee: 0,
+              paymentStatus: "WAIVED" as PaymentStatus,
+            }
+          : s
       );
       updateSessions(updated);
       toast.info("Teacher marked absent. Class fee waived.");
@@ -449,37 +517,50 @@ export default function TuitionPage() {
           fee: 0,
           paymentStatus: "WAIVED",
         });
+        if (updatedTeacherToPersist) {
+          await dbSaveTeacher(updatedTeacherToPersist);
+        }
       } catch (err) {
         console.error("Failed to persist teacher absent to Supabase:", err);
       }
       return;
     }
 
-    const teacher = teachers.find(t => t.id === targetSession.teacherId);
     let newPaymentStatus = targetSession.paymentStatus;
-    let updatedTeacherToPersist: Teacher | null = null;
 
     if (targetSession.isFree || targetSession.paymentStatus === "FREE") {
       newPaymentStatus = "FREE";
-    } else if (newStatus === "COMPLETED" && targetSession.paymentStatus === "UNPAID") {
-      if (teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" && (teacher.paymentPolicy.advanceBalance || 0) >= targetSession.fee) {
-        newPaymentStatus = "COVERED_BY_ADVANCE";
-        const updatedTeachers = teachers.map(t => {
-          if (t.id === teacher.id) {
-            const ut = {
-              ...t,
-              paymentPolicy: {
-                ...t.paymentPolicy,
-                advanceBalance: Math.max(0, (t.paymentPolicy.advanceBalance || 0) - targetSession.fee)
-              }
-            };
-            updatedTeacherToPersist = ut;
-            return ut;
-          }
-          return t;
-        });
-        updateTeachers(updatedTeachers);
-        toast.info(`Covered by prepaid advance. ৳${targetSession.fee} deducted from credit.`);
+    } else if (newStatus === "COMPLETED") {
+      if (targetSession.status !== "COMPLETED") {
+        if (
+          teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
+          (teacher.paymentPolicy.advanceBalance || 0) >= targetSession.fee
+        ) {
+          newPaymentStatus = "COVERED_BY_ADVANCE";
+          const ut = {
+            ...teacher,
+            paymentPolicy: {
+              ...teacher.paymentPolicy,
+              advanceBalance: Math.max(0, (teacher.paymentPolicy.advanceBalance || 0) - targetSession.fee),
+            },
+          };
+          updatedTeacherToPersist = ut;
+          updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+          toast.info(`Covered by prepaid advance. ৳${targetSession.fee} deducted from credit.`);
+        }
+      }
+    } else if (targetSession.status === "COMPLETED") {
+      if (targetSession.paymentStatus === "COVERED_BY_ADVANCE" && teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+          },
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+        newPaymentStatus = "UNPAID";
       }
     }
 
@@ -490,9 +571,8 @@ export default function TuitionPage() {
     updateSessions(updated);
     toast.success(`Updated status to ${newStatus.toLowerCase()}`);
 
-    // Supabase DB persist
     try {
-      await dbUpdateSessionStatus(sessionId, newStatus);
+      await dbUpdateSessionStatus(sessionId, newStatus, undefined, newPaymentStatus);
       if (updatedTeacherToPersist) {
         await dbSaveTeacher(updatedTeacherToPersist);
       }
@@ -501,42 +581,78 @@ export default function TuitionPage() {
     }
   };
 
-  // Action: Quick Toggle Attendance (Present vs Absent)
-  const handleToggleAttendance = async (sessionId: string, newAttendance: 'PRESENT' | 'ABSENT') => {
+  const handleToggleAttendance = async (sessionId: string, newAttendance: "PRESENT" | "ABSENT") => {
     const targetSession = sessions.find(s => s.id === sessionId);
     if (!targetSession) return;
 
     const teacher = teachers.find(t => t.id === targetSession.teacherId);
     let updatedSession: ClassSession;
+    let updatedTeacherToPersist: Teacher | null = null;
 
-    if (newAttendance === 'ABSENT') {
+    if (newAttendance === "ABSENT") {
+      if (targetSession.paymentStatus === "COVERED_BY_ADVANCE" && teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+          },
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+      }
+
       updatedSession = {
         ...targetSession,
-        attendance: 'ABSENT',
-        status: 'TEACHER_ABSENT',
+        attendance: "ABSENT",
+        status: "TEACHER_ABSENT",
         fee: 0,
-        paymentStatus: 'WAIVED',
+        paymentStatus: "WAIVED",
       };
     } else {
       const defaultRate = (teacher?.dailyRate ?? teacher?.hourlyRate) || 500;
       const isFree = targetSession.isFree;
+      const isPast = new Date(targetSession.scheduledAt).getTime() < Date.now();
+      let paymentStatus: PaymentStatus = isFree ? "FREE" : "UNPAID";
+
+      if (
+        isPast &&
+        !isFree &&
+        teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" &&
+        (teacher.paymentPolicy.advanceBalance || 0) >= defaultRate
+      ) {
+        paymentStatus = "COVERED_BY_ADVANCE";
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: Math.max(0, (teacher.paymentPolicy.advanceBalance || 0) - defaultRate),
+          },
+        };
+        updatedTeacherToPersist = ut;
+        updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+      }
+
       updatedSession = {
         ...targetSession,
-        attendance: 'PRESENT',
-        status: new Date(targetSession.scheduledAt).getTime() < Date.now() ? 'COMPLETED' : 'SCHEDULED',
+        attendance: "PRESENT",
+        status: isPast ? "COMPLETED" : "SCHEDULED",
         fee: isFree ? 0 : defaultRate,
-        paymentStatus: isFree ? 'FREE' : 'UNPAID',
+        paymentStatus,
       };
     }
 
-    const updated = sessions.map(s => s.id === sessionId ? updatedSession : s);
+    const updated = sessions.map(s => (s.id === sessionId ? updatedSession : s));
     updateSessions(updated);
-    toast.info(newAttendance === 'ABSENT' ? 'Marked teacher absent (fee waived)' : 'Marked teacher present');
+    toast.info(newAttendance === "ABSENT" ? "Marked teacher absent (fee waived)" : "Marked teacher present");
 
     try {
       await dbSaveSession(updatedSession);
+      if (updatedTeacherToPersist) {
+        await dbSaveTeacher(updatedTeacherToPersist);
+      }
     } catch (err) {
-      console.error('Failed to toggle attendance in Supabase:', err);
+      console.error("Failed to toggle attendance in Supabase:", err);
     }
   };
 
@@ -558,10 +674,10 @@ export default function TuitionPage() {
           paymentPolicy: {
             ...teacher.paymentPolicy,
             advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
-          }
+          },
         };
         updatedTeacherToPersist = ut;
-        updateTeachers(teachers.map(t => t.id === teacher.id ? ut : t));
+        updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
       }
     }
 
@@ -582,7 +698,7 @@ export default function TuitionPage() {
           amount: Math.max(0, pay.amount - targetSession.fee),
         };
         paymentsToUpdate.push(up);
-        updatedPayments = updatedPayments.map(p => p.id === pay.id ? up : p);
+        updatedPayments = updatedPayments.map(p => (p.id === pay.id ? up : p));
       }
     }
 
@@ -595,7 +711,7 @@ export default function TuitionPage() {
       paymentStatus: "UNPAID",
       paidAt: undefined,
     };
-    updateSessions(sessions.map(s => s.id === sessionId ? updatedSession : s));
+    updateSessions(sessions.map(s => (s.id === sessionId ? updatedSession : s)));
     toast.success("Payment deleted for this class");
 
     try {
@@ -616,14 +732,47 @@ export default function TuitionPage() {
 
   const handleUpdateSession = async (updatedSession: ClassSession) => {
     const existing = sessions.find(s => s.id === updatedSession.id);
-    if (existing && (existing.paymentStatus === "PAID" || existing.paymentStatus === "COVERED_BY_ADVANCE") && updatedSession.paymentStatus === "UNPAID") {
+    let updatedTeacherToPersist: Teacher | null = null;
+    const teacher = teachers.find(t => t.id === updatedSession.teacherId);
+
+    if (existing) {
+      if (existing.paymentStatus === "COVERED_BY_ADVANCE" && updatedSession.paymentStatus !== "COVERED_BY_ADVANCE" && teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + existing.fee,
+          },
+        };
+        updatedTeacherToPersist = ut;
+      } else if (existing.paymentStatus !== "COVERED_BY_ADVANCE" && updatedSession.paymentStatus === "COVERED_BY_ADVANCE" && teacher) {
+        const ut = {
+          ...teacher,
+          paymentPolicy: {
+            ...teacher.paymentPolicy,
+            advanceBalance: Math.max(0, (teacher.paymentPolicy.advanceBalance || 0) - updatedSession.fee),
+          },
+        };
+        updatedTeacherToPersist = ut;
+      }
+    }
+
+    if (updatedTeacherToPersist) {
+      updateTeachers(teachers.map(t => (t.id === updatedTeacherToPersist!.id ? updatedTeacherToPersist! : t)));
+    }
+
+    if (
+      existing &&
+      (existing.paymentStatus === "PAID" || existing.paymentStatus === "COVERED_BY_ADVANCE") &&
+      updatedSession.paymentStatus === "UNPAID"
+    ) {
       await handleDeleteClassPayment(updatedSession.id);
       const withSessionDetails: ClassSession = {
         ...updatedSession,
         paymentStatus: "UNPAID",
         paidAt: undefined,
       };
-      const updated = sessions.map(s => s.id === updatedSession.id ? withSessionDetails : s);
+      const updated = sessions.map(s => (s.id === updatedSession.id ? withSessionDetails : s));
       updateSessions(updated);
       setEditingSession(null);
       try {
@@ -634,7 +783,7 @@ export default function TuitionPage() {
       return;
     }
 
-    const updated = sessions.map(s => s.id === updatedSession.id ? updatedSession : s);
+    const updated = sessions.map(s => (s.id === updatedSession.id ? updatedSession : s));
     updateSessions(updated);
     setEditingSession(null);
     toast.success("Class session details updated");
@@ -642,16 +791,37 @@ export default function TuitionPage() {
     try {
       const saved = await dbSaveSession(updatedSession);
       if (saved) {
-        setSessions(prev => prev.map(s => s.id === saved.id ? saved : s));
+        setSessions(prev => prev.map(s => (s.id === saved.id ? saved : s)));
+      }
+      if (updatedTeacherToPersist) {
+        await dbSaveTeacher(updatedTeacherToPersist);
       }
     } catch (err) {
       console.error("Failed to update session in Supabase:", err);
     }
   };
 
-  // Action: Delete Class Session
   const handleDeleteSession = async (sessionId: string) => {
+    const targetSession = sessions.find(s => s.id === sessionId);
+    if (!targetSession) return;
+
     if (confirm("Are you sure you want to delete this class session?")) {
+      let updatedTeacherToPersist: Teacher | null = null;
+      if (targetSession.paymentStatus === "COVERED_BY_ADVANCE") {
+        const teacher = teachers.find(t => t.id === targetSession.teacherId);
+        if (teacher) {
+          const ut = {
+            ...teacher,
+            paymentPolicy: {
+              ...teacher.paymentPolicy,
+              advanceBalance: (teacher.paymentPolicy.advanceBalance || 0) + targetSession.fee,
+            },
+          };
+          updatedTeacherToPersist = ut;
+          updateTeachers(teachers.map(t => (t.id === teacher.id ? ut : t)));
+        }
+      }
+
       updateSessions(sessions.filter(s => s.id !== sessionId));
       if (selectedSessionId === sessionId) {
         setSelectedSessionId(null);
@@ -661,6 +831,9 @@ export default function TuitionPage() {
 
       try {
         await dbDeleteSession(sessionId);
+        if (updatedTeacherToPersist) {
+          await dbSaveTeacher(updatedTeacherToPersist);
+        }
       } catch (err) {
         console.error("Failed to delete session from Supabase:", err);
       }
@@ -748,16 +921,44 @@ export default function TuitionPage() {
     };
 
     let teacherToPersist: Teacher | null = null;
+    let newlyCoveredSessions: ClassSession[] = [];
 
     if (paymentData.type === "ADVANCE_DEPOSIT") {
+      let remainingAdvance = paymentData.amount;
+      const targetTeacher = teachers.find(t => t.id === paymentData.teacherId);
+
+      const pendingCompleted = sessions
+        .filter(
+          s =>
+            s.teacherId === paymentData.teacherId &&
+            s.status === "COMPLETED" &&
+            s.paymentStatus === "UNPAID" &&
+            !s.isFree &&
+            s.attendance !== "ABSENT"
+        )
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+      for (const session of pendingCompleted) {
+        if (remainingAdvance >= session.fee) {
+          remainingAdvance -= session.fee;
+          newlyCoveredSessions.push({
+            ...session,
+            paymentStatus: "COVERED_BY_ADVANCE",
+            paidAt: paymentTime,
+          });
+        }
+      }
+
+      const totalAdvance = (targetTeacher?.paymentPolicy?.advanceBalance || 0) + remainingAdvance;
+
       const updatedTeachers = teachers.map(t => {
         if (t.id === paymentData.teacherId) {
           const ut = {
             ...t,
             paymentPolicy: {
               ...t.paymentPolicy,
-              advanceBalance: (t.paymentPolicy.advanceBalance || 0) + paymentData.amount,
-            }
+              advanceBalance: totalAdvance,
+            },
           };
           teacherToPersist = ut;
           return ut;
@@ -765,6 +966,13 @@ export default function TuitionPage() {
         return t;
       });
       updateTeachers(updatedTeachers);
+
+      if (newlyCoveredSessions.length > 0) {
+        const coveredMap = new Map(newlyCoveredSessions.map(s => [s.id, s]));
+        const updatedSessions = sessions.map(s => coveredMap.get(s.id) || s);
+        updateSessions(updatedSessions);
+      }
+
       toast.success(`Added ৳${paymentData.amount.toFixed(2)} advance credit`);
     } else {
       const updatedSessions = sessions.map(s => {
@@ -782,10 +990,13 @@ export default function TuitionPage() {
     try {
       const savedPay = await dbCreatePayment(newPayment);
       if (savedPay) {
-        setPayments(prev => prev.map(p => p.id === newPayment.id ? savedPay : p));
+        setPayments(prev => prev.map(p => (p.id === newPayment.id ? savedPay : p)));
       }
       if (teacherToPersist) {
         await dbSaveTeacher(teacherToPersist);
+      }
+      for (const session of newlyCoveredSessions) {
+        await dbSaveSession(session);
       }
     } catch (err) {
       console.error("Failed to persist payment to Supabase:", err);
@@ -992,14 +1203,37 @@ export default function TuitionPage() {
     }
   };
 
-  // Action: Add / Schedule Individual Class (with full Free Class and Scheduled/Completed support)
   const handleScheduleClass = async (sessionData: Partial<ClassSession>) => {
     const isFree = Boolean(sessionData.isFree || sessionData.paymentStatus === "FREE");
     const fee = isFree ? 0 : Number(sessionData.fee || 500);
-    const paymentStatus: PaymentStatus = isFree ? "FREE" : (sessionData.paymentStatus || "UNPAID");
     const targetTeacher = teachers.find(t => t.id === sessionData.teacherId);
+    let paymentStatus: PaymentStatus = isFree ? "FREE" : (sessionData.paymentStatus || "UNPAID");
     const defaultDuration = targetTeacher?.defaultDurationMin || 60;
     const durationMin = sessionData.durationMin || defaultDuration;
+    let updatedTeacherToPersist: Teacher | null = null;
+
+    if (sessionData.status === "COMPLETED" && !isFree) {
+      if (
+        paymentStatus === "COVERED_BY_ADVANCE" &&
+        targetTeacher?.paymentPolicy?.type === "ADVANCE_CYCLE"
+      ) {
+        if ((targetTeacher.paymentPolicy.advanceBalance || 0) >= fee) {
+          const ut = {
+            ...targetTeacher,
+            paymentPolicy: {
+              ...targetTeacher.paymentPolicy,
+              advanceBalance: Math.max(0, (targetTeacher.paymentPolicy.advanceBalance || 0) - fee),
+            },
+          };
+          updatedTeacherToPersist = ut;
+          updateTeachers(teachers.map(t => (t.id === targetTeacher.id ? ut : t)));
+        } else {
+          paymentStatus = "UNPAID";
+        }
+      }
+    } else if (sessionData.status !== "COMPLETED" && !isFree) {
+      paymentStatus = "UNPAID";
+    }
 
     const newSessionPayload: Partial<ClassSession> = {
       teacherId: sessionData.teacherId || teachers[0]?.id || "",
@@ -1019,6 +1253,9 @@ export default function TuitionPage() {
       const saved = await dbSaveSession(newSessionPayload);
       if (saved) {
         updateSessions([saved, ...sessions]);
+        if (updatedTeacherToPersist) {
+          await dbSaveTeacher(updatedTeacherToPersist);
+        }
         toast.success(
           sessionData.status === "COMPLETED"
             ? "Completed class session logged"
@@ -1037,10 +1274,12 @@ export default function TuitionPage() {
       id: `cs-${Date.now()}`,
     } as ClassSession;
     updateSessions([fallbackSession, ...sessions]);
+    if (updatedTeacherToPersist) {
+      await dbSaveTeacher(updatedTeacherToPersist);
+    }
     toast.success("Class session recorded");
   };
 
-  // Action: Auto-generate sessions for the next 14 days from active RecurringSchedules
   const handleGenerateRecurringSessions = async () => {
     const newGenerated: ClassSession[] = [];
     const today = new Date();
@@ -1058,9 +1297,6 @@ export default function TuitionPage() {
 
         const exists = sessions.some(s => s.scheduledAt.startsWith(dateStr) && s.teacherId === sch.teacherId && s.subjectId === sch.subjectId);
         if (!exists) {
-          const teacher = teachers.find(t => t.id === sch.teacherId);
-          const hasAdvance = teacher?.paymentPolicy?.type === "ADVANCE_CYCLE" && (teacher.paymentPolicy.advanceBalance || 0) >= sch.rate;
-
           const sessionPayload: Partial<ClassSession> = {
             scheduleId: sch.id,
             teacherId: sch.teacherId,
@@ -1070,7 +1306,7 @@ export default function TuitionPage() {
             fee: sch.rate,
             isFree: false,
             status: "SCHEDULED",
-            paymentStatus: hasAdvance ? "COVERED_BY_ADVANCE" : "UNPAID",
+            paymentStatus: "UNPAID",
             notes: [],
           };
 

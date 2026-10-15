@@ -426,13 +426,19 @@ export async function dbSaveSession(session: Partial<ClassSession>): Promise<Cla
 export async function dbUpdateSessionStatus(
   sessionId: string, 
   status: ClassStatus, 
-  paidAt?: string
+  paidAt?: string,
+  paymentStatus?: PaymentStatus
 ): Promise<boolean> {
   const supabase = createClient();
   const payload: any = { status };
+  if (paymentStatus !== undefined) {
+    payload.payment_status = paymentStatus;
+  }
   if (paidAt !== undefined) {
     payload.paid_at = paidAt;
-    if (paidAt) payload.payment_status = 'PAID';
+    if (paidAt && !paymentStatus) {
+      payload.payment_status = 'PAID';
+    }
   }
 
   const { error } = await supabase
