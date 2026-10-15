@@ -1,9 +1,17 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { NextResponse } from 'next/server';
 import { parseBillingTiming, getPeriodDate } from '@/lib/date-utils';
+import { autoProcessTuitionClasses, autoEnsureUpcomingRoutines } from '@/lib/tuition-service';
 
 async function processRecurring(targetDate: string) {
   const supabase = createServiceRoleClient();
+
+  try {
+    await autoEnsureUpcomingRoutines(supabase);
+    await autoProcessTuitionClasses(supabase);
+  } catch (tuitionErr) {
+    console.error('Failed processing recurring tuition:', tuitionErr);
+  }
 
   // 1. Fetch recurring invoices where next_generation_date <= targetDate
   const { data: templates, error: fetchError } = await supabase

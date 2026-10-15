@@ -14,14 +14,169 @@ import {
   TuitionShareType
 } from '@/types/tuition';
 
-/**
- * Supabase Database Service for Personal Tuition Management
- * Fully optimized with atomic session persistence, real-time sync, and free class tracking.
- */
+export async function autoProcessTuitionClasses(
+  supabaseClient?: any
+): Promise<{ processedCount: number; updatedTeacherCount: number }> {
+  const supabase = supabaseClient || createClient();
+  const nowIso = new Date().toISOString();
 
-// -------------------------------------------------------------
-// 1. Fetch Complete Tuition Data from Supabase
-// -------------------------------------------------------------
+  const { data: pastScheduled, error: sessionsError } = await supabase
+    .from('tuition_class_sessions')
+    .select('*')
+    .eq('status', 'SCHEDULED')
+    .lte('scheduled_at', nowIso)
+    .order('scheduled_at', { ascending: true });
+
+  if (sessionsError || !pastScheduled || pastScheduled.length === 0) {
+    return { processedCount: 0, updatedTeacherCount: 0 };
+  }
+
+  const { data: rawTeachers } = await supabase
+    .from('tuition_teachers')
+    .select('*');
+
+  const teachersMap = new Map<string, any>((rawTeachers || []).map((t: any) => [t.id, t]));
+  const modifiedTeachers = new Map<string, number>();
+
+  for (const session of pastScheduled) {
+    const teacher: any = teachersMap.get(session.teacher_id);
+    let newPaymentStatus: PaymentStatus = session.payment_status || 'UNPAID';
+
+    if (session.is_free || session.payment_status === 'FREE') {
+      newPaymentStatus = 'FREE';
+    } else if (session.payment_status === 'UNPAID' || session.payment_status === 'COVERED_BY_ADVANCE') {
+      const currentAdvanceBalance = modifiedTeachers.has(session.teacher_id)
+        ? modifiedTeachers.get(session.teacher_id)!
+        : Number(teacher?.advance_balance || 0);
+
+      const fee = Number(session.fee || 0);
+
+      if (teacher?.policy_type === 'ADVANCE_CYCLE' && currentAdvanceBalance >= fee) {
+        newPaymentStatus = 'COVERED_BY_ADVANCE';
+        const updatedBalance = Math.max(0, currentAdvanceBalance - fee);
+        modifiedTeachers.set(session.teacher_id, updatedBalance);
+      } else {
+        newPaymentStatus = 'UNPAID';
+      }
+    }
+
+    await supabase
+      .from('tuition_class_sessions')
+      .update({
+        status: 'COMPLETED',
+        payment_status: newPaymentStatus,
+      })
+      .eq('id', session.id);
+  }
+
+  for (const [teacherId, newBalance] of modifiedTeachers.entries()) {
+    await supabase
+      .from('tuition_teachers')
+      .update({ advance_balance: newBalance })
+      .eq('id', teacherId);
+  }
+
+  return {
+    processedCount: pastScheduled.length,
+    updatedTeacherCount: modifiedTeachers.size,
+  };
+}
+
+export async function autoEnsureUpcomingRoutines(
+  supabaseClient?: any
+): Promise<number> {
+  const supabase = supabaseClient || createClient();
+
+  const [teachersRes, subjectsRes, sessionsRes] = await Promise.all([
+    supabase.from('tuition_teachers').select('*'),
+    supabase.from('tuition_subjects').select('*').order('name'),
+    supabase.from('tuition_class_sessions').select('teacher_id, scheduled_at'),
+  ]);
+
+  const teachers = teachersRes.data || [];
+  const subjects = subjectsRes.data || [];
+  const existingSessions = sessionsRes.data || [];
+
+  if (teachers.length === 0) return 0;
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const sessionsToInsert: any[] = [];
+
+  for (const teacher of teachers) {
+    const weekdays: number[] = teacher.weekdays || [];
+    if (weekdays.length === 0) continue;
+
+    const rate = Number(teacher.daily_rate ?? teacher.hourly_rate ?? 500);
+    const subId =
+      teacher.default_subject_id ||
+      teacher.subject_ids?.[0] ||
+      subjects[0]?.id ||
+      null;
+    const defTime = teacher.default_time || '16:00';
+    const duration = Number(teacher.default_duration_min || 60);
+
+    for (let dayOffset = 0; dayOffset <= 30; dayOffset++) {
+      const targetDate = new Date(startOfToday);
+      targetDate.setDate(startOfToday.getDate() + dayOffset);
+      const dayOfWeek = targetDate.getDay();
+
+      if (weekdays.includes(dayOfWeek)) {
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        const alreadyExists =
+          existingSessions.some(
+            (s: any) =>
+              s.teacher_id === teacher.id && s.scheduled_at?.startsWith(dateStr)
+          ) ||
+          sessionsToInsert.some(
+            (s: any) =>
+              s.teacher_id === teacher.id && s.scheduled_at?.startsWith(dateStr)
+          );
+
+        if (!alreadyExists) {
+          const scheduledAt = `${dateStr}T${defTime}:00`;
+          if (new Date(scheduledAt).getTime() <= Date.now()) {
+            continue;
+          }
+
+          sessionsToInsert.push({
+            teacher_id: teacher.id,
+            subject_id: subId,
+            scheduled_at: scheduledAt,
+            duration_min: duration,
+            fee: rate,
+            is_free: false,
+            is_extra: false,
+            attendance: 'PRESENT',
+            status: 'SCHEDULED',
+            payment_status: 'UNPAID',
+            approval_status: 'APPROVED',
+            recorded_by: 'ADMIN',
+          });
+        }
+      }
+    }
+  }
+
+  if (sessionsToInsert.length > 0) {
+    const { error } = await supabase
+      .from('tuition_class_sessions')
+      .insert(sessionsToInsert);
+
+    if (error) {
+      console.error('Failed to auto-insert upcoming tuition routines:', error);
+      return 0;
+    }
+    return sessionsToInsert.length;
+  }
+
+  return 0;
+}
+
 export async function fetchTuitionData(): Promise<{
   subjects: Subject[];
   teachers: Teacher[];
@@ -33,6 +188,8 @@ export async function fetchTuitionData(): Promise<{
   const supabase = createClient();
 
   try {
+    await autoEnsureUpcomingRoutines(supabase);
+    await autoProcessTuitionClasses(supabase);
     const [
       subjectsRes,
       teachersRes,

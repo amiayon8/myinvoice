@@ -248,7 +248,9 @@ export default function TuitionPage() {
 
           if (!alreadyExists) {
             const scheduledAt = `${dateStr}T${defTime}:00`;
-            const isPast = new Date(scheduledAt).getTime() < Date.now();
+            if (new Date(scheduledAt).getTime() <= Date.now()) {
+              continue;
+            }
 
             newSessionsToCreate.push({
               teacherId: teacher.id,
@@ -259,7 +261,7 @@ export default function TuitionPage() {
               isFree: false,
               isExtra: false,
               attendance: "PRESENT",
-              status: isPast ? "COMPLETED" : "SCHEDULED",
+              status: "SCHEDULED",
               paymentStatus: "UNPAID",
               notes: [],
             });

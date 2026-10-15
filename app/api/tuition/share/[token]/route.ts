@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { autoProcessTuitionClasses, autoEnsureUpcomingRoutines } from "@/lib/tuition-service";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -50,6 +51,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       user_agent: userAgent,
     });
   }
+
+  await autoEnsureUpcomingRoutines(supabase);
+  await autoProcessTuitionClasses(supabase);
 
   const [
     subjectsRes,
