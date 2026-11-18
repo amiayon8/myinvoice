@@ -315,7 +315,7 @@ export default function ClassPartyPage() {
             Class Party &apos;26 Attendees
           </h1>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
-            The Royal Garden, Uttara • 26 November, 2026 • Registration &
+            The Royal Garden, Uttara • 27 November, 2026 • Registration &
             Payment Reconciliation
           </p>
         </div>
