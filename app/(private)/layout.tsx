@@ -64,11 +64,14 @@ export default function PrivateLayout({
     currentView = 'subscriptions';
   } else if (pathname.startsWith('/leads')) {
     currentView = 'leads';
+  } else if (pathname.startsWith('/class-party-26')) {
+    currentView = 'class-party-26';
   }
 
   const handleViewChange = (view: string) => {
     if (view === 'dashboard') router.push('/dashboard');
     else if (view === 'leads') router.push('/leads');
+    else if (view === 'class-party-26') router.push('/class-party-26');
     else if (view === 'tuition') router.push('/tuition');
     else if (view === 'invoices') router.push('/invoices');
     else if (view === 'notes') router.push('/notes');

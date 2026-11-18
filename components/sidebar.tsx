@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  PartyPopper,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -63,6 +64,7 @@ const navigationGroups: NavigationGroup[] = [
   {
     title: "Management",
     links: [
+      { id: "class-party-26", label: "Class Party '26", icon: PartyPopper },
       { id: "clients", label: "Clients", icon: Users },
       { id: "companies", label: "Entities", icon: Building2 },
       { id: "sources", label: "Loan Sources", icon: Landmark },
