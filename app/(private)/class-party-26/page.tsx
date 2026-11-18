@@ -95,9 +95,13 @@ export default function ClassPartyPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
-  const [editingRecord, setEditingRecord] = useState<RegistrationRecord | null>(null);
-  const [deletingRecord, setDeletingRecord] = useState<RegistrationRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    useState<RegistrationRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<RegistrationRecord | null>(
+    null,
+  );
+  const [deletingRecord, setDeletingRecord] =
+    useState<RegistrationRecord | null>(null);
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
@@ -132,7 +136,7 @@ export default function ClassPartyPage() {
 
   const handleUpdateStatus = async (
     id: string,
-    newStatus: "verified" | "rejected" | "pending"
+    newStatus: "verified" | "rejected" | "pending",
   ) => {
     setActionInProgress(id);
     try {
@@ -152,7 +156,7 @@ export default function ClassPartyPage() {
         fetchRegistrations();
         if (selectedRecord && selectedRecord.id === id) {
           setSelectedRecord((prev) =>
-            prev ? { ...prev, payment_status: newStatus } : null
+            prev ? { ...prev, payment_status: newStatus } : null,
           );
         }
       } else {
@@ -202,9 +206,12 @@ export default function ClassPartyPage() {
 
     setActionInProgress(deletingRecord.id);
     try {
-      const res = await fetch(`/api/class-party-26/admin?id=${deletingRecord.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/class-party-26/admin?id=${deletingRecord.id}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const data = await res.json();
       if (data.success) {
@@ -284,7 +291,7 @@ export default function ClassPartyPage() {
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `class_party_26_registrations_${new Date().toISOString().slice(0, 10)}.csv`
+      `class_party_26_registrations_${new Date().toISOString().slice(0, 10)}.csv`,
     );
     document.body.appendChild(link);
     link.click();
@@ -308,7 +315,8 @@ export default function ClassPartyPage() {
             Class Party &apos;26 Attendees
           </h1>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
-            The Royal Garden, Uttara • 26 November, 2026 • Registration & Payment Reconciliation
+            The Royal Garden, Uttara • 26 November, 2026 • Registration &
+            Payment Reconciliation
           </p>
         </div>
 
@@ -318,7 +326,9 @@ export default function ClassPartyPage() {
             onClick={fetchRegistrations}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer shadow-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
 
@@ -412,76 +422,82 @@ export default function ClassPartyPage() {
         </div>
       )}
 
-      {stats && stats.coordinatorCounts && Object.keys(stats.coordinatorCounts).length > 0 && (
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
-              <Banknote className="w-4 h-4 text-emerald-500" />
-              Coordinator Collection Summary (Cash & bKash to Ayon)
-            </h2>
-            <span className="text-xs text-zinc-500">
-              Real-time payment breakdown
-            </span>
-          </div>
+      {stats &&
+        stats.coordinatorCounts &&
+        Object.keys(stats.coordinatorCounts).length > 0 && (
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3 shadow-xs">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-emerald-500" />
+                Coordinator Collection Summary
+              </h2>
+              <span className="text-xs text-zinc-500">
+                Real-time payment breakdown
+              </span>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {Object.entries(stats.coordinatorCounts).map(([person, data]) => {
-              const isAyon = person === "Ayon";
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {Object.entries(stats.coordinatorCounts).map(([person, data]) => {
+                const isAyon = person === "Ayon";
 
-              return (
-                <div
-                  key={person}
-                  className={`p-3.5 rounded-xl border space-y-2 ${
-                    isAyon
-                      ? "bg-violet-50/70 dark:bg-violet-950/30 border-violet-300 dark:border-violet-500/40 ring-1 ring-violet-500/30"
-                      : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200/80 dark:border-zinc-800/80"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                      {person}
-                      {isAyon && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-200 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
-                          bKash Holder
-                        </span>
+                return (
+                  <div
+                    key={person}
+                    className={`p-3.5 rounded-xl border space-y-2 ${
+                      isAyon
+                        ? "bg-violet-50/70 dark:bg-violet-950/30 border-violet-300 dark:border-violet-500/40 ring-1 ring-violet-500/30"
+                        : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200/80 dark:border-zinc-800/80"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        {person}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                        ৳{data.totalAmount.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1 font-mono text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                      {isAyon ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-pink-600 dark:text-pink-400">
+                              bKash:
+                            </span>
+                            <span>
+                              ৳{data.bkashTotal.toLocaleString()} (
+                              {data.bkashCount})
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              Cash:
+                            </span>
+                            <span>
+                              ৳{data.cashTotal.toLocaleString()} (
+                              {data.cashCount})
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            Cash:
+                          </span>
+                          <span>
+                            ৳{data.cashTotal.toLocaleString()} ({data.cashCount}
+                            )
+                          </span>
+                        </div>
                       )}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                      ৳{data.totalAmount.toLocaleString()}
-                    </span>
+                    </div>
                   </div>
-
-                  <div className="text-xs space-y-1 font-mono text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
-                    {isAyon ? (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-pink-600 dark:text-pink-400">bKash:</span>
-                          <span>
-                            ৳{data.bkashTotal.toLocaleString()} ({data.bkashCount})
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-emerald-600 dark:text-emerald-400">Cash:</span>
-                          <span>
-                            ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex justify-between">
-                        <span className="text-emerald-600 dark:text-emerald-400">Cash:</span>
-                        <span>
-                          ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -589,7 +605,10 @@ export default function ClassPartyPage() {
                             bKash (Ayon)
                           </span>
                           <div className="text-zinc-500 dark:text-zinc-400 text-[11px]">
-                            Trx: <span className="font-bold text-zinc-900 dark:text-white">{record.bkash_transaction_id}</span>
+                            Trx:{" "}
+                            <span className="font-bold text-zinc-900 dark:text-white">
+                              {record.bkash_transaction_id}
+                            </span>
                           </div>
                           <div className="text-zinc-400 dark:text-zinc-500 text-[11px]">
                             From: {record.bkash_sender_number}
@@ -601,7 +620,10 @@ export default function ClassPartyPage() {
                             Cash
                           </span>
                           <div className="text-zinc-500 dark:text-zinc-400 text-[11px]">
-                            Paid to: <span className="font-bold text-zinc-900 dark:text-white">{record.cash_paid_to}</span>
+                            Paid to:{" "}
+                            <span className="font-bold text-zinc-900 dark:text-white">
+                              {record.cash_paid_to}
+                            </span>
                           </div>
                         </div>
                       )}
@@ -636,7 +658,9 @@ export default function ClassPartyPage() {
                           <button
                             type="button"
                             disabled={actionInProgress === record.id}
-                            onClick={() => handleUpdateStatus(record.id, "verified")}
+                            onClick={() =>
+                              handleUpdateStatus(record.id, "verified")
+                            }
                             title="Mark as Verified"
                             className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition cursor-pointer"
                           >
@@ -648,7 +672,9 @@ export default function ClassPartyPage() {
                           <button
                             type="button"
                             disabled={actionInProgress === record.id}
-                            onClick={() => handleUpdateStatus(record.id, "rejected")}
+                            onClick={() =>
+                              handleUpdateStatus(record.id, "rejected")
+                            }
                             title="Mark as Rejected"
                             className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition cursor-pointer"
                           >
@@ -697,8 +723,12 @@ export default function ClassPartyPage() {
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
               <div>
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Submission</h2>
-                <p className="text-xs text-zinc-500 font-mono">ID: {editingRecord.id}</p>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                  Edit Submission
+                </h2>
+                <p className="text-xs text-zinc-500 font-mono">
+                  ID: {editingRecord.id}
+                </p>
               </div>
               <button
                 type="button"
@@ -712,26 +742,36 @@ export default function ClassPartyPage() {
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Attendee Name</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Attendee Name
+                  </label>
                   <input
                     type="text"
                     required
                     value={editingRecord.full_name}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, full_name: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        full_name: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Phone</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Phone
+                  </label>
                   <input
                     type="text"
                     required
                     value={editingRecord.phone}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, phone: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        phone: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
@@ -740,24 +780,34 @@ export default function ClassPartyPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Student ID / Roll</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Student ID / Roll
+                  </label>
                   <input
                     type="text"
                     value={editingRecord.student_id || ""}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, student_id: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        student_id: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Email</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={editingRecord.email || ""}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, email: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        email: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
@@ -766,26 +816,36 @@ export default function ClassPartyPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Menu Title</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Menu Title
+                  </label>
                   <input
                     type="text"
                     required
                     value={editingRecord.selected_option_title}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, selected_option_title: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        selected_option_title: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Total Payable (BDT)</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Total Payable (BDT)
+                  </label>
                   <input
                     type="number"
                     required
                     value={editingRecord.total_payable}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, total_payable: Number(e.target.value) })
+                      setEditingRecord({
+                        ...editingRecord,
+                        total_payable: Number(e.target.value),
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden font-mono"
                   />
@@ -794,7 +854,9 @@ export default function ClassPartyPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Payment Method</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Payment Method
+                  </label>
                   <select
                     value={editingRecord.payment_method}
                     onChange={(e) =>
@@ -811,13 +873,18 @@ export default function ClassPartyPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Payment Status</label>
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Payment Status
+                  </label>
                   <select
                     value={editingRecord.payment_status}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
-                        payment_status: e.target.value as "pending" | "verified" | "rejected",
+                        payment_status: e.target.value as
+                          | "pending"
+                          | "verified"
+                          | "rejected",
                       })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
@@ -832,19 +899,26 @@ export default function ClassPartyPage() {
               {editingRecord.payment_method === "bkash" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-pink-50/60 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-500/20">
                   <div className="space-y-1">
-                    <label className="font-semibold text-pink-800 dark:text-pink-300">Sender bKash</label>
+                    <label className="font-semibold text-pink-800 dark:text-pink-300">
+                      Sender bKash
+                    </label>
                     <input
                       type="text"
                       value={editingRecord.bkash_sender_number || ""}
                       onChange={(e) =>
-                        setEditingRecord({ ...editingRecord, bkash_sender_number: e.target.value })
+                        setEditingRecord({
+                          ...editingRecord,
+                          bkash_sender_number: e.target.value,
+                        })
                       }
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-pink-800 dark:text-pink-300">Transaction ID</label>
+                    <label className="font-semibold text-pink-800 dark:text-pink-300">
+                      Transaction ID
+                    </label>
                     <input
                       type="text"
                       value={editingRecord.bkash_transaction_id || ""}
@@ -860,11 +934,16 @@ export default function ClassPartyPage() {
                 </div>
               ) : (
                 <div className="space-y-1 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20">
-                  <label className="font-semibold text-emerald-800 dark:text-emerald-300">Cash Received By Coordinator</label>
+                  <label className="font-semibold text-emerald-800 dark:text-emerald-300">
+                    Cash Received By Coordinator
+                  </label>
                   <select
                     value={editingRecord.cash_paid_to || ""}
                     onChange={(e) =>
-                      setEditingRecord({ ...editingRecord, cash_paid_to: e.target.value })
+                      setEditingRecord({
+                        ...editingRecord,
+                        cash_paid_to: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
                   >
@@ -879,12 +958,17 @@ export default function ClassPartyPage() {
               )}
 
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-700 dark:text-zinc-300">Special Notes</label>
+                <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                  Special Notes
+                </label>
                 <textarea
                   rows={2}
                   value={editingRecord.special_notes || ""}
                   onChange={(e) =>
-                    setEditingRecord({ ...editingRecord, special_notes: e.target.value })
+                    setEditingRecord({
+                      ...editingRecord,
+                      special_notes: e.target.value,
+                    })
                   }
                   className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden resize-none"
                 />
@@ -923,7 +1007,9 @@ export default function ClassPartyPage() {
 
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
               Are you sure you want to permanently delete the registration for{" "}
-              <strong className="text-zinc-900 dark:text-zinc-100">{deletingRecord.full_name}</strong>{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">
+                {deletingRecord.full_name}
+              </strong>{" "}
               (Phone: {deletingRecord.phone})? This action cannot be reversed.
             </p>
 
@@ -953,9 +1039,12 @@ export default function ClassPartyPage() {
           <div className="w-full max-w-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
               <div>
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Attendee Information</h2>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                  Attendee Information
+                </h2>
                 <p className="text-xs text-zinc-500">
-                  Registered on {new Date(selectedRecord.created_at).toLocaleString()}
+                  Registered on{" "}
+                  {new Date(selectedRecord.created_at).toLocaleString()}
                 </p>
               </div>
               <button
@@ -970,7 +1059,9 @@ export default function ClassPartyPage() {
             <div className="space-y-3 py-2 font-mono text-xs">
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Name</span>
-                <span className="font-bold text-zinc-900 dark:text-white">{selectedRecord.full_name}</span>
+                <span className="font-bold text-zinc-900 dark:text-white">
+                  {selectedRecord.full_name}
+                </span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Phone</span>
@@ -978,30 +1069,42 @@ export default function ClassPartyPage() {
               </div>
               {selectedRecord.student_id && (
                 <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                  <span className="text-zinc-500 dark:text-zinc-400">Student ID</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Student ID
+                  </span>
                   <span>{selectedRecord.student_id}</span>
                 </div>
               )}
               {selectedRecord.email && (
                 <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                  <span className="text-zinc-500 dark:text-zinc-400">Email</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Email
+                  </span>
                   <span>{selectedRecord.email}</span>
                 </div>
               )}
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Menu</span>
-                <span className="text-right font-medium">{selectedRecord.selected_option_title}</span>
+                <span className="text-right font-medium">
+                  {selectedRecord.selected_option_title}
+                </span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">Base Price</span>
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Base Price
+                </span>
                 <span>৳{selectedRecord.base_price}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">VAT (5%)</span>
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  VAT (5%)
+                </span>
                 <span>৳{selectedRecord.vat_amount}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">Payment Surcharge</span>
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  Payment Surcharge
+                </span>
                 <span>৳{selectedRecord.bkash_fee_amount}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800 text-sm font-bold text-amber-600 dark:text-amber-400">
@@ -1010,28 +1113,42 @@ export default function ClassPartyPage() {
               </div>
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Method</span>
-                <span className="uppercase font-semibold">{selectedRecord.payment_method}</span>
+                <span className="uppercase font-semibold">
+                  {selectedRecord.payment_method}
+                </span>
               </div>
               {selectedRecord.payment_method === "bkash" ? (
                 <>
                   <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                    <span className="text-zinc-500 dark:text-zinc-400">bKash Sender</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      bKash Sender
+                    </span>
                     <span>{selectedRecord.bkash_sender_number}</span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                    <span className="text-zinc-500 dark:text-zinc-400">Transaction ID</span>
-                    <span className="font-bold text-zinc-900 dark:text-white">{selectedRecord.bkash_transaction_id}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      Transaction ID
+                    </span>
+                    <span className="font-bold text-zinc-900 dark:text-white">
+                      {selectedRecord.bkash_transaction_id}
+                    </span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                  <span className="text-zinc-500 dark:text-zinc-400">Cash Paid To</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedRecord.cash_paid_to}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Cash Paid To
+                  </span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {selectedRecord.cash_paid_to}
+                  </span>
                 </div>
               )}
               {selectedRecord.special_notes && (
                 <div className="py-2 border-b border-zinc-200 dark:border-zinc-800">
-                  <div className="text-zinc-500 dark:text-zinc-400 mb-1">Notes:</div>
+                  <div className="text-zinc-500 dark:text-zinc-400 mb-1">
+                    Notes:
+                  </div>
                   <div className="text-zinc-700 dark:text-zinc-300 font-sans text-xs bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800">
                     {selectedRecord.special_notes}
                   </div>
@@ -1043,14 +1160,18 @@ export default function ClassPartyPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => handleUpdateStatus(selectedRecord.id, "verified")}
+                  onClick={() =>
+                    handleUpdateStatus(selectedRecord.id, "verified")
+                  }
                   className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                 >
                   Verify Payment
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleUpdateStatus(selectedRecord.id, "rejected")}
+                  onClick={() =>
+                    handleUpdateStatus(selectedRecord.id, "rejected")
+                  }
                   className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold text-xs transition cursor-pointer"
                 >
                   Reject
@@ -1099,7 +1220,8 @@ export default function ClassPartyPage() {
                   Supabase SQL Schema
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  Run this in your Supabase SQL Editor to create table, indexes, and RLS policies.
+                  Run this in your Supabase SQL Editor to create table, indexes,
+                  and RLS policies.
                 </p>
               </div>
               <button
@@ -1112,7 +1234,7 @@ export default function ClassPartyPage() {
             </div>
 
             <pre className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-800 dark:text-zinc-300 overflow-x-auto whitespace-pre leading-relaxed select-all">
-{`create table if not exists public.class_party_26_registrations (
+              {`create table if not exists public.class_party_26_registrations (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     full_name text not null,
@@ -1160,7 +1282,8 @@ create policy "Allow delete access"
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(`create table if not exists public.class_party_26_registrations (
+                  navigator.clipboard
+                    .writeText(`create table if not exists public.class_party_26_registrations (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     full_name text not null,
