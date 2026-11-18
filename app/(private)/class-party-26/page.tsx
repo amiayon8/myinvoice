@@ -18,6 +18,8 @@ import {
   Check,
   X,
   FileSpreadsheet,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 interface RegistrationRecord {
@@ -47,6 +49,15 @@ interface RegistrationRecord {
   verified_at: string | null;
 }
 
+interface CoordinatorSummary {
+  cashCount: number;
+  cashTotal: number;
+  bkashCount: number;
+  bkashTotal: number;
+  totalCount: number;
+  totalAmount: number;
+}
+
 interface StatsSummary {
   totalRegistrations: number;
   verifiedRegistrations: number;
@@ -56,9 +67,25 @@ interface StatsSummary {
   totalRevenueVerified: number;
   bkashCount: number;
   cashCount: number;
+  bkashTotal: number;
+  cashTotal: number;
   menuCounts: Record<string, number>;
-  cashCollectorCounts: Record<string, { count: number; total: number }>;
+  coordinatorCounts: Record<string, CoordinatorSummary>;
 }
+
+const COORDINATOR_NAMES = [
+  "Ayon",
+  "Apurbo",
+  "Zunairah",
+  "Zahira",
+  "Punnota",
+  "Ishmam",
+  "Raheeb",
+  "Rajoshi",
+  "Niaz",
+  "Zaima",
+  "Shehab",
+];
 
 export default function ClassPartyPage() {
   const toast = useToast();
@@ -69,6 +96,8 @@ export default function ClassPartyPage() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<RegistrationRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<RegistrationRecord | null>(null);
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
@@ -132,6 +161,65 @@ export default function ClassPartyPage() {
     } catch (err) {
       console.error(err);
       toast.error("Error updating payment status");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+
+    setActionInProgress(editingRecord.id);
+    try {
+      const res = await fetch("/api/class-party-26/admin", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingRecord),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Registration details updated");
+        setEditingRecord(null);
+        fetchRegistrations();
+        if (selectedRecord && selectedRecord.id === editingRecord.id) {
+          setSelectedRecord(editingRecord);
+        }
+      } else {
+        toast.error(data.message || "Failed to save updates");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving changes");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingRecord) return;
+
+    setActionInProgress(deletingRecord.id);
+    try {
+      const res = await fetch(`/api/class-party-26/admin?id=${deletingRecord.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Registration deleted");
+        setDeletingRecord(null);
+        if (selectedRecord && selectedRecord.id === deletingRecord.id) {
+          setSelectedRecord(null);
+        }
+        fetchRegistrations();
+      } else {
+        toast.error(data.message || "Failed to delete");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting registration");
     } finally {
       setActionInProgress(null);
     }
@@ -299,52 +387,98 @@ export default function ClassPartyPage() {
           <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
             <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
               <CreditCard className="w-3.5 h-3.5 text-pink-500" />
-              bKash
+              bKash (Ayon)
             </span>
             <div className="text-xl font-bold text-pink-600 dark:text-pink-400">
               {stats.bkashCount}
+            </div>
+            <div className="text-[11px] font-mono text-zinc-500">
+              ৳{stats.bkashTotal.toLocaleString()}
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
             <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
               <Banknote className="w-3.5 h-3.5 text-emerald-500" />
-              Cash
+              Cash Total
             </span>
             <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
               {stats.cashCount}
+            </div>
+            <div className="text-[11px] font-mono text-zinc-500">
+              ৳{stats.cashTotal.toLocaleString()}
             </div>
           </div>
         </div>
       )}
 
-      {stats && Object.keys(stats.cashCollectorCounts).length > 0 && (
+      {stats && stats.coordinatorCounts && Object.keys(stats.coordinatorCounts).length > 0 && (
         <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
               <Banknote className="w-4 h-4 text-emerald-500" />
-              Cash Collection Breakdown by Coordinator
+              Coordinator Collection Summary (Cash & bKash to Ayon)
             </h2>
             <span className="text-xs text-zinc-500">
-              Direct verification against coordinator receipts
+              Real-time payment breakdown
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-            {Object.entries(stats.cashCollectorCounts).map(([person, data]) => (
-              <div
-                key={person}
-                className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 space-y-1"
-              >
-                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{person}</div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{data.count}</span> paid
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Object.entries(stats.coordinatorCounts).map(([person, data]) => {
+              const isAyon = person === "Ayon";
+
+              return (
+                <div
+                  key={person}
+                  className={`p-3.5 rounded-xl border space-y-2 ${
+                    isAyon
+                      ? "bg-violet-50/70 dark:bg-violet-950/30 border-violet-300 dark:border-violet-500/40 ring-1 ring-violet-500/30"
+                      : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200/80 dark:border-zinc-800/80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                      {person}
+                      {isAyon && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-200 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
+                          bKash Holder
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      ৳{data.totalAmount.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="text-xs space-y-1 font-mono text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                    {isAyon ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-pink-600 dark:text-pink-400">bKash:</span>
+                          <span>
+                            ৳{data.bkashTotal.toLocaleString()} ({data.bkashCount})
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-emerald-600 dark:text-emerald-400">Cash:</span>
+                          <span>
+                            ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-emerald-600 dark:text-emerald-400">Cash:</span>
+                        <span>
+                          ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 font-mono">
-                  ৳{data.total.toLocaleString()}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -452,7 +586,7 @@ export default function ClassPartyPage() {
                       {record.payment_method === "bkash" ? (
                         <div>
                           <span className="font-semibold text-pink-600 dark:text-pink-400 uppercase">
-                            bKash
+                            bKash (Ayon)
                           </span>
                           <div className="text-zinc-500 dark:text-zinc-400 text-[11px]">
                             Trx: <span className="font-bold text-zinc-900 dark:text-white">{record.bkash_transaction_id}</span>
@@ -524,6 +658,24 @@ export default function ClassPartyPage() {
 
                         <button
                           type="button"
+                          onClick={() => setEditingRecord({ ...record })}
+                          title="Edit Details"
+                          className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingRecord(record)}
+                          title="Delete Submission"
+                          className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => setSelectedRecord(record)}
                           title="View Full Details"
                           className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
@@ -539,6 +691,262 @@ export default function ClassPartyPage() {
           </table>
         </div>
       </div>
+
+      {editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Submission</h2>
+                <p className="text-xs text-zinc-500 font-mono">ID: {editingRecord.id}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Attendee Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingRecord.full_name}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, full_name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingRecord.phone}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, phone: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Student ID / Roll</label>
+                  <input
+                    type="text"
+                    value={editingRecord.student_id || ""}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, student_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Email</label>
+                  <input
+                    type="email"
+                    value={editingRecord.email || ""}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Menu Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingRecord.selected_option_title}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, selected_option_title: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Total Payable (BDT)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editingRecord.total_payable}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, total_payable: Number(e.target.value) })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Payment Method</label>
+                  <select
+                    value={editingRecord.payment_method}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        payment_method: e.target.value as "cash" | "bkash",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="bkash">bKash (Ayon)</option>
+                    <option value="cash">Cash</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">Payment Status</label>
+                  <select
+                    value={editingRecord.payment_status}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        payment_status: e.target.value as "pending" | "verified" | "rejected",
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="verified">Verified</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              {editingRecord.payment_method === "bkash" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-pink-50/60 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-500/20">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-pink-800 dark:text-pink-300">Sender bKash</label>
+                    <input
+                      type="text"
+                      value={editingRecord.bkash_sender_number || ""}
+                      onChange={(e) =>
+                        setEditingRecord({ ...editingRecord, bkash_sender_number: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-pink-800 dark:text-pink-300">Transaction ID</label>
+                    <input
+                      type="text"
+                      value={editingRecord.bkash_transaction_id || ""}
+                      onChange={(e) =>
+                        setEditingRecord({
+                          ...editingRecord,
+                          bkash_transaction_id: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden uppercase font-mono"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20">
+                  <label className="font-semibold text-emerald-800 dark:text-emerald-300">Cash Received By Coordinator</label>
+                  <select
+                    value={editingRecord.cash_paid_to || ""}
+                    onChange={(e) =>
+                      setEditingRecord({ ...editingRecord, cash_paid_to: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="">-- Select Coordinator --</option>
+                    {COORDINATOR_NAMES.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="font-semibold text-zinc-700 dark:text-zinc-300">Special Notes</label>
+                <textarea
+                  rows={2}
+                  value={editingRecord.special_notes || ""}
+                  onChange={(e) =>
+                    setEditingRecord({ ...editingRecord, special_notes: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
+                  className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionInProgress === editingRecord.id}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition cursor-pointer shadow-xs"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 flex items-center justify-center">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold">Delete Registration?</h2>
+            </div>
+
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Are you sure you want to permanently delete the registration for{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">{deletingRecord.full_name}</strong>{" "}
+              (Phone: {deletingRecord.phone})? This action cannot be reversed.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingRecord(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionInProgress === deletingRecord.id}
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-semibold text-white transition cursor-pointer shadow-xs"
+              >
+                Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -631,8 +1039,8 @@ export default function ClassPartyPage() {
               )}
             </div>
 
-            <div className="flex justify-between items-center gap-2 pt-2">
-              <div className="flex gap-2">
+            <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => handleUpdateStatus(selectedRecord.id, "verified")}
@@ -646,6 +1054,26 @@ export default function ClassPartyPage() {
                   className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold text-xs transition cursor-pointer"
                 >
                   Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingRecord({ ...selectedRecord });
+                    setSelectedRecord(null);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs transition cursor-pointer"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingRecord(selectedRecord);
+                    setSelectedRecord(null);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold text-xs transition cursor-pointer"
+                >
+                  Delete
                 </button>
               </div>
 
@@ -723,7 +1151,9 @@ create policy "Allow public submissions"
 create policy "Allow read access"
     on public.class_party_26_registrations for select using (true);
 create policy "Allow update access"
-    on public.class_party_26_registrations for update using (true);`}
+    on public.class_party_26_registrations for update using (true);
+create policy "Allow delete access"
+    on public.class_party_26_registrations for delete using (true);`}
             </pre>
 
             <div className="flex justify-between items-center pt-2">

@@ -30,6 +30,25 @@ function updateLocalBackup(id: string, updates: Record<string, unknown>) {
   }
 }
 
+function deleteLocalBackup(id: string) {
+  try {
+    const list = readLocalBackup();
+    const filtered = list.filter((item) => item.id !== id);
+    fs.writeFileSync(localBackupPath, JSON.stringify(filtered, null, 2), "utf8");
+  } catch (error) {
+    console.error("Local backup delete error:", error);
+  }
+}
+
+interface CoordinatorSummary {
+  cashCount: number;
+  cashTotal: number;
+  bkashCount: number;
+  bkashTotal: number;
+  totalCount: number;
+  totalAmount: number;
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -69,8 +88,13 @@ export async function GET(req: Request) {
       .filter((r) => r.payment_status === "verified")
       .reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
 
-    const bkashCount = records.filter((r) => r.payment_method === "bkash").length;
-    const cashCount = records.filter((r) => r.payment_method === "cash").length;
+    const bkashRecords = records.filter((r) => r.payment_method === "bkash");
+    const cashRecords = records.filter((r) => r.payment_method === "cash");
+
+    const bkashCount = bkashRecords.length;
+    const cashCount = cashRecords.length;
+    const bkashTotal = bkashRecords.reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
+    const cashTotal = cashRecords.reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
 
     const menuCounts: Record<string, number> = {};
     records.forEach((r) => {
@@ -78,17 +102,39 @@ export async function GET(req: Request) {
       menuCounts[key] = (menuCounts[key] || 0) + 1;
     });
 
-    const cashCollectorCounts: Record<string, { count: number; total: number }> = {};
-    records
-      .filter((r) => r.payment_method === "cash" && r.cash_paid_to)
-      .forEach((r) => {
+    const coordinatorCounts: Record<string, CoordinatorSummary> = {};
+
+    coordinatorCounts["Ayon"] = {
+      cashCount: 0,
+      cashTotal: 0,
+      bkashCount,
+      bkashTotal,
+      totalCount: bkashCount,
+      totalAmount: bkashTotal,
+    };
+
+    records.forEach((r) => {
+      if (r.payment_method === "cash" && r.cash_paid_to) {
         const person = String(r.cash_paid_to);
-        if (!cashCollectorCounts[person]) {
-          cashCollectorCounts[person] = { count: 0, total: 0 };
+        const amount = Number(r.total_payable) || 0;
+
+        if (!coordinatorCounts[person]) {
+          coordinatorCounts[person] = {
+            cashCount: 0,
+            cashTotal: 0,
+            bkashCount: 0,
+            bkashTotal: 0,
+            totalCount: 0,
+            totalAmount: 0,
+          };
         }
-        cashCollectorCounts[person].count += 1;
-        cashCollectorCounts[person].total += Number(r.total_payable) || 0;
-      });
+
+        coordinatorCounts[person].cashCount += 1;
+        coordinatorCounts[person].cashTotal += amount;
+        coordinatorCounts[person].totalCount += 1;
+        coordinatorCounts[person].totalAmount += amount;
+      }
+    });
 
     let filtered = [...records];
     if (statusFilter && statusFilter !== "all") {
@@ -119,8 +165,10 @@ export async function GET(req: Request) {
         totalRevenueVerified,
         bkashCount,
         cashCount,
+        bkashTotal,
+        cashTotal,
         menuCounts,
-        cashCollectorCounts,
+        coordinatorCounts,
       },
       registrations: filtered,
     });
@@ -136,38 +184,88 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, payment_status, verified_by } = body;
+    const { id, ...updates } = body;
 
-    if (!id || !payment_status) {
+    if (!id) {
       return NextResponse.json(
-        { success: false, message: "Missing id or payment_status" },
+        { success: false, message: "Missing registration id" },
         { status: 400 }
       );
     }
 
-    const updates = {
-      payment_status,
-      verified_by: verified_by || "Admin",
-      verified_at: new Date().toISOString(),
-    };
+    if (updates.payment_status && !updates.verified_at && updates.payment_status !== "pending") {
+      updates.verified_at = new Date().toISOString();
+      if (!updates.verified_by) {
+        updates.verified_by = "Admin";
+      }
+    }
 
     updateLocalBackup(id, updates);
 
     try {
       const supabase = createServiceRoleClient();
-      await supabase
+      const { error } = await supabase
         .from("class_party_26_registrations")
         .update(updates)
         .eq("id", id);
+
+      if (error) {
+        console.warn("Supabase update error:", error);
+      }
     } catch (err) {
-      console.warn("Supabase update error:", err);
+      console.warn("Supabase update exception:", err);
     }
 
     return NextResponse.json({ success: true, updates });
   } catch (error) {
     console.error("Admin PATCH error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to update status" },
+      { success: false, message: "Failed to update registration" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Missing id to delete" },
+        { status: 400 }
+      );
+    }
+
+    deleteLocalBackup(id);
+
+    try {
+      const supabase = createServiceRoleClient();
+      const { error } = await supabase
+        .from("class_party_26_registrations")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.warn("Supabase delete error:", error);
+      }
+    } catch (err) {
+      console.warn("Supabase delete exception:", err);
+    }
+
+    return NextResponse.json({ success: true, message: "Registration deleted successfully" });
+  } catch (error) {
+    console.error("Admin DELETE error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to delete registration" },
       { status: 500 }
     );
   }
