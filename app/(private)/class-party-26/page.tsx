@@ -138,90 +138,6 @@ const COORDINATOR_NAMES = [
   "Zaima",
   "Shehab",
 ];
-
-const SQL_MIGRATION_TEXT = `CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
-CREATE TABLE IF NOT EXISTS public.class_party_26_registrations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    student_id TEXT,
-    email TEXT,
-    selected_option_id TEXT NOT NULL,
-    selected_option_title TEXT NOT NULL,
-    selected_option_category TEXT NOT NULL,
-    base_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    vat_percent NUMERIC(5, 2) NOT NULL DEFAULT 5,
-    vat_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    subtotal_with_vat NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'bkash')),
-    bkash_fee_percent NUMERIC(5, 2) NOT NULL DEFAULT 0,
-    bkash_fee_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    total_payable NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    bkash_sender_number TEXT,
-    bkash_transaction_id TEXT,
-    cash_paid_to TEXT,
-    special_notes TEXT,
-    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'verified', 'rejected')),
-    verified_by TEXT,
-    verified_at TIMESTAMPTZ
-);
-
-CREATE INDEX IF NOT EXISTS idx_cp26_phone ON public.class_party_26_registrations (phone);
-CREATE INDEX IF NOT EXISTS idx_cp26_status ON public.class_party_26_registrations (payment_status);
-CREATE INDEX IF NOT EXISTS idx_cp26_method ON public.class_party_26_registrations (payment_method);
-CREATE INDEX IF NOT EXISTS idx_cp26_paid_to ON public.class_party_26_registrations (cash_paid_to);
-
-ALTER TABLE public.class_party_26_registrations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow anon select class_party_26_registrations"
-    ON public.class_party_26_registrations FOR SELECT USING (true);
-CREATE POLICY "Allow anon insert class_party_26_registrations"
-    ON public.class_party_26_registrations FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow anon update class_party_26_registrations"
-    ON public.class_party_26_registrations FOR UPDATE USING (true);
-CREATE POLICY "Allow anon delete class_party_26_registrations"
-    ON public.class_party_26_registrations FOR DELETE USING (true);
-
-CREATE TABLE IF NOT EXISTS public.class_party_26_share_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex'),
-    label TEXT,
-    type TEXT NOT NULL DEFAULT 'all',
-    params JSONB NOT NULL DEFAULT '{}'::jsonb,
-    expires_at TIMESTAMPTZ,
-    never_expires BOOLEAN NOT NULL DEFAULT true,
-    revoked_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.class_party_26_view_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    token_id UUID REFERENCES public.class_party_26_share_links(id) ON DELETE CASCADE,
-    ip_address TEXT,
-    user_agent TEXT,
-    browser TEXT,
-    os TEXT,
-    device TEXT,
-    referrer TEXT,
-    viewed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.class_party_26_activity_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    category TEXT NOT NULL DEFAULT 'registration',
-    actor TEXT NOT NULL DEFAULT 'System',
-    action TEXT NOT NULL,
-    details TEXT,
-    record_id UUID,
-    participant_name TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER PUBLICATION supabase_realtime ADD TABLE class_party_26_registrations;
-ALTER PUBLICATION supabase_realtime ADD TABLE class_party_26_activity_logs;`;
-
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "Recently";
@@ -718,15 +634,6 @@ export default function ClassPartyPage() {
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export CSV
           </button>
-
-          <button
-            type="button"
-            onClick={() => setSqlModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer shadow-xs"
-          >
-            <Database className="w-3.5 h-3.5" />
-            SQL Schema
-          </button>
         </div>
       </header>
 
@@ -877,10 +784,7 @@ export default function ClassPartyPage() {
           </div>
         )}
 
-      <ClassPartyCharts
-        registrations={registrations}
-        showFinancials={true}
-      />
+      <ClassPartyCharts registrations={registrations} showFinancials={true} />
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -1629,53 +1533,6 @@ export default function ClassPartyPage() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {sqlModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
-              <div>
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <Database className="w-5 h-5 text-blue-500" />
-                  Supabase SQL Schema
-                </h2>
-                <p className="text-xs text-zinc-500">
-                  Schema for registrations, share links, view logs, and realtime
-                  publications.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSqlModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <pre className="p-4 rounded-xl bg-zinc-950 text-zinc-200  text-xs overflow-x-auto max-h-80">
-              {SQL_MIGRATION_TEXT}
-            </pre>
-
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-xs text-zinc-500">
-                File: supabase_class_party_migration.sql
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(SQL_MIGRATION_TEXT);
-                  toast.success("SQL Schema copied to clipboard");
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                Copy SQL
-              </button>
-            </div>
           </div>
         </div>
       )}
