@@ -10,6 +10,10 @@ import {
   InvoiceShareLink,
 } from "@/components/links/invoice-share-links-view";
 import {
+  ClassPartyShareLinksView,
+  ClassPartyShareLinkData,
+} from "@/components/links/class-party-share-links-view";
+import {
   listAllInvoiceTokens,
   updateInvoiceToken,
   deleteInvoiceToken,
@@ -21,7 +25,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-type ActiveTab = "subscriptions" | "invoices";
+type ActiveTab = "subscriptions" | "invoices" | "class-party";
 
 export default function ShareLinksPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("subscriptions");
@@ -29,6 +33,9 @@ export default function ShareLinksPage() {
   const [invoiceLinks, setInvoiceLinks] = useState<InvoiceShareLink[]>([]);
   const [subscriptionLinks, setSubscriptionLinks] = useState<
     SubscriptionShareLink[]
+  >([]);
+  const [classPartyLinks, setClassPartyLinks] = useState<
+    ClassPartyShareLinkData[]
   >([]);
 
   const supabase = createClient();
@@ -38,12 +45,15 @@ export default function ShareLinksPage() {
       try {
         setLoading(true);
 
-        const [tokensData, subsData] = await Promise.all([
+        const [tokensData, subsData, classPartyRes] = await Promise.all([
           listAllInvoiceTokens().catch(() => []),
           supabase
             .from("subscription_share_links")
             .select("*")
             .order("created_at", { ascending: false }),
+          fetch("/api/class-party-26/share-links")
+            .then((r) => r.json())
+            .catch(() => ({ links: [] })),
         ]);
 
         if (Array.isArray(tokensData) && tokensData.length > 0) {
@@ -108,6 +118,37 @@ export default function ShareLinksPage() {
             },
           );
           setSubscriptionLinks(mappedSubs);
+        }
+
+        if (classPartyRes?.links) {
+          const origin =
+            typeof window !== "undefined"
+              ? window.location.origin
+              : "https://myinvoice.app";
+          const mappedClassParty: ClassPartyShareLinkData[] =
+            classPartyRes.links.map((cp: any) => {
+              const isExpired =
+                !cp.never_expires &&
+                cp.expires_at &&
+                new Date(cp.expires_at).getTime() < Date.now();
+
+              return {
+                id: cp.id,
+                token: cp.token,
+                label: cp.label || "General Attendance",
+                type: cp.type || "all",
+                url: `${origin}/class-party-26/share/${cp.token}`,
+                neverExpires: Boolean(cp.never_expires),
+                expiresAt: cp.expires_at ? cp.expires_at.split("T")[0] : null,
+                isExpired,
+                viewCount: cp.viewCount || 0,
+                lastViewedAt: cp.lastViewedAt,
+                showFinancials: cp.params?.showFinancials !== false,
+                showContactInfo: cp.params?.showContactInfo !== false,
+                showHistory: cp.params?.showHistory !== false,
+              };
+            });
+          setClassPartyLinks(mappedClassParty);
         }
       } catch (error) {
         console.error(error);
@@ -194,21 +235,122 @@ export default function ShareLinksPage() {
     }
   };
 
+  const handleCreateClassPartyLink = async (newLinkData: {
+    label: string;
+    neverExpires: boolean;
+    daysExpiry?: number;
+    showFinancials: boolean;
+    showContactInfo: boolean;
+    showHistory: boolean;
+  }) => {
+    try {
+      const res = await fetch("/api/class-party-26/share-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: newLinkData.label,
+          type: "all",
+          neverExpires: newLinkData.neverExpires,
+          daysExpiry: newLinkData.daysExpiry,
+          params: {
+            showFinancials: newLinkData.showFinancials,
+            showContactInfo: newLinkData.showContactInfo,
+            showHistory: newLinkData.showHistory,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.link) {
+        const origin =
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://myinvoice.app";
+        const cp = data.link;
+        const newFormattedLink: ClassPartyShareLinkData = {
+          id: cp.id,
+          token: cp.token,
+          label: cp.label || "General Attendance",
+          type: cp.type || "all",
+          url: `${origin}/class-party-26/share/${cp.token}`,
+          neverExpires: Boolean(cp.never_expires),
+          expiresAt: cp.expires_at ? cp.expires_at.split("T")[0] : null,
+          isExpired: false,
+          viewCount: 0,
+          lastViewedAt: null,
+          showFinancials: cp.params?.showFinancials !== false,
+          showContactInfo: cp.params?.showContactInfo !== false,
+          showHistory: cp.params?.showHistory !== false,
+        };
+        setClassPartyLinks((prev) => [newFormattedLink, ...prev]);
+        toast.success("Class Party share link generated");
+      }
+    } catch {
+      toast.error("Failed to create Class Party share link");
+    }
+  };
+
+  const handleEditClassPartyLink = async (
+    id: string,
+    updates: Partial<ClassPartyShareLinkData>,
+  ) => {
+    try {
+      const res = await fetch(`/api/class-party-26/share-links/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: updates.label,
+          never_expires: updates.neverExpires,
+          expires_at: updates.neverExpires
+            ? null
+            : updates.expiresAt
+              ? `${updates.expiresAt}T23:59:59Z`
+              : null,
+          params: {
+            showFinancials: updates.showFinancials,
+            showContactInfo: updates.showContactInfo,
+            showHistory: updates.showHistory,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Class Party share link updated");
+      }
+    } catch {
+      toast.error("Failed to update Class Party share link");
+    }
+  };
+
+  const handleDeleteClassPartyLink = async (id: string) => {
+    try {
+      const res = await fetch(`/api/class-party-26/share-links/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClassPartyLinks((prev) => prev.filter((l) => l.id !== id));
+        toast.success("Class Party share link deleted");
+      }
+    } catch {
+      toast.error("Failed to delete Class Party share link");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <div className="max-w-5xl mx-auto px-6 py-12">
         <header className="pb-8">
           <h1 className="text-xl font-semibold tracking-tight">Share Links</h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Manage public access links for digital subscriptions and member
-            invoice payments.
+            Manage public access links for digital subscriptions, member
+            invoice payments, and Class Party &apos;26 reconciliation.
           </p>
 
           <nav className="flex items-center gap-6 mt-8 border-b border-zinc-200 dark:border-zinc-800 text-xs">
             <button
               type="button"
               onClick={() => setActiveTab("subscriptions")}
-              className={`pb-3 font-medium transition-colors border-b-2 -mb-px ${
+              className={`pb-3 font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
                 activeTab === "subscriptions"
                   ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
                   : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -219,7 +361,7 @@ export default function ShareLinksPage() {
             <button
               type="button"
               onClick={() => setActiveTab("invoices")}
-              className={`pb-3 font-medium transition-colors border-b-2 -mb-px ${
+              className={`pb-3 font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
                 activeTab === "invoices"
                   ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100"
                   : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -227,12 +369,28 @@ export default function ShareLinksPage() {
             >
               Invoice Payment Links
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("class-party")}
+              className={`pb-3 font-medium transition-colors border-b-2 -mb-px cursor-pointer flex items-center gap-1.5 ${
+                activeTab === "class-party"
+                  ? "border-violet-600 dark:border-violet-400 text-violet-600 dark:text-violet-400 font-bold"
+                  : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+              }`}
+            >
+              Class Party &apos;26
+              {classPartyLinks.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
+                  {classPartyLinks.length}
+                </span>
+              )}
+            </button>
           </nav>
         </header>
 
         <main className="pt-2">
           {loading ? (
-            <div className="py-20 text-center text-xs text-zinc-400 ">
+            <div className="py-20 text-center text-xs text-zinc-400">
               Loading links...
             </div>
           ) : activeTab === "subscriptions" ? (
@@ -243,13 +401,20 @@ export default function ShareLinksPage() {
               onEditLink={handleEditSubscriptionLink}
               onDeleteLink={handleDeleteSubscriptionLink}
             />
-          ) : (
+          ) : activeTab === "invoices" ? (
             <InvoiceShareLinksView
               initialLinks={invoiceLinks.length > 0 ? invoiceLinks : undefined}
               onMarkAsPaid={handleMarkAsPaid}
               onSendReminder={handleSendReminder}
               onEditLink={handleEditInvoiceLink}
               onDeleteLink={handleDeleteInvoiceLink}
+            />
+          ) : (
+            <ClassPartyShareLinksView
+              initialLinks={classPartyLinks}
+              onCreateLink={handleCreateClassPartyLink}
+              onEditLink={handleEditClassPartyLink}
+              onDeleteLink={handleDeleteClassPartyLink}
             />
           )}
         </main>

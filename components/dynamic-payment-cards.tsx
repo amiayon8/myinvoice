@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PaymentMethod, SlotAllocationBreakdown, scopeSvgIds } from "@/types/payment-methods";
+import {
+  PaymentMethod,
+  SlotAllocationBreakdown,
+  scopeSvgIds,
+} from "@/types/payment-methods";
 import {
   Copy,
   Check,
@@ -152,7 +156,11 @@ export function DynamicPaymentCards({
     const numericPaidAmount = paidAmount ? parseFloat(paidAmount) : undefined;
     let computedAllocations = allocations || undefined;
 
-    if (allocations && numericPaidAmount !== undefined && numericPaidAmount > 0) {
+    if (
+      allocations &&
+      numericPaidAmount !== undefined &&
+      numericPaidAmount > 0
+    ) {
       if (Array.isArray(allocations)) {
         const totalAllocated = allocations.reduce(
           (sum, item) => sum + (Number(item.amount) || 0),
@@ -466,7 +474,7 @@ export function DynamicPaymentCards({
                       placeholder="e.g. 9J87AKL12"
                       value={trxId}
                       onChange={(e) => setTrxId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 
@@ -480,7 +488,7 @@ export function DynamicPaymentCards({
                       placeholder="e.g. 017XXXXXXXX"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 
@@ -494,7 +502,7 @@ export function DynamicPaymentCards({
                       placeholder="0.00"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 "
                     />
                   </div>
 

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/toast";
+import { createClient } from "@/lib/supabase/client";
+import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
 import {
   Users,
   CheckCircle2,
@@ -20,6 +22,15 @@ import {
   FileSpreadsheet,
   Pencil,
   Trash2,
+  Share2,
+  Copy,
+  ExternalLink,
+  Plus,
+  Radio,
+  History,
+  ShieldCheck,
+  UserCheck,
+  Calendar,
 } from "lucide-react";
 
 interface RegistrationRecord {
@@ -73,6 +84,47 @@ interface StatsSummary {
   coordinatorCounts: Record<string, CoordinatorSummary>;
 }
 
+interface ShareLinkItem {
+  id: string;
+  token: string;
+  label: string | null;
+  type: string;
+  params: {
+    showFinancials?: boolean;
+    showContactInfo?: boolean;
+    showHistory?: boolean;
+  };
+  expires_at: string | null;
+  never_expires: boolean;
+  revoked_at: string | null;
+  created_at: string;
+  viewCount?: number;
+  lastViewedAt?: string | null;
+}
+
+interface ActivityEvent {
+  id: string;
+  category: "registration" | "payment" | "status" | "edit" | "delete" | "view";
+  actor: string;
+  action: string;
+  details?: string;
+  record_id?: string;
+  participant_name?: string;
+  created_at: string;
+}
+
+interface ViewLogEntry {
+  id: string;
+  token_id: string;
+  ip_address?: string;
+  user_agent?: string;
+  browser?: string;
+  os?: string;
+  device?: string;
+  referrer?: string;
+  viewed_at: string;
+}
+
 const COORDINATOR_NAMES = [
   "Ayon",
   "Apurbo",
@@ -86,6 +138,110 @@ const COORDINATOR_NAMES = [
   "Zaima",
   "Shehab",
 ];
+
+const SQL_MIGRATION_TEXT = `CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE IF NOT EXISTS public.class_party_26_registrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    student_id TEXT,
+    email TEXT,
+    selected_option_id TEXT NOT NULL,
+    selected_option_title TEXT NOT NULL,
+    selected_option_category TEXT NOT NULL,
+    base_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    vat_percent NUMERIC(5, 2) NOT NULL DEFAULT 5,
+    vat_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    subtotal_with_vat NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'bkash')),
+    bkash_fee_percent NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    bkash_fee_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    total_payable NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    bkash_sender_number TEXT,
+    bkash_transaction_id TEXT,
+    cash_paid_to TEXT,
+    special_notes TEXT,
+    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'verified', 'rejected')),
+    verified_by TEXT,
+    verified_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_cp26_phone ON public.class_party_26_registrations (phone);
+CREATE INDEX IF NOT EXISTS idx_cp26_status ON public.class_party_26_registrations (payment_status);
+CREATE INDEX IF NOT EXISTS idx_cp26_method ON public.class_party_26_registrations (payment_method);
+CREATE INDEX IF NOT EXISTS idx_cp26_paid_to ON public.class_party_26_registrations (cash_paid_to);
+
+ALTER TABLE public.class_party_26_registrations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anon select class_party_26_registrations"
+    ON public.class_party_26_registrations FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert class_party_26_registrations"
+    ON public.class_party_26_registrations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anon update class_party_26_registrations"
+    ON public.class_party_26_registrations FOR UPDATE USING (true);
+CREATE POLICY "Allow anon delete class_party_26_registrations"
+    ON public.class_party_26_registrations FOR DELETE USING (true);
+
+CREATE TABLE IF NOT EXISTS public.class_party_26_share_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex'),
+    label TEXT,
+    type TEXT NOT NULL DEFAULT 'all',
+    params JSONB NOT NULL DEFAULT '{}'::jsonb,
+    expires_at TIMESTAMPTZ,
+    never_expires BOOLEAN NOT NULL DEFAULT true,
+    revoked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.class_party_26_view_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    token_id UUID REFERENCES public.class_party_26_share_links(id) ON DELETE CASCADE,
+    ip_address TEXT,
+    user_agent TEXT,
+    browser TEXT,
+    os TEXT,
+    device TEXT,
+    referrer TEXT,
+    viewed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.class_party_26_activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category TEXT NOT NULL DEFAULT 'registration',
+    actor TEXT NOT NULL DEFAULT 'System',
+    action TEXT NOT NULL,
+    details TEXT,
+    record_id UUID,
+    participant_name TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE class_party_26_registrations;
+ALTER PUBLICATION supabase_realtime ADD TABLE class_party_26_activity_logs;`;
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "Recently";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHrs = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHrs / 24);
+
+  if (diffSec < 45) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function ClassPartyPage() {
   const toast = useToast();
@@ -102,8 +258,36 @@ export default function ClassPartyPage() {
   );
   const [deletingRecord, setDeletingRecord] =
     useState<RegistrationRecord | null>(null);
-  const [sqlModalOpen, setSqlModalOpen] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  const [realtimePulse, setRealtimePulse] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareLinks, setShareLinks] = useState<ShareLinkItem[]>([]);
+  const [loadingShareLinks, setLoadingShareLinks] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+
+  const [newLinkLabel, setNewLinkLabel] = useState("");
+  const [newLinkNeverExpires, setNewLinkNeverExpires] = useState(true);
+  const [newLinkDays, setNewLinkDays] = useState("30");
+  const [newLinkShowFinancials, setNewLinkShowFinancials] = useState(true);
+  const [newLinkShowContactInfo, setNewLinkShowContactInfo] = useState(true);
+  const [newLinkShowHistory, setNewLinkShowHistory] = useState(true);
+  const [creatingLink, setCreatingLink] = useState(false);
+
+  const [editingShareLink, setEditingShareLink] =
+    useState<ShareLinkItem | null>(null);
+
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [activityLogs, setActivityLogs] = useState<ActivityEvent[]>([]);
+  const [viewLogs, setViewLogs] = useState<ViewLogEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [activeHistoryTab, setActiveHistoryTab] = useState<
+    "activities" | "views"
+  >("activities");
+
+  const [sqlModalOpen, setSqlModalOpen] = useState(false);
 
   const fetchRegistrations = useCallback(async () => {
     setLoading(true);
@@ -119,6 +303,7 @@ export default function ClassPartyPage() {
       if (data.success) {
         setRegistrations(data.registrations || []);
         setStats(data.stats || null);
+        setLastRefreshedAt(new Date());
       } else {
         toast.error("Failed to load registrations");
       }
@@ -130,9 +315,81 @@ export default function ClassPartyPage() {
     }
   }, [statusFilter, methodFilter, searchQuery, toast]);
 
+  const fetchShareLinks = useCallback(async () => {
+    setLoadingShareLinks(true);
+    try {
+      const res = await fetch("/api/class-party-26/share-links");
+      const data = await res.json();
+      if (data.success) {
+        setShareLinks(data.links || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingShareLinks(false);
+    }
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("/api/class-party-26/history");
+      const data = await res.json();
+      if (data.success) {
+        setActivityLogs(data.activities || []);
+        setViewLogs(data.viewLogs || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRegistrations();
   }, [fetchRegistrations]);
+
+  useEffect(() => {
+    fetchShareLinks();
+  }, [fetchShareLinks]);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("class-party-26-admin-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "class_party_26_registrations",
+        },
+        () => {
+          setRealtimePulse(true);
+          setTimeout(() => setRealtimePulse(false), 2000);
+          fetchRegistrations();
+          fetchShareLinks();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "class_party_26_activity_logs",
+        },
+        () => {
+          fetchHistory();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRegistrations, fetchShareLinks, fetchHistory]);
 
   const handleUpdateStatus = async (
     id: string,
@@ -232,6 +489,109 @@ export default function ClassPartyPage() {
     }
   };
 
+  const handleCreateShareLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingLink(true);
+    try {
+      const res = await fetch("/api/class-party-26/share-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: newLinkLabel.trim() || undefined,
+          type: "all",
+          neverExpires: newLinkNeverExpires,
+          daysExpiry: newLinkNeverExpires ? undefined : Number(newLinkDays),
+          params: {
+            showFinancials: newLinkShowFinancials,
+            showContactInfo: newLinkShowContactInfo,
+            showHistory: newLinkShowHistory,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Sharable access link generated");
+        setNewLinkLabel("");
+        fetchShareLinks();
+      } else {
+        toast.error(data.message || "Failed to generate link");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error creating share link");
+    } finally {
+      setCreatingLink(false);
+    }
+  };
+
+  const handleSaveEditShareLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingShareLink) return;
+
+    try {
+      const res = await fetch(
+        `/api/class-party-26/share-links/${editingShareLink.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: editingShareLink.label,
+            never_expires: editingShareLink.never_expires,
+            expires_at: editingShareLink.never_expires
+              ? null
+              : editingShareLink.expires_at,
+            params: editingShareLink.params,
+          }),
+        },
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Share link configuration updated");
+        setEditingShareLink(null);
+        fetchShareLinks();
+      } else {
+        toast.error(data.message || "Failed to update link");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving link changes");
+    }
+  };
+
+  const handleDeleteShareLink = async (id: string) => {
+    try {
+      const res = await fetch(`/api/class-party-26/share-links/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Share link revoked and deleted");
+        fetchShareLinks();
+      } else {
+        toast.error(data.message || "Failed to delete link");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting link");
+    }
+  };
+
+  const handleCopyLink = (link: ShareLinkItem) => {
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://myinvoice.app";
+    const fullUrl = `${origin}/class-party-26/share/${link.token}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedLinkId(link.id);
+    toast.success("Shareable URL copied to clipboard");
+    setTimeout(() => {
+      setCopiedLinkId(null);
+    }, 2500);
+  };
+
   const exportCSV = () => {
     if (!registrations.length) {
       toast.error("No registrations to export");
@@ -303,14 +663,6 @@ export default function ClassPartyPage() {
     <div className="p-4 lg:p-12 max-w-7xl mx-auto space-y-8 font-sans">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20 uppercase tracking-wider">
-              Management Portal
-            </span>
-            <span className="text-xs text-zinc-500 font-mono">
-              Class Party 2026
-            </span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight mt-1">
             Class Party &apos;26 Attendees
           </h1>
@@ -321,6 +673,32 @@ export default function ClassPartyPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShareModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition cursor-pointer shadow-xs"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Share Links
+            {shareLinks.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 font-bold">
+                {shareLinks.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setHistoryModalOpen(true);
+              fetchHistory();
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer shadow-xs"
+          >
+            <History className="w-3.5 h-3.5 text-violet-500" />
+            Activity & History
+          </button>
+
           <button
             type="button"
             onClick={fetchRegistrations}
@@ -389,7 +767,7 @@ export default function ClassPartyPage() {
               <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
               Verified Total
             </span>
-            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
               ৳{stats.totalRevenueVerified.toLocaleString()}
             </div>
           </div>
@@ -402,7 +780,7 @@ export default function ClassPartyPage() {
             <div className="text-xl font-bold text-pink-600 dark:text-pink-400">
               {stats.bkashCount}
             </div>
-            <div className="text-[11px] font-mono text-zinc-500">
+            <div className="text-[11px] text-zinc-500">
               ৳{stats.bkashTotal.toLocaleString()}
             </div>
           </div>
@@ -415,7 +793,7 @@ export default function ClassPartyPage() {
             <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
               {stats.cashCount}
             </div>
-            <div className="text-[11px] font-mono text-zinc-500">
+            <div className="text-[11px] text-zinc-500">
               ৳{stats.cashTotal.toLocaleString()}
             </div>
           </div>
@@ -453,12 +831,12 @@ export default function ClassPartyPage() {
                       <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                         {person}
                       </span>
-                      <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                         ৳{data.totalAmount.toLocaleString()}
                       </span>
                     </div>
 
-                    <div className="text-xs space-y-1 font-mono text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                    <div className="text-xs space-y-1 text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
                       {isAyon ? (
                         <>
                           <div className="flex justify-between">
@@ -498,6 +876,11 @@ export default function ClassPartyPage() {
             </div>
           </div>
         )}
+
+      <ClassPartyCharts
+        registrations={registrations}
+        showFinancials={true}
+      />
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -572,13 +955,13 @@ export default function ClassPartyPage() {
                         {record.full_name}
                       </div>
                       {record.student_id && (
-                        <div className="text-[11px] text-zinc-500 font-mono">
+                        <div className="text-[11px] text-zinc-500">
                           ID: {record.student_id}
                         </div>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 font-mono text-zinc-700 dark:text-zinc-300">
+                    <td className="py-3.5 px-4 text-zinc-700 dark:text-zinc-300">
                       <a
                         href={`https://wa.me/88${record.phone.replace(/[^0-9]/g, "")}`}
                         target="_blank"
@@ -598,7 +981,7 @@ export default function ClassPartyPage() {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 font-mono text-xs">
+                    <td className="py-3.5 px-4 text-xs">
                       {record.payment_method === "bkash" ? (
                         <div>
                           <span className="font-semibold text-pink-600 dark:text-pink-400 uppercase">
@@ -629,7 +1012,7 @@ export default function ClassPartyPage() {
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 font-bold font-mono text-amber-600 dark:text-amber-400">
+                    <td className="py-3.5 px-4 font-bold text-amber-600 dark:text-amber-400">
                       ৳{record.total_payable}
                     </td>
 
@@ -718,6 +1101,585 @@ export default function ClassPartyPage() {
         </div>
       </div>
 
+      {shareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Share2 className="w-5 h-5 text-violet-500" />
+                  Manage Share Links (Realtime & Logged)
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Generate multiple labeled links for participants,
+                  coordinators, or partners. Every link visit is tracked and
+                  views are logged.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleCreateShareLink}
+              className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 space-y-3"
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-violet-500" />
+                Generate New Share Link
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Link Label (e.g., Subscriptions-style tag)
+                  </label>
+                  <input
+                    type="text"
+                    value={newLinkLabel}
+                    onChange={(e) => setNewLinkLabel(e.target.value)}
+                    placeholder="e.g. Batch 2026, Ayon Group, Public Preview"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Expiration
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-zinc-700 dark:text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={newLinkNeverExpires}
+                        onChange={(e) =>
+                          setNewLinkNeverExpires(e.target.checked)
+                        }
+                        className="rounded text-violet-600"
+                      />
+                      Never expires
+                    </label>
+
+                    {!newLinkNeverExpires && (
+                      <div className="flex items-center gap-1 ml-auto">
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={newLinkDays}
+                          onChange={(e) => setNewLinkDays(e.target.value)}
+                          className="w-16 px-2 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs"
+                        />
+                        <span className="text-[11px] text-zinc-500">days</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newLinkShowFinancials}
+                    onChange={(e) => setNewLinkShowFinancials(e.target.checked)}
+                    className="rounded text-violet-600"
+                  />
+                  Include Financial Breakdown
+                </label>
+
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newLinkShowContactInfo}
+                    onChange={(e) =>
+                      setNewLinkShowContactInfo(e.target.checked)
+                    }
+                    className="rounded text-violet-600"
+                  />
+                  Include Contact Details
+                </label>
+
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newLinkShowHistory}
+                    onChange={(e) => setNewLinkShowHistory(e.target.checked)}
+                    className="rounded text-violet-600"
+                  />
+                  Include Activity History Feed
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={creatingLink}
+                  className="ml-auto px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  Create Link
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                Active Generated Links ({shareLinks.length})
+              </h3>
+
+              {loadingShareLinks ? (
+                <div className="py-8 text-center text-xs text-zinc-400">
+                  Loading links...
+                </div>
+              ) : shareLinks.length === 0 ? (
+                <div className="py-8 text-center text-xs text-zinc-500 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                  No share links generated yet. Create one above to share with
+                  attendees or coordinators.
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+                  {shareLinks.map((link) => {
+                    const origin =
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : "https://myinvoice.app";
+                    const fullUrl = `${origin}/class-party-26/share/${link.token}`;
+                    const isCopied = copiedLinkId === link.id;
+
+                    return (
+                      <div
+                        key={link.id}
+                        className="p-3.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                              {link.label || "Class Party Public Share"}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                              {link.never_expires
+                                ? "Never expires"
+                                : link.expires_at
+                                  ? `Expires ${new Date(link.expires_at).toLocaleDateString()}`
+                                  : "Active"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+                            <span className="flex items-center gap-1 font-semibold text-violet-600 dark:text-violet-400">
+                              <Eye className="w-3.5 h-3.5" />
+                              {link.viewCount || 0} views logged
+                            </span>
+                            {link.lastViewedAt && (
+                              <span>
+                                Last viewed{" "}
+                                {formatRelativeTime(link.lastViewedAt)}
+                              </span>
+                            )}
+                            <span className="truncate max-w-xs  text-[10px] text-zinc-400">
+                              token: {link.token.slice(0, 10)}...
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(link)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-semibold transition cursor-pointer"
+                          >
+                            {isCopied ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            {isCopied ? "Copied" : "Copy Link"}
+                          </button>
+
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition"
+                            title="Open Public Link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingShareLink({ ...link })}
+                            className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition cursor-pointer"
+                            title="Edit Link Configuration"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteShareLink(link.id)}
+                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition cursor-pointer"
+                            title="Revoke / Delete Link"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingShareLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="font-bold text-sm">Edit Share Link</h3>
+              <button
+                type="button"
+                onClick={() => setEditingShareLink(null)}
+                className="p-1 text-zinc-400 hover:text-zinc-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditShareLink} className="space-y-3">
+              <div className="space-y-1">
+                <label className="font-semibold">Label</label>
+                <input
+                  type="text"
+                  value={editingShareLink.label || ""}
+                  onChange={(e) =>
+                    setEditingShareLink({
+                      ...editingShareLink,
+                      label: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingShareLink.never_expires}
+                    onChange={(e) =>
+                      setEditingShareLink({
+                        ...editingShareLink,
+                        never_expires: e.target.checked,
+                      })
+                    }
+                    className="rounded text-violet-600"
+                  />
+                  Never expires
+                </label>
+
+                {!editingShareLink.never_expires && (
+                  <div className="space-y-1">
+                    <label className="font-semibold">Expiry Date</label>
+                    <input
+                      type="date"
+                      value={
+                        editingShareLink.expires_at
+                          ? editingShareLink.expires_at.split("T")[0]
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setEditingShareLink({
+                          ...editingShareLink,
+                          expires_at: e.target.value
+                            ? `${e.target.value}T23:59:59Z`
+                            : null,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <label className="font-semibold">Permissions</label>
+                <div className="space-y-1">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingShareLink.params.showFinancials !== false}
+                      onChange={(e) =>
+                        setEditingShareLink({
+                          ...editingShareLink,
+                          params: {
+                            ...editingShareLink.params,
+                            showFinancials: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded text-violet-600"
+                    />
+                    Show Financial Breakdown
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={
+                        editingShareLink.params.showContactInfo !== false
+                      }
+                      onChange={(e) =>
+                        setEditingShareLink({
+                          ...editingShareLink,
+                          params: {
+                            ...editingShareLink.params,
+                            showContactInfo: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded text-violet-600"
+                    />
+                    Show Contact Numbers
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingShareLink.params.showHistory !== false}
+                      onChange={(e) =>
+                        setEditingShareLink({
+                          ...editingShareLink,
+                          params: {
+                            ...editingShareLink.params,
+                            showHistory: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded text-violet-600"
+                    />
+                    Show Live History Timeline
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingShareLink(null)}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 rounded-lg bg-violet-600 text-white font-semibold"
+                >
+                  Save Updates
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {historyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <History className="w-5 h-5 text-violet-500" />
+                  Class Party &apos;26 Realtime Activity & View Logs
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Detailed timeline of attendee updates, verifications, and link
+                  viewer logs.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveHistoryTab("activities")}
+                className={`pb-2.5 font-semibold border-b-2 -mb-px transition cursor-pointer flex items-center gap-1.5 ${
+                  activeHistoryTab === "activities"
+                    ? "border-violet-600 text-violet-600 dark:border-violet-400 dark:text-violet-400"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                Registrations & Payments ({activityLogs.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveHistoryTab("views")}
+                className={`pb-2.5 font-semibold border-b-2 -mb-px transition cursor-pointer flex items-center gap-1.5 ${
+                  activeHistoryTab === "views"
+                    ? "border-violet-600 text-violet-600 dark:border-violet-400 dark:text-violet-400"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                Link Views & Access Logs ({viewLogs.length})
+              </button>
+            </div>
+
+            {loadingHistory ? (
+              <div className="py-12 text-center text-xs text-zinc-400">
+                Loading history...
+              </div>
+            ) : activeHistoryTab === "activities" ? (
+              <div className="space-y-3">
+                {activityLogs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-zinc-500">
+                    No activity logs recorded yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-96 overflow-y-auto">
+                    {activityLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="py-3 flex items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <span>{log.action}</span>
+                            {log.participant_name && (
+                              <span className="font-bold text-violet-600 dark:text-violet-400">
+                                ({log.participant_name})
+                              </span>
+                            )}
+                          </div>
+                          {log.details && (
+                            <p className="text-[11px] text-zinc-500">
+                              {log.details}
+                            </p>
+                          )}
+                          <div className="text-[10px] text-zinc-400 flex items-center gap-2">
+                            <span>Actor: {log.actor}</span>
+                            <span>•</span>
+                            <span>
+                              {new Date(log.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] text-zinc-400 shrink-0">
+                          {formatRelativeTime(log.created_at)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {viewLogs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-zinc-500">
+                    No view logs recorded yet. Views will be logged when
+                    participants open share links.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-zinc-200 dark:divide-zinc-800 max-h-96 overflow-y-auto">
+                    {viewLogs.map((view) => (
+                      <div
+                        key={view.id}
+                        className="py-3 flex items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            Visited shared portal
+                          </div>
+                          <div className="text-[11px] text-zinc-500 flex flex-wrap gap-2">
+                            <span>Browser: {view.browser || "Unknown"}</span>
+                            <span>OS: {view.os || "Unknown"}</span>
+                            <span>Device: {view.device || "Desktop"}</span>
+                            {view.ip_address && (
+                              <span>IP: {view.ip_address}</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-zinc-400">
+                            {new Date(view.viewed_at).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] text-zinc-400 shrink-0">
+                          {formatRelativeTime(view.viewed_at)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {sqlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <Database className="w-5 h-5 text-blue-500" />
+                  Supabase SQL Schema
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Schema for registrations, share links, view logs, and realtime
+                  publications.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSqlModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <pre className="p-4 rounded-xl bg-zinc-950 text-zinc-200  text-xs overflow-x-auto max-h-80">
+              {SQL_MIGRATION_TEXT}
+            </pre>
+
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-xs text-zinc-500">
+                File: supabase_class_party_migration.sql
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(SQL_MIGRATION_TEXT);
+                  toast.success("SQL Schema copied to clipboard");
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Copy SQL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
@@ -726,9 +1688,7 @@ export default function ClassPartyPage() {
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
                   Edit Submission
                 </h2>
-                <p className="text-xs text-zinc-500 font-mono">
-                  ID: {editingRecord.id}
-                </p>
+                <p className="text-xs text-zinc-500">ID: {editingRecord.id}</p>
               </div>
               <button
                 type="button"
@@ -847,7 +1807,7 @@ export default function ClassPartyPage() {
                         total_payable: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -928,7 +1888,7 @@ export default function ClassPartyPage() {
                           bkash_transaction_id: e.target.value.toUpperCase(),
                         })
                       }
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden uppercase font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden uppercase"
                     />
                   </div>
                 </div>
@@ -1056,7 +2016,7 @@ export default function ClassPartyPage() {
               </button>
             </div>
 
-            <div className="space-y-3 py-2 font-mono text-xs">
+            <div className="space-y-3 py-2 text-xs">
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Name</span>
                 <span className="font-bold text-zinc-900 dark:text-white">
@@ -1202,124 +2162,6 @@ export default function ClassPartyPage() {
                 type="button"
                 onClick={() => setSelectedRecord(null)}
                 className="px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {sqlModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
-              <div>
-                <h2 className="text-xl font-bold flex items-center gap-2 text-zinc-900 dark:text-white">
-                  <Database className="w-5 h-5 text-blue-500" />
-                  Supabase SQL Schema
-                </h2>
-                <p className="text-xs text-zinc-500">
-                  Run this in your Supabase SQL Editor to create table, indexes,
-                  and RLS policies.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSqlModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <pre className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-800 dark:text-zinc-300 overflow-x-auto whitespace-pre leading-relaxed select-all">
-              {`create table if not exists public.class_party_26_registrations (
-    id uuid primary key default gen_random_uuid(),
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    full_name text not null,
-    phone text not null,
-    student_id text,
-    email text,
-    selected_option_id text not null,
-    selected_option_title text not null,
-    selected_option_category text not null,
-    base_price numeric(10, 2) not null,
-    vat_percent numeric(5, 2) default 5.00 not null,
-    vat_amount numeric(10, 2) not null,
-    subtotal_with_vat numeric(10, 2) not null,
-    payment_method text not null check (payment_method in ('cash', 'bkash')),
-    bkash_fee_percent numeric(5, 2) default 0.00 not null,
-    bkash_fee_amount numeric(10, 2) default 0.00 not null,
-    total_payable numeric(10, 2) not null,
-    bkash_sender_number text,
-    bkash_transaction_id text,
-    cash_paid_to text,
-    special_notes text,
-    payment_status text default 'pending' not null check (payment_status in ('pending', 'verified', 'rejected')),
-    verified_by text,
-    verified_at timestamp with time zone
-);
-
-create index if not exists idx_cp26_phone on public.class_party_26_registrations (phone);
-create index if not exists idx_cp26_status on public.class_party_26_registrations (payment_status);
-create index if not exists idx_cp26_method on public.class_party_26_registrations (payment_method);
-create index if not exists idx_cp26_paid_to on public.class_party_26_registrations (cash_paid_to);
-
-alter table public.class_party_26_registrations enable row level security;
-
-create policy "Allow public submissions"
-    on public.class_party_26_registrations for insert with check (true);
-create policy "Allow read access"
-    on public.class_party_26_registrations for select using (true);
-create policy "Allow update access"
-    on public.class_party_26_registrations for update using (true);
-create policy "Allow delete access"
-    on public.class_party_26_registrations for delete using (true);`}
-            </pre>
-
-            <div className="flex justify-between items-center pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard
-                    .writeText(`create table if not exists public.class_party_26_registrations (
-    id uuid primary key default gen_random_uuid(),
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    full_name text not null,
-    phone text not null,
-    student_id text,
-    email text,
-    selected_option_id text not null,
-    selected_option_title text not null,
-    selected_option_category text not null,
-    base_price numeric(10, 2) not null,
-    vat_percent numeric(5, 2) default 5.00 not null,
-    vat_amount numeric(10, 2) not null,
-    subtotal_with_vat numeric(10, 2) not null,
-    payment_method text not null check (payment_method in ('cash', 'bkash')),
-    bkash_fee_percent numeric(5, 2) default 0.00 not null,
-    bkash_fee_amount numeric(10, 2) default 0.00 not null,
-    total_payable numeric(10, 2) not null,
-    bkash_sender_number text,
-    bkash_transaction_id text,
-    cash_paid_to text,
-    special_notes text,
-    payment_status text default 'pending' not null check (payment_status in ('pending', 'verified', 'rejected')),
-    verified_by text,
-    verified_at timestamp with time zone
-);`);
-                  toast.success("SQL copied to clipboard");
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-semibold text-white transition cursor-pointer shadow-xs"
-              >
-                Copy SQL
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSqlModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
               >
                 Close
               </button>

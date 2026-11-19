@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { logClassPartyActivity } from "@/services/class-party";
 import fs from "fs";
 import path from "path";
 
@@ -216,6 +217,17 @@ export async function PATCH(req: Request) {
       console.warn("Supabase update exception:", err);
     }
 
+    void logClassPartyActivity({
+      category: updates.payment_status ? "payment" : "edit",
+      actor: updates.verified_by || "Admin",
+      action: updates.payment_status
+        ? `Marked payment as ${updates.payment_status}`
+        : "Updated registration details",
+      details: updates.full_name ? `Attendee: ${updates.full_name}` : undefined,
+      record_id: id,
+      participant_name: updates.full_name || undefined,
+    });
+
     return NextResponse.json({ success: true, updates });
   } catch (error) {
     console.error("Admin PATCH error:", error);
@@ -260,6 +272,13 @@ export async function DELETE(req: Request) {
     } catch (err) {
       console.warn("Supabase delete exception:", err);
     }
+
+    void logClassPartyActivity({
+      category: "delete",
+      actor: "Admin",
+      action: "Deleted registration record",
+      record_id: id,
+    });
 
     return NextResponse.json({ success: true, message: "Registration deleted successfully" });
   } catch (error) {

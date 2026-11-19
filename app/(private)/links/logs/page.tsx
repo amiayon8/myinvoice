@@ -80,6 +80,7 @@ export default function ActivityLogsPage() {
         invoicePaymentsRes,
         subPaymentsRes,
         updateRequestsRes,
+        classPartyHistoryRes,
       ] = await Promise.all([
         listAllInvoiceViewLogs().catch(() => []),
         getSubscriptionViewLogs().catch(() => []),
@@ -104,6 +105,9 @@ export default function ActivityLogsPage() {
           )
           .order("submitted_at", { ascending: false })
           .limit(50),
+        fetch("/api/class-party-26/history")
+          .then((r) => r.json())
+          .catch(() => ({ activities: [], viewLogs: [] })),
       ]);
 
       const unified: ActivityLogItem[] = [];
@@ -125,7 +129,9 @@ export default function ActivityLogsPage() {
 
         if (isBot) {
           actor =
-            log.browser === "Unknown" ? "Web Crawler" : `${log.browser} Crawler`;
+            log.browser === "Unknown"
+              ? "Web Crawler"
+              : `${log.browser} Crawler`;
           action = `Scanned link preview for invoice ${invoiceNum}`;
           badge = { text: "Bot", variant: "muted" };
         } else if (
@@ -175,7 +181,9 @@ export default function ActivityLogsPage() {
 
         if (isBot) {
           actor =
-            log.browser === "Unknown" ? "Web Crawler" : `${log.browser} Crawler`;
+            log.browser === "Unknown"
+              ? "Web Crawler"
+              : `${log.browser} Crawler`;
           action = `Scanned link preview for "${label}"`;
           badge = { text: "Bot", variant: "muted" };
         }
@@ -271,6 +279,66 @@ export default function ActivityLogsPage() {
                 ? { text: "Pending Review", variant: "warning" }
                 : undefined,
             isWarningOrError: isRejected || isPending,
+          });
+        },
+      );
+
+      ((classPartyHistoryRes && classPartyHistoryRes.viewLogs) || []).forEach(
+        (view: any) => {
+          const userAgent = (view.user_agent || "").toLowerCase();
+          const isBot =
+            userAgent.includes("facebookexternalhit") ||
+            userAgent.includes("bot") ||
+            userAgent.includes("crawler") ||
+            userAgent.includes("spider") ||
+            userAgent.includes("preview");
+
+          const detailsParts: string[] = [];
+          if (view.browser && view.browser !== "Unknown")
+            detailsParts.push(view.browser);
+          if (view.os && view.os !== "Unknown") detailsParts.push(view.os);
+          if (view.device && view.device !== "Unknown")
+            detailsParts.push(view.device);
+          if (view.ip_address && view.ip_address !== "::1")
+            detailsParts.push(view.ip_address);
+
+          unified.push({
+            id: `cp-view-${view.id}`,
+            timestamp: view.viewed_at,
+            category: "view",
+            actor: isBot ? "Web Crawler" : "Visitor",
+            action: `Accessed Class Party '26 shared board`,
+            details: detailsParts.join(" · ") || undefined,
+            ipAddress: view.ip_address || undefined,
+            contextTitle: "Class Party '26",
+            contextHref: "/class-party-26",
+            badge: isBot ? { text: "Bot", variant: "muted" } : undefined,
+            isWarningOrError: false,
+            isBot,
+          });
+        },
+      );
+
+      ((classPartyHistoryRes && classPartyHistoryRes.activities) || []).forEach(
+        (act: any) => {
+          const isDelete = act.category === "delete";
+          const isPayment = act.category === "payment";
+
+          unified.push({
+            id: `cp-act-${act.id}`,
+            timestamp: act.created_at,
+            category: isDelete ? "warning" : isPayment ? "payment" : "view",
+            actor: act.actor || "Coordinator",
+            action: act.action,
+            details: act.details || undefined,
+            contextTitle: "Class Party '26",
+            contextHref: "/class-party-26",
+            badge: isDelete
+              ? { text: "Deleted", variant: "danger" }
+              : isPayment
+                ? { text: "Verified", variant: "muted" }
+                : undefined,
+            isWarningOrError: isDelete,
           });
         },
       );
@@ -402,7 +470,7 @@ export default function ActivityLogsPage() {
             <option value="warning">Warnings & issues</option>
           </select>
 
-          <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0">
+          <span className=" text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0">
             {filteredItems.length}{" "}
             {filteredItems.length === 1 ? "entry" : "entries"}
           </span>
@@ -423,7 +491,7 @@ export default function ActivityLogsPage() {
                   className="py-2.5 px-3.5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors text-xs"
                 >
                   <div className="flex items-baseline gap-3 min-w-0 flex-1">
-                    <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0 select-none">
+                    <span className=" text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0 select-none">
                       {formatTime(item.timestamp)}
                     </span>
 
@@ -437,7 +505,7 @@ export default function ActivityLogsPage() {
                       {item.contextHref && item.contextTitle && (
                         <a
                           href={item.contextHref}
-                          className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline decoration-zinc-300 dark:decoration-zinc-700 underline-offset-2 transition-colors"
+                          className=" text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline decoration-zinc-300 dark:decoration-zinc-700 underline-offset-2 transition-colors"
                         >
                           {item.contextTitle}
                         </a>
@@ -459,7 +527,7 @@ export default function ActivityLogsPage() {
                   </div>
 
                   {item.details && (
-                    <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0 sm:text-right">
+                    <span className=" text-[11px] text-zinc-400 dark:text-zinc-500 shrink-0 sm:text-right">
                       {item.details}
                     </span>
                   )}

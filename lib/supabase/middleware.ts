@@ -40,6 +40,8 @@ export async function updateSession(request: NextRequest) {
     url.pathname.startsWith('/invoices/token/') ||
     url.pathname.startsWith('/subscriptions/share/') ||
     url.pathname.startsWith('/tuition/share/') ||
+    url.pathname.startsWith('/class-party-26/share/') ||
+    url.pathname.startsWith('/forms/class-party-26') ||
     url.pathname.startsWith('/management/api/') ||
     url.pathname.startsWith('/api/')
   ) {

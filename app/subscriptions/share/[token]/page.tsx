@@ -11,12 +11,7 @@ import {
 } from "@/lib/date-utils";
 import { DynamicPaymentCards } from "@/components/dynamic-payment-cards";
 import { SlotAllocationBreakdown } from "@/types/payment-methods";
-import {
-  Sun,
-  Moon,
-  AlertCircle,
-  CreditCard,
-} from "lucide-react";
+import { Sun, Moon, AlertCircle, CreditCard } from "lucide-react";
 
 interface SharedPageProps {
   params: Promise<{ token: string }>;
@@ -51,9 +46,7 @@ function getAmountNeededForMonths(
     return slot.dueAmount + (monthsCount - 1) * slot.costPerMonth;
   }
 
-  const fullMonthsCovered = Math.floor(
-    slot.advanceAmount / slot.costPerMonth,
-  );
+  const fullMonthsCovered = Math.floor(slot.advanceAmount / slot.costPerMonth);
   const targetMonths = fullMonthsCovered + monthsCount;
   const targetAdvanceCash = targetMonths * slot.costPerMonth;
   return Math.max(0, targetAdvanceCash - slot.advanceAmount);
@@ -200,7 +193,6 @@ export default function PublicSharedSubscriptionPage({
     Record<string, number>
   >({});
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-
 
   useEffect(() => {
     setMounted(true);
@@ -636,7 +628,7 @@ export default function PublicSharedSubscriptionPage({
                     Payment Amount to Settle (৳)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500 dark:text-zinc-400 font-mono font-semibold">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500 dark:text-zinc-400  font-semibold">
                       ৳
                     </span>
                     <input
@@ -647,11 +639,12 @@ export default function PublicSharedSubscriptionPage({
                       placeholder="Enter amount"
                       value={autoAmountInput}
                       onChange={(e) => setAutoAmountInput(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 text-sm bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 font-mono font-medium shadow-xs"
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100  font-medium shadow-xs"
                     />
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Auto-settles smallest dues first, then rolls into advance for smaller plans.
+                    Auto-settles smallest dues first, then rolls into advance
+                    for smaller plans.
                   </p>
                 </div>
 
@@ -699,7 +692,7 @@ export default function PublicSharedSubscriptionPage({
               <p className="text-zinc-700 dark:text-zinc-300 font-medium">
                 Adjust exact payment amounts for each member slot below:
               </p>
-              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+              <span className=" font-semibold text-zinc-900 dark:text-zinc-100">
                 Total: ৳{totalAllocatedAmount.toLocaleString()}
               </span>
             </div>
@@ -708,9 +701,13 @@ export default function PublicSharedSubscriptionPage({
           <div className="border border-zinc-200 dark:border-zinc-700/80">
             <div className="grid grid-cols-12 px-3.5 py-2 bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-700">
               <div className="col-span-6 sm:col-span-5">Member & Plan</div>
-              <div className="hidden sm:block sm:col-span-4">Current Status & Paid Upto</div>
+              <div className="hidden sm:block sm:col-span-4">
+                Current Status & Paid Upto
+              </div>
               <div className="col-span-6 sm:col-span-3 text-right">
-                {settlementMode === "auto" ? "Allocated Amount" : "Custom Amount (৳)"}
+                {settlementMode === "auto"
+                  ? "Allocated Amount"
+                  : "Custom Amount (৳)"}
               </div>
             </div>
 
@@ -791,7 +788,7 @@ export default function PublicSharedSubscriptionPage({
 
                     {settlementMode === "auto" ? (
                       <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0 min-w-[120px]">
-                        <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                        <span className=" text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                           ৳{allocated.toLocaleString()}
                         </span>
                         {impactText ? (
@@ -873,7 +870,7 @@ export default function PublicSharedSubscriptionPage({
                           </>
                         )}
                         <div className="relative w-28">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 text-xs font-mono font-semibold">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 text-xs  font-semibold">
                             ৳
                           </span>
                           <input
@@ -885,7 +882,7 @@ export default function PublicSharedSubscriptionPage({
                             onChange={(e) =>
                               handleManualSlotChange(slot.id, e.target.value)
                             }
-                            className="w-full pl-6 pr-2.5 py-1 text-xs bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 font-mono font-medium text-right shadow-xs"
+                            className="w-full pl-6 pr-2.5 py-1 text-xs bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100  font-medium text-right shadow-xs"
                           />
                         </div>
                       </div>
@@ -902,7 +899,7 @@ export default function PublicSharedSubscriptionPage({
                 <span className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   Total to Settle
                 </span>
-                <span className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100">
+                <span className="text-xl font-bold  text-zinc-900 dark:text-zinc-100">
                   ৳{totalAllocatedAmount.toLocaleString()}
                 </span>
               </div>
@@ -919,13 +916,16 @@ export default function PublicSharedSubscriptionPage({
                   onClick={() => setIsPaymentModalOpen(true)}
                   className="px-4 py-2 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors cursor-pointer shadow-xs"
                 >
-                  Submit Payment Verification (৳{totalAllocatedAmount.toLocaleString()})
+                  Submit Payment Verification (৳
+                  {totalAllocatedAmount.toLocaleString()})
                 </button>
               </div>
             </div>
 
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-700/60 pt-2.5">
-              How it works: Transfer ৳{totalAllocatedAmount.toLocaleString()} to any payment account below, then click &quot;Submit Payment Verification&quot; with your Transaction ID.
+              How it works: Transfer ৳{totalAllocatedAmount.toLocaleString()} to
+              any payment account below, then click &quot;Submit Payment
+              Verification&quot; with your Transaction ID.
             </p>
           </div>
         </section>
