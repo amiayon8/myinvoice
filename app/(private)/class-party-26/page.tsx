@@ -456,8 +456,9 @@ export default function ClassPartyPage() {
     if (!editingShareLink) return;
 
     try {
+      const linkId = editingShareLink.id || editingShareLink.token;
       const res = await fetch(
-        `/api/class-party-26/share-links/${editingShareLink.id}`,
+        `/api/class-party-26/share-links/${linkId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

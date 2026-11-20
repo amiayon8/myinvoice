@@ -183,6 +183,7 @@ export async function getClassPartyShareLinks(): Promise<ClassPartyShareLink[]> 
 
     if (!error && data && data.length > 0) {
       links = data;
+      writeJsonFile(linksFilePath, data);
     } else {
       links = readJsonFile<ClassPartyShareLink>(linksFilePath);
     }
@@ -276,6 +277,12 @@ export async function createClassPartyShareLink(input: {
   };
 }
 
+function isValidUuid(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    id,
+  );
+}
+
 export async function updateClassPartyShareLink(
   id: string,
   updates: {
@@ -285,49 +292,99 @@ export async function updateClassPartyShareLink(
     never_expires?: boolean;
     params?: ClassPartyShareLink["params"];
     revoked_at?: string | null;
-  }
+  },
 ): Promise<ClassPartyShareLink | null> {
   const supabase = createServiceRoleClient();
   const localLinks = readJsonFile<ClassPartyShareLink>(linksFilePath);
-  const index = localLinks.findIndex((l) => l.id === id);
+  const localIndex = localLinks.findIndex((l) => l.id === id || l.token === id);
 
-  if (index === -1) {
+  let existingLink: ClassPartyShareLink | null =
+    localIndex !== -1 ? localLinks[localIndex] : null;
+
+  try {
+    const isUuid = isValidUuid(id);
+    const query = supabase.from("class_party_26_share_links").select("*");
+    const { data, error } = isUuid
+      ? await query.eq("id", id).maybeSingle()
+      : await query.eq("token", id).maybeSingle();
+
+    if (!error && data) {
+      existingLink = data as ClassPartyShareLink;
+    }
+  } catch (err) {
+    console.warn("Supabase fetch share link exception:", err);
+  }
+
+  if (!existingLink) {
     return null;
   }
 
-  const updated: ClassPartyShareLink = {
-    ...localLinks[index],
-    ...updates,
-    params: {
-      ...localLinks[index].params,
-      ...(updates.params || {}),
-    },
+  const mergedParams = {
+    ...existingLink.params,
+    ...(updates.params || {}),
   };
 
-  localLinks[index] = updated;
+  const updatedRecord: ClassPartyShareLink = {
+    ...existingLink,
+    ...updates,
+    params: mergedParams,
+  };
+
+  if (localIndex !== -1) {
+    localLinks[localIndex] = updatedRecord;
+  } else {
+    localLinks.unshift(updatedRecord);
+  }
   writeJsonFile(linksFilePath, localLinks);
 
   try {
-    await supabase
-      .from("class_party_26_share_links")
-      .update(updates)
-      .eq("id", id);
+    const isUuid = isValidUuid(existingLink.id);
+    const updatePayload = {
+      ...updates,
+      params: mergedParams,
+    };
+    if (isUuid) {
+      await supabase
+        .from("class_party_26_share_links")
+        .update(updatePayload)
+        .eq("id", existingLink.id);
+    } else {
+      await supabase
+        .from("class_party_26_share_links")
+        .update(updatePayload)
+        .eq("token", existingLink.token);
+    }
   } catch (err) {
     console.warn("Supabase share link update exception:", err);
   }
 
-  return updated;
+  return updatedRecord;
 }
 
 export async function deleteClassPartyShareLink(id: string): Promise<boolean> {
   const supabase = createServiceRoleClient();
   const localLinks = readJsonFile<ClassPartyShareLink>(linksFilePath);
-  const target = localLinks.find((l) => l.id === id);
-  const filtered = localLinks.filter((l) => l.id !== id);
-  writeJsonFile(linksFilePath, filtered);
+  const target = localLinks.find((l) => l.id === id || l.token === id);
+  const filtered = localLinks.filter((l) => l.id !== id && l.token !== id);
+  let wasDeleted = false;
+
+  if (filtered.length !== localLinks.length) {
+    writeJsonFile(linksFilePath, filtered);
+    wasDeleted = true;
+  }
 
   try {
-    await supabase.from("class_party_26_share_links").delete().eq("id", id);
+    const isUuid = isValidUuid(id);
+    const { error } = isUuid
+      ? await supabase.from("class_party_26_share_links").delete().eq("id", id)
+      : await supabase
+          .from("class_party_26_share_links")
+          .delete()
+          .eq("token", id);
+
+    if (!error) {
+      wasDeleted = true;
+    }
   } catch (err) {
     console.warn("Supabase share link delete exception:", err);
   }
@@ -340,7 +397,7 @@ export async function deleteClassPartyShareLink(id: string): Promise<boolean> {
     });
   }
 
-  return true;
+  return wasDeleted || Boolean(target);
 }
 
 export async function logClassPartyView(input: {
@@ -480,7 +537,23 @@ export async function getClassPartyActivityLogs(): Promise<ClassPartyActivityLog
 export async function getSharedClassPartyData(token: string) {
   const supabase = createServiceRoleClient();
   const allLinks = await getClassPartyShareLinks();
-  const linkRecord = allLinks.find((l) => l.token === token);
+  let linkRecord = allLinks.find((l) => l.token === token || l.id === token);
+
+  if (!linkRecord) {
+    try {
+      const isUuid = isValidUuid(token);
+      const query = supabase.from("class_party_26_share_links").select("*");
+      const { data, error } = isUuid
+        ? await query.eq("id", token).maybeSingle()
+        : await query.eq("token", token).maybeSingle();
+
+      if (!error && data) {
+        linkRecord = data as ClassPartyShareLink;
+      }
+    } catch (err) {
+      console.warn("Supabase fetch share link by token exception:", err);
+    }
+  }
 
   if (!linkRecord) {
     return { success: false, error: "Share link not found" };
