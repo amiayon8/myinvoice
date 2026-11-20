@@ -55,6 +55,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
     const methodFilter = searchParams.get("method");
+    const coordinatorFilter = searchParams.get("coordinator");
     const search = searchParams.get("search")?.toLowerCase().trim();
 
     let records: Array<Record<string, unknown>> = [];
@@ -143,6 +144,18 @@ export async function GET(req: Request) {
     }
     if (methodFilter && methodFilter !== "all") {
       filtered = filtered.filter((r) => r.payment_method === methodFilter);
+    }
+    if (coordinatorFilter && coordinatorFilter !== "all") {
+      const target = coordinatorFilter.toLowerCase();
+      filtered = filtered.filter((r) => {
+        if (target === "ayon") {
+          return (
+            r.payment_method === "bkash" ||
+            String(r.cash_paid_to || "").toLowerCase() === "ayon"
+          );
+        }
+        return String(r.cash_paid_to || "").toLowerCase() === target;
+      });
     }
     if (search) {
       filtered = filtered.filter(

@@ -166,6 +166,7 @@ export default function ClassPartyPage() {
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
+  const [coordinatorFilter, setCoordinatorFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecord, setSelectedRecord] =
     useState<RegistrationRecord | null>(null);
@@ -211,6 +212,7 @@ export default function ClassPartyPage() {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (methodFilter !== "all") params.set("method", methodFilter);
+      if (coordinatorFilter !== "all") params.set("coordinator", coordinatorFilter);
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
 
       const res = await fetch(`/api/class-party-26/admin?${params.toString()}`);
@@ -229,7 +231,7 @@ export default function ClassPartyPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, methodFilter, searchQuery, toast]);
+  }, [statusFilter, methodFilter, coordinatorFilter, searchQuery, toast]);
 
   const fetchShareLinks = useCallback(async () => {
     setLoadingShareLinks(true);
@@ -724,19 +726,31 @@ export default function ClassPartyPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {Object.entries(stats.coordinatorCounts).map(([person, data]) => {
                 const isAyon = person === "Ayon";
+                const isSelected = coordinatorFilter === person;
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={person}
-                    className={`p-3.5 rounded-xl border space-y-2 ${
-                      isAyon
-                        ? "bg-violet-50/70 dark:bg-violet-950/30 border-violet-300 dark:border-violet-500/40 ring-1 ring-violet-500/30"
-                        : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200/80 dark:border-zinc-800/80"
+                    onClick={() =>
+                      setCoordinatorFilter(
+                        coordinatorFilter === person ? "all" : person,
+                      )
+                    }
+                    className={`p-3.5 rounded-xl border space-y-2 text-left transition cursor-pointer ${
+                      isSelected
+                        ? "bg-violet-100/90 dark:bg-violet-900/40 border-violet-500 dark:border-violet-400 ring-2 ring-violet-500 shadow-xs"
+                        : isAyon
+                          ? "bg-violet-50/70 dark:bg-violet-950/30 border-violet-300 dark:border-violet-500/40 ring-1 ring-violet-500/30 hover:border-violet-400"
+                          : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200/80 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                         {person}
+                        {isSelected && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-600 dark:bg-violet-400" />
+                        )}
                       </span>
                       <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                         ৳{data.totalAmount.toLocaleString()}
@@ -777,7 +791,7 @@ export default function ClassPartyPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -798,11 +812,12 @@ export default function ClassPartyPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-zinc-500">
             <Filter className="w-3.5 h-3.5" />
-            <span>Status:</span>
+            <span>Filter:</span>
           </div>
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -823,6 +838,31 @@ export default function ClassPartyPage() {
             <option value="bkash">bKash</option>
             <option value="cash">Cash</option>
           </select>
+
+          <select
+            value={coordinatorFilter}
+            onChange={(e) => setCoordinatorFilter(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-hidden cursor-pointer shadow-xs"
+          >
+            <option value="all">All Coordinators</option>
+            {COORDINATOR_NAMES.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {coordinatorFilter !== "all" && (
+            <button
+              type="button"
+              onClick={() => setCoordinatorFilter("all")}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20 hover:bg-violet-500/20 transition cursor-pointer"
+              title="Clear coordinator filter"
+            >
+              <span>Paid to: {coordinatorFilter}</span>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
