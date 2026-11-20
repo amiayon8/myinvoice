@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
 import {
@@ -28,6 +29,9 @@ import {
   MapPin,
   ListFilter,
   X,
+  Check,
+  Eye,
+  Lock,
 } from "lucide-react";
 
 interface RegistrationRecord {
@@ -53,6 +57,8 @@ interface RegistrationRecord {
   cash_paid_to?: string | null;
   special_notes?: string | null;
   payment_status: "pending" | "verified" | "rejected";
+  verified_by?: string | null;
+  verified_at?: string | null;
 }
 
 interface ActivityItem {
@@ -99,6 +105,8 @@ interface LinkMetadata {
     showFinancials?: boolean;
     showContactInfo?: boolean;
     showHistory?: boolean;
+    organizer?: string | null;
+    canApprovePayments?: boolean;
   };
   never_expires: boolean;
   expires_at: string | null;
@@ -159,8 +167,12 @@ export default function ClassPartySharePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
   const [coordinatorFilter, setCoordinatorFilter] = useState("all");
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    useState<RegistrationRecord | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [realtimePulse, setRealtimePulse] = useState(false);
+  const toast = useToast();
 
   const fetchSharedData = useCallback(async () => {
     if (!token) return;
@@ -186,6 +198,94 @@ export default function ClassPartySharePage() {
       setLoading(false);
     }
   }, [token]);
+
+  const canApproveRecord = useCallback(
+    (record: RegistrationRecord): boolean => {
+      if (!linkMeta?.params.canApprovePayments) return false;
+      const organizer = linkMeta.params.organizer;
+      if (!organizer) return true;
+      const target = organizer.toLowerCase();
+      if (target === "ayon") {
+        return (
+          record.payment_method === "bkash" ||
+          record.cash_paid_to?.toLowerCase() === "ayon"
+        );
+      }
+      return record.cash_paid_to?.toLowerCase() === target;
+    },
+    [linkMeta],
+  );
+
+  const myPendingCount = useMemo(() => {
+    if (!linkMeta?.params.canApprovePayments || !linkMeta?.params.organizer) {
+      return 0;
+    }
+    return registrations.filter(
+      (r) => r.payment_status === "pending" && canApproveRecord(r),
+    ).length;
+  }, [registrations, linkMeta, canApproveRecord]);
+
+  const handleUpdateStatus = async (
+    recordId: string,
+    newStatus: "verified" | "rejected" | "pending",
+  ) => {
+    setActionInProgress(recordId);
+    try {
+      const res = await fetch(`/api/class-party-26/share/${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registrationId: recordId,
+          status: newStatus,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(
+          newStatus === "verified"
+            ? "Payment verified"
+            : newStatus === "rejected"
+              ? "Payment marked as rejected"
+              : "Payment status reset to pending",
+        );
+        const actorName = linkMeta?.params.organizer || "Organizer";
+        setRegistrations((prev) =>
+          prev.map((r) =>
+            r.id === recordId
+              ? {
+                  ...r,
+                  payment_status: newStatus,
+                  verified_by: newStatus === "pending" ? null : actorName,
+                  verified_at:
+                    newStatus === "pending" ? null : new Date().toISOString(),
+                }
+              : r,
+          ),
+        );
+        if (selectedRecord && selectedRecord.id === recordId) {
+          setSelectedRecord((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  payment_status: newStatus,
+                  verified_by: newStatus === "pending" ? null : actorName,
+                  verified_at:
+                    newStatus === "pending" ? null : new Date().toISOString(),
+                }
+              : null,
+          );
+        }
+        fetchSharedData();
+      } else {
+        toast.error(data.message || "Failed to update payment status");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error updating status");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
 
   useEffect(() => {
     fetchSharedData();
@@ -373,6 +473,47 @@ export default function ClassPartySharePage() {
             </button>
           </div>
         </header>
+
+        {linkMeta?.params.organizer && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-emerald-500/10 border border-violet-500/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold text-base shadow-xs shrink-0">
+                {linkMeta.params.organizer[0]}
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                    Coordinator Workspace: {linkMeta.params.organizer}
+                  </span>
+                  {linkMeta.params.canApprovePayments && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                      Payment Verification Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  {linkMeta.params.canApprovePayments
+                    ? `You are authorized to approve payments received by ${linkMeta.params.organizer}. Other collections are read-only.`
+                    : `Viewing shared dashboard for ${linkMeta.params.organizer}.`}
+                </p>
+              </div>
+            </div>
+
+            {myPendingCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCoordinatorFilter(linkMeta.params.organizer!);
+                  setStatusFilter("pending");
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-semibold transition cursor-pointer self-start sm:self-auto shrink-0 shadow-xs"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>{myPendingCount} pending paid to you</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -659,6 +800,9 @@ export default function ClassPartySharePage() {
                         <th className="py-3 px-4">Amount</th>
                       )}
                       <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">
+                        {linkMeta?.params.canApprovePayments ? "Approval" : "Details"}
+                      </th>
                     </tr>
                   </thead>
 
@@ -666,7 +810,7 @@ export default function ClassPartySharePage() {
                     {filteredRegistrations.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={5}
+                          colSpan={linkMeta?.params.showFinancials !== false ? 6 : 5}
                           className="py-12 text-center text-zinc-500 dark:text-zinc-400 text-xs"
                         >
                           No attendee records found matching the criteria.
@@ -752,6 +896,56 @@ export default function ClassPartySharePage() {
                                 Pending
                               </span>
                             )}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              {canApproveRecord(record) ? (
+                                <>
+                                  {record.payment_status !== "verified" && (
+                                    <button
+                                      type="button"
+                                      disabled={actionInProgress === record.id}
+                                      onClick={() =>
+                                        handleUpdateStatus(record.id, "verified")
+                                      }
+                                      title="Approve & Verify Payment"
+                                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition cursor-pointer disabled:opacity-50"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {record.payment_status !== "rejected" && (
+                                    <button
+                                      type="button"
+                                      disabled={actionInProgress === record.id}
+                                      onClick={() =>
+                                        handleUpdateStatus(record.id, "rejected")
+                                      }
+                                      title="Reject Payment"
+                                      className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition cursor-pointer disabled:opacity-50"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden sm:inline">
+                                  {record.payment_method === "bkash"
+                                    ? "Paid to Ayon"
+                                    : `Paid to ${record.cash_paid_to || "other"}`}
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedRecord(record)}
+                                title="View attendee details"
+                                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -850,6 +1044,241 @@ export default function ClassPartySharePage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {selectedRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4 text-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-900 dark:text-white">
+                    Attendee Details & Payment Status
+                  </h2>
+                  <p className="text-[11px] text-zinc-500">
+                    Registered on{" "}
+                    {new Date(selectedRecord.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRecord(null)}
+                  className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2.5 py-1">
+                <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                  <span className="text-zinc-500 dark:text-zinc-400">Name</span>
+                  <span className="font-bold text-zinc-900 dark:text-white text-sm">
+                    {selectedRecord.full_name}
+                  </span>
+                </div>
+
+                {selectedRecord.student_id && (
+                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      Roll / Student ID
+                    </span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {selectedRecord.student_id}
+                    </span>
+                  </div>
+                )}
+
+                {selectedRecord.phone && (
+                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      Contact Number
+                    </span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {selectedRecord.phone}
+                    </span>
+                  </div>
+                )}
+
+                {selectedRecord.email && (
+                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-500 dark:text-zinc-400">Email</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">
+                      {selectedRecord.email}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Selected Menu
+                  </span>
+                  <span className="font-medium text-right text-zinc-900 dark:text-zinc-100">
+                    {selectedRecord.selected_option_title}
+                    <span className="block text-[11px] text-zinc-400">
+                      {selectedRecord.selected_option_category}
+                    </span>
+                  </span>
+                </div>
+
+                {linkMeta?.params.showFinancials !== false && (
+                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80 font-bold text-amber-600 dark:text-amber-400 text-sm">
+                    <span>Payable Amount</span>
+                    <span>৳{selectedRecord.total_payable || 0}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Payment Channel
+                  </span>
+                  <span className="font-semibold uppercase text-zinc-800 dark:text-zinc-200">
+                    {selectedRecord.payment_method === "bkash"
+                      ? "bKash"
+                      : "Cash Collection"}
+                  </span>
+                </div>
+
+                {selectedRecord.payment_method === "bkash" ? (
+                  <>
+                    {selectedRecord.bkash_sender_number && (
+                      <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          bKash Sender
+                        </span>
+                        <span>{selectedRecord.bkash_sender_number}</span>
+                      </div>
+                    )}
+                    {selectedRecord.bkash_transaction_id && (
+                      <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          Transaction ID
+                        </span>
+                        <span className="font-mono font-bold text-pink-600 dark:text-pink-400">
+                          {selectedRecord.bkash_transaction_id}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        Recipient Coordinator
+                      </span>
+                      <span className="font-bold text-violet-600 dark:text-violet-400">
+                        Ayon (Official bKash)
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      Paid To Coordinator
+                    </span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {selectedRecord.cash_paid_to || "Unassigned"}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Current Status
+                  </span>
+                  <div>
+                    {selectedRecord.payment_status === "verified" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verified
+                        {selectedRecord.verified_by &&
+                          ` by ${selectedRecord.verified_by}`}
+                      </span>
+                    ) : selectedRecord.payment_status === "rejected" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                        <XCircle className="w-3 h-3" />
+                        Rejected
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <Clock className="w-3 h-3" />
+                        Pending Approval
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {selectedRecord.special_notes && (
+                  <div className="py-2 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-500 dark:text-zinc-400 block mb-1">
+                      Special Notes
+                    </span>
+                    <p className="bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-200/70 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
+                      {selectedRecord.special_notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2">
+                {canApproveRecord(selectedRecord) ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedRecord.payment_status !== "verified" && (
+                        <button
+                          type="button"
+                          disabled={actionInProgress === selectedRecord.id}
+                          onClick={() =>
+                            handleUpdateStatus(selectedRecord.id, "verified")
+                          }
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition cursor-pointer shadow-xs disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Verify Payment
+                        </button>
+                      )}
+
+                      {selectedRecord.payment_status !== "rejected" && (
+                        <button
+                          type="button"
+                          disabled={actionInProgress === selectedRecord.id}
+                          onClick={() =>
+                            handleUpdateStatus(selectedRecord.id, "rejected")
+                          }
+                          className="px-4 py-2 rounded-xl bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 font-bold transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Reject Payment
+                        </button>
+                      )}
+
+                      {selectedRecord.payment_status !== "pending" && (
+                        <button
+                          type="button"
+                          disabled={actionInProgress === selectedRecord.id}
+                          onClick={() =>
+                            handleUpdateStatus(selectedRecord.id, "pending")
+                          }
+                          className="px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold transition cursor-pointer disabled:opacity-50"
+                        >
+                          Revert to Pending
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>
+                      This payment was collected by{" "}
+                      <strong className="text-zinc-800 dark:text-zinc-200">
+                        {selectedRecord.payment_method === "bkash"
+                          ? "Ayon"
+                          : selectedRecord.cash_paid_to || "another coordinator"}
+                      </strong>
+                      . Only that coordinator is authorized to approve this
+                      transaction.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

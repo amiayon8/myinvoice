@@ -93,6 +93,8 @@ interface ShareLinkItem {
     showFinancials?: boolean;
     showContactInfo?: boolean;
     showHistory?: boolean;
+    organizer?: string | null;
+    canApprovePayments?: boolean;
   };
   expires_at: string | null;
   never_expires: boolean;
@@ -191,6 +193,8 @@ export default function ClassPartyPage() {
   const [newLinkShowFinancials, setNewLinkShowFinancials] = useState(true);
   const [newLinkShowContactInfo, setNewLinkShowContactInfo] = useState(true);
   const [newLinkShowHistory, setNewLinkShowHistory] = useState(true);
+  const [newLinkOrganizer, setNewLinkOrganizer] = useState("none");
+  const [newLinkCanApprove, setNewLinkCanApprove] = useState(false);
   const [creatingLink, setCreatingLink] = useState(false);
 
   const [editingShareLink, setEditingShareLink] =
@@ -423,6 +427,8 @@ export default function ClassPartyPage() {
             showFinancials: newLinkShowFinancials,
             showContactInfo: newLinkShowContactInfo,
             showHistory: newLinkShowHistory,
+            organizer: newLinkOrganizer !== "none" ? newLinkOrganizer : null,
+            canApprovePayments: newLinkCanApprove,
           },
         }),
       });
@@ -431,6 +437,8 @@ export default function ClassPartyPage() {
       if (data.success) {
         toast.success("Sharable access link generated");
         setNewLinkLabel("");
+        setNewLinkOrganizer("none");
+        setNewLinkCanApprove(false);
         fetchShareLinks();
       } else {
         toast.error(data.message || "Failed to generate link");
@@ -1124,6 +1132,47 @@ export default function ClassPartyPage() {
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Assign Organizer / Coordinator
+                  </label>
+                  <select
+                    value={newLinkOrganizer}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewLinkOrganizer(val);
+                      if (val !== "none") {
+                        setNewLinkCanApprove(true);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="none">None (General / Public View)</option>
+                    {COORDINATOR_NAMES.map((name) => (
+                      <option key={name} value={name}>
+                        {name} {name === "Ayon" ? "(bKash + Cash)" : "(Cash collection)"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1 flex flex-col justify-end">
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-zinc-700 dark:text-zinc-300 py-1">
+                    <input
+                      type="checkbox"
+                      checked={newLinkCanApprove}
+                      onChange={(e) => setNewLinkCanApprove(e.target.checked)}
+                      className="rounded text-violet-600 w-4 h-4"
+                    />
+                    <div>
+                      <span className="font-semibold block">Allow Payment Approvals</span>
+                      <span className="text-[11px] text-zinc-400 block">
+                        Assigned organizer can approve only payments paid to them
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-zinc-600 dark:text-zinc-400">
@@ -1199,7 +1248,7 @@ export default function ClassPartyPage() {
                         className="p-3.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                       >
                         <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-bold text-zinc-900 dark:text-zinc-100">
                               {link.label || "Class Party Public Share"}
                             </span>
@@ -1210,6 +1259,16 @@ export default function ClassPartyPage() {
                                   ? `Expires ${new Date(link.expires_at).toLocaleDateString()}`
                                   : "Active"}
                             </span>
+                            {link.params.organizer && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                                Organizer: {link.params.organizer}
+                              </span>
+                            )}
+                            {link.params.canApprovePayments && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                Can Approve Payments
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-3 text-[11px] text-zinc-500">
@@ -1412,6 +1471,55 @@ export default function ClassPartyPage() {
                     Show Live History Timeline
                   </label>
                 </div>
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <label className="font-semibold">Assigned Organizer / Coordinator</label>
+                <select
+                  value={editingShareLink.params.organizer || "none"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditingShareLink({
+                      ...editingShareLink,
+                      params: {
+                        ...editingShareLink.params,
+                        organizer: val !== "none" ? val : null,
+                        canApprovePayments:
+                          val !== "none"
+                            ? (editingShareLink.params.canApprovePayments ?? true)
+                            : editingShareLink.params.canApprovePayments,
+                      },
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 cursor-pointer"
+                >
+                  <option value="none">None (General / Public View)</option>
+                  {COORDINATOR_NAMES.map((name) => (
+                    <option key={name} value={name}>
+                      {name} {name === "Ayon" ? "(bKash + Cash)" : "(Cash collection)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingShareLink.params.canApprovePayments ?? false}
+                    onChange={(e) =>
+                      setEditingShareLink({
+                        ...editingShareLink,
+                        params: {
+                          ...editingShareLink.params,
+                          canApprovePayments: e.target.checked,
+                        },
+                      })
+                    }
+                    className="rounded text-violet-600"
+                  />
+                  Allow Payment Approvals (paid directly to this organizer)
+                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">

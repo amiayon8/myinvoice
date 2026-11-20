@@ -3,6 +3,20 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
+export const COORDINATOR_NAMES = [
+  "Ayon",
+  "Apurbo",
+  "Zunairah",
+  "Zahira",
+  "Punnota",
+  "Ishmam",
+  "Raheeb",
+  "Rajoshi",
+  "Niaz",
+  "Zaima",
+  "Shehab",
+];
+
 export interface ClassPartyRegistrationRecord {
   id: string;
   created_at: string;
@@ -41,6 +55,8 @@ export interface ClassPartyShareLink {
     showHistory?: boolean;
     allowRegistration?: boolean;
     coordinatorFilter?: string;
+    organizer?: string | null;
+    canApprovePayments?: boolean;
   };
   expires_at: string | null;
   never_expires: boolean;
@@ -508,4 +524,37 @@ export async function getSharedClassPartyData(token: string) {
     registrations,
     activities,
   };
+}
+
+export async function updateClassPartyRegistration(
+  id: string,
+  updates: Partial<ClassPartyRegistrationRecord>
+): Promise<ClassPartyRegistrationRecord | null> {
+  const supabase = createServiceRoleClient();
+  const list = readJsonFile<ClassPartyRegistrationRecord>(submissionsFilePath);
+  const index = list.findIndex((item) => item.id === id);
+  let updatedRecord: ClassPartyRegistrationRecord | null = null;
+
+  if (index !== -1) {
+    list[index] = { ...list[index], ...updates };
+    updatedRecord = list[index];
+    writeJsonFile(submissionsFilePath, list);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("class_party_26_registrations")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      updatedRecord = data as ClassPartyRegistrationRecord;
+    }
+  } catch (err) {
+    console.warn("Supabase registration update error:", err);
+  }
+
+  return updatedRecord;
 }
