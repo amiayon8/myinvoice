@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
 import {
   getClassPartyFinancials,
   getClassPartySubtotal,
+  getClassPartyDuplicateMap,
 } from "@/lib/class-party-calc";
 import {
   Users,
@@ -35,6 +36,7 @@ import {
   ShieldCheck,
   UserCheck,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 
 interface RegistrationRecord {
@@ -175,6 +177,7 @@ export default function ClassPartyPage() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [coordinatorFilter, setCoordinatorFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
   const [selectedRecord, setSelectedRecord] =
     useState<RegistrationRecord | null>(null);
   const [editingRecord, setEditingRecord] = useState<RegistrationRecord | null>(
@@ -581,6 +584,21 @@ export default function ClassPartyPage() {
     toast.success("CSV export downloaded");
   };
 
+  const duplicateMap = useMemo(
+    () => getClassPartyDuplicateMap(registrations),
+    [registrations],
+  );
+
+  const duplicateCount = useMemo(
+    () => Array.from(duplicateMap.values()).filter((d) => d.isDuplicate).length,
+    [duplicateMap],
+  );
+
+  const displayedRegistrations = useMemo(() => {
+    if (!showOnlyDuplicates) return registrations;
+    return registrations.filter((r) => duplicateMap.get(r.id)?.isDuplicate);
+  }, [registrations, showOnlyDuplicates, duplicateMap]);
+
   return (
     <div className="p-4 lg:p-12 max-w-7xl mx-auto space-y-8 font-sans">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -867,6 +885,22 @@ export default function ClassPartyPage() {
               <X className="w-3.5 h-3.5" />
             </button>
           )}
+
+          {duplicateCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowOnlyDuplicates((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                showOnlyDuplicates
+                  ? "bg-amber-500 text-white shadow-amber-500/25 ring-2 ring-amber-400"
+                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              <span>Duplicates ({duplicateCount})</span>
+              {showOnlyDuplicates && <X className="w-3 h-3 ml-0.5" />}
+            </button>
+          )}
         </div>
       </div>
 
@@ -886,28 +920,49 @@ export default function ClassPartyPage() {
             </thead>
 
             <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80">
-              {registrations.length === 0 ? (
+              {displayedRegistrations.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-zinc-500">
-                    No registrations found matching the criteria.
+                    {showOnlyDuplicates
+                      ? "No duplicate registrations found."
+                      : "No registrations found matching the criteria."}
                   </td>
                 </tr>
               ) : (
-                registrations.map((record) => (
-                  <tr
-                    key={record.id}
-                    className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
-                  >
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-zinc-900 dark:text-zinc-100">
-                        {record.full_name}
-                      </div>
-                      {record.student_id && (
-                        <div className="text-[11px] text-zinc-500">
-                          ID: {record.student_id}
+                displayedRegistrations.map((record) => {
+                  const duplicateInfo = duplicateMap.get(record.id);
+                  const isDuplicate = Boolean(duplicateInfo?.isDuplicate);
+
+                  return (
+                    <tr
+                      key={record.id}
+                      className={`transition-colors ${
+                        isDuplicate
+                          ? "bg-amber-500/10 hover:bg-amber-500/15 dark:bg-amber-500/15 dark:hover:bg-amber-500/20 border-l-4 border-l-amber-500"
+                          : "hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40"
+                      }`}
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                            {record.full_name}
+                          </span>
+                          {isDuplicate && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30"
+                              title={`Duplicate entry matched on: ${duplicateInfo?.reasons.join(", ")}`}
+                            >
+                              <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                              Duplicate ({duplicateInfo?.reasons.join(", ")})
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </td>
+                        {record.student_id && (
+                          <div className="text-[11px] text-zinc-500">
+                            ID: {record.student_id}
+                          </div>
+                        )}
+                      </td>
 
                     <td className="py-3.5 px-4 text-zinc-700 dark:text-zinc-300">
                       <a
@@ -1042,8 +1097,8 @@ export default function ClassPartyPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              }))}
             </tbody>
           </table>
         </div>

@@ -6,7 +6,11 @@ import { useTheme } from "next-themes";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
-import { getClassPartyFinancials, getClassPartySubtotal } from "@/lib/class-party-calc";
+import {
+  getClassPartyFinancials,
+  getClassPartySubtotal,
+  getClassPartyDuplicateMap,
+} from "@/lib/class-party-calc";
 import {
   Users,
   CheckCircle2,
@@ -174,6 +178,7 @@ export default function ClassPartySharePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
   const [coordinatorFilter, setCoordinatorFilter] = useState("all");
+  const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [selectedRecord, setSelectedRecord] =
     useState<RegistrationRecord | null>(null);
@@ -391,8 +396,21 @@ export default function ClassPartySharePage() {
     };
   }, [token, fetchSharedData]);
 
+  const duplicateMap = useMemo(
+    () => getClassPartyDuplicateMap(registrations),
+    [registrations],
+  );
+
+  const duplicateCount = useMemo(
+    () => Array.from(duplicateMap.values()).filter((d) => d.isDuplicate).length,
+    [duplicateMap],
+  );
+
   const filteredRegistrations = useMemo(() => {
     return registrations.filter((record) => {
+      if (showOnlyDuplicates && !duplicateMap.get(record.id)?.isDuplicate) {
+        return false;
+      }
       if (statusFilter === "due") {
         const fin = getClassPartyFinancials(record as any);
         if (fin.dueAmount <= 0) return false;
@@ -878,6 +896,22 @@ export default function ClassPartySharePage() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
+
+                {duplicateCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlyDuplicates((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                      showOnlyDuplicates
+                        ? "bg-amber-500 text-white shadow-amber-500/25 ring-2 ring-amber-400"
+                        : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Duplicates ({duplicateCount})</span>
+                    {showOnlyDuplicates && <X className="w-3 h-3 ml-0.5" />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -910,30 +944,51 @@ export default function ClassPartySharePage() {
                           colSpan={linkMeta?.params.showFinancials !== false ? 8 : 5}
                           className="py-12 text-center text-zinc-500 dark:text-zinc-400 text-xs"
                         >
-                          No attendee records found matching the criteria.
+                          {showOnlyDuplicates
+                            ? "No duplicate attendee records found."
+                            : "No attendee records found matching the criteria."}
                         </td>
                       </tr>
                     ) : (
-                      filteredRegistrations.map((record) => (
-                        <tr
-                          key={record.id}
-                          className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors"
-                        >
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-zinc-900 dark:text-zinc-100">
-                              {record.full_name}
-                            </div>
-                            {record.student_id && (
-                              <div className="text-[11px] text-zinc-500">
-                                Roll/ID: {record.student_id}
+                      filteredRegistrations.map((record) => {
+                        const duplicateInfo = duplicateMap.get(record.id);
+                        const isDuplicate = Boolean(duplicateInfo?.isDuplicate);
+
+                        return (
+                          <tr
+                            key={record.id}
+                            className={`transition-colors ${
+                              isDuplicate
+                                ? "bg-amber-500/10 hover:bg-amber-500/15 dark:bg-amber-500/15 dark:hover:bg-amber-500/20 border-l-4 border-l-amber-500"
+                                : "hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40"
+                            }`}
+                          >
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                                  {record.full_name}
+                                </span>
+                                {isDuplicate && (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30"
+                                    title={`Duplicate entry matched on: ${duplicateInfo?.reasons.join(", ")}`}
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                    Duplicate ({duplicateInfo?.reasons.join(", ")})
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            {record.phone && (
-                              <div className="text-[11px] text-zinc-400">
-                                {record.phone}
-                              </div>
-                            )}
-                          </td>
+                              {record.student_id && (
+                                <div className="text-[11px] text-zinc-500">
+                                  Roll/ID: {record.student_id}
+                                </div>
+                              )}
+                              {record.phone && (
+                                <div className="text-[11px] text-zinc-400">
+                                  {record.phone}
+                                </div>
+                              )}
+                            </td>
 
                           <td className="py-3.5 px-4">
                             <div className="text-zinc-900 dark:text-zinc-200 font-medium line-clamp-1">
@@ -1082,8 +1137,8 @@ export default function ClassPartySharePage() {
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
+                      );
+                    }))}
                   </tbody>
                 </table>
               </div>

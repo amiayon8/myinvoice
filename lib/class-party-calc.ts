@@ -89,3 +89,88 @@ export function getClassPartyFinancials(record: {
     hasDue: dueAmount > 0,
   };
 }
+
+export interface ClassPartyDuplicateInfo {
+  isDuplicate: boolean;
+  reasons: string[];
+  count: number;
+}
+
+export function getClassPartyDuplicateMap(
+  registrations: Array<{
+    id: string;
+    full_name?: string | null;
+    phone?: string | null;
+    student_id?: string | null;
+  }>
+): Map<string, ClassPartyDuplicateInfo> {
+  const map = new Map<string, ClassPartyDuplicateInfo>();
+  if (!registrations || registrations.length === 0) return map;
+
+  const normalizeName = (name?: string | null) =>
+    (name || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const normalizePhone = (phone?: string | null) =>
+    (phone || "").replace(/[^0-9]/g, "");
+  const normalizeStudentId = (id?: string | null) =>
+    (id || "").trim().toLowerCase().replace(/\s+/g, "");
+
+  const isDummyPhone = (phone?: string | null) => {
+    const digits = normalizePhone(phone);
+    return digits.length < 10 || /^0+$/.test(digits) || /^01[0-9]0{7,}$/.test(digits);
+  };
+
+  const isDummyStudentId = (id?: string | null) => {
+    const s = normalizeStudentId(id);
+    return !s || s.startsWith("0000");
+  };
+
+  for (let i = 0; i < registrations.length; i++) {
+    const a = registrations[i];
+    const matchReasons = new Set<string>();
+    let matches = 0;
+
+    for (let j = 0; j < registrations.length; j++) {
+      if (i === j) continue;
+      const b = registrations[j];
+      let isMatch = false;
+
+      if (a.full_name && b.full_name && normalizeName(a.full_name) === normalizeName(b.full_name)) {
+        matchReasons.add("Name");
+        isMatch = true;
+      }
+
+      if (
+        !isDummyStudentId(a.student_id) &&
+        !isDummyStudentId(b.student_id) &&
+        normalizeStudentId(a.student_id) === normalizeStudentId(b.student_id)
+      ) {
+        matchReasons.add("Student ID");
+        isMatch = true;
+      }
+
+      if (
+        !isDummyPhone(a.phone) &&
+        !isDummyPhone(b.phone) &&
+        normalizePhone(a.phone) === normalizePhone(b.phone)
+      ) {
+        matchReasons.add("Phone");
+        isMatch = true;
+      }
+
+      if (isMatch) {
+        matches++;
+      }
+    }
+
+    if (matches > 0) {
+      map.set(a.id, {
+        isDuplicate: true,
+        reasons: Array.from(matchReasons),
+        count: matches + 1,
+      });
+    }
+  }
+
+  return map;
+}
+
