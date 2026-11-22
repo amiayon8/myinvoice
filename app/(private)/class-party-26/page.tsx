@@ -544,7 +544,6 @@ export default function ClassPartyPage() {
       "Due Amount",
       "Payment Method",
       "Payment Status",
-      "Cash Paid To",
     ];
 
     const rows = registrations.map((r) => {
@@ -557,9 +556,8 @@ export default function ClassPartyPage() {
         fin.subtotal,
         fin.paidAmount,
         fin.dueAmount,
-        `"${(r.payment_method || "").replace(/"/g, '""')}"`,
+        `"${r.payment_method === "bkash" ? (r.payment_method || "").replace(/"/g, '""') : (r.cash_paid_to || "").replace(/"/g, '""')}"`,
         `"${(r.payment_status || "").replace(/"/g, '""')}"`,
-        `"${(r.cash_paid_to || "").replace(/"/g, '""')}"`,
       ];
     });
 
