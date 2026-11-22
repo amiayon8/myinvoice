@@ -41,17 +41,15 @@ interface RegistrationRecord {
   phone: string;
   student_id: string | null;
   email: string | null;
-  selected_option_id: string;
   selected_option_title: string;
   selected_option_category: string;
-  base_price?: number;
-  subtotal?: number;
-  subtotal_with_vat?: number;
   payment_method: "cash" | "bkash";
-  total_payable: number;
+  subtotal?: number;
   paid_amount?: number;
   due_amount?: number;
   raw_submitted_amount?: number;
+  total_payable?: number;
+  subtotal_with_vat?: number;
   bkash_sender_number: string | null;
   bkash_transaction_id: string | null;
   cash_paid_to: string | null;
@@ -90,6 +88,8 @@ interface ShareLinkItem {
   token: string;
   label: string | null;
   type: string;
+  organizer?: string | null;
+  can_approve_payments?: boolean;
   params: {
     showFinancials?: boolean;
     showContactInfo?: boolean;
@@ -142,46 +142,24 @@ const COORDINATOR_NAMES = [
   "Shehab",
 ];
 
-const SQL_MIGRATION_SCRIPT = `-- ==============================================================================
--- Class Party '26: Database Migration Update
--- 1. Remove VAT & surcharge columns
--- 2. Add subtotal and paid_amount columns
--- 3. Sync existing registrations to exact party rates:
---    - Set Menu: 800 (Cash) / 820 (bKash)
---    - Buffet: 1350 (Cash) / 1380 (bKash)
---    - Other: 0
--- ==============================================================================
-
--- Step 1: Add new financial columns if they don't already exist
-ALTER TABLE public.class_party_26_registrations
+const SQL_MIGRATION_SCRIPT = `ALTER TABLE public.class_party_26_registrations
   ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(10, 2) DEFAULT NULL;
 
--- Step 2: Populate subtotal and paid_amount based on official party amounts
-UPDATE public.class_party_26_registrations
-SET 
-  subtotal = CASE 
-    WHEN LOWER(selected_option_title) = 'other' OR LOWER(selected_option_category) = 'other' THEN 0
-    WHEN LOWER(selected_option_title) LIKE '%buffet%' OR LOWER(selected_option_category) LIKE '%buffet%' THEN 
-      CASE WHEN payment_method = 'bkash' THEN 1380 ELSE 1350 END
-    WHEN LOWER(selected_option_title) LIKE '%combo%' OR LOWER(selected_option_title) LIKE '%set%' OR LOWER(selected_option_category) LIKE '%thai-chinese%' THEN 
-      CASE WHEN payment_method = 'bkash' THEN 820 ELSE 800 END
-    ELSE COALESCE(subtotal_with_vat, base_price, 0)
-  END,
-  paid_amount = total_payable;
-
--- Step 3: Keep subtotal_with_vat in sync for full backwards compatibility
-UPDATE public.class_party_26_registrations
-SET subtotal_with_vat = subtotal;
-
--- Step 4: Remove all VAT and surcharge percentage/amount columns
 ALTER TABLE public.class_party_26_registrations
+  DROP COLUMN IF EXISTS base_price,
+  DROP COLUMN IF EXISTS subtotal_with_vat,
+  DROP COLUMN IF EXISTS total_payable,
+  DROP COLUMN IF EXISTS selected_option_id,
   DROP COLUMN IF EXISTS vat_percent,
   DROP COLUMN IF EXISTS vat_amount,
   DROP COLUMN IF EXISTS bkash_fee_percent,
   DROP COLUMN IF EXISTS bkash_fee_amount;
 
--- Step 5: Refresh Supabase schema cache
+ALTER TABLE public.class_party_26_share_links
+  ADD COLUMN IF NOT EXISTS organizer TEXT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS can_approve_payments BOOLEAN NOT NULL DEFAULT false;
+
 NOTIFY pgrst, 'reload schema';`;
 
 function formatRelativeTime(dateStr: string): string {
@@ -400,14 +378,12 @@ export default function ClassPartyPage() {
 
     setActionInProgress(editingRecord.id);
     try {
-      const subVal = Number(editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0);
-      const paidVal = Number(editingRecord.paid_amount ?? editingRecord.total_payable ?? 0);
+      const subVal = Number(editingRecord.subtotal ?? 0);
+      const paidVal = Number(editingRecord.paid_amount ?? 0);
       const payload: RegistrationRecord = {
         ...editingRecord,
         subtotal: subVal,
-        subtotal_with_vat: subVal,
         paid_amount: paidVal,
-        total_payable: paidVal,
       };
 
       const res = await fetch("/api/class-party-26/admin", {
@@ -1035,7 +1011,7 @@ export default function ClassPartyPage() {
                     </td>
 
                     <td className="py-3.5 px-4 font-bold text-amber-600 dark:text-amber-400">
-                      ৳{record.total_payable}
+                      ৳{record.paid_amount ?? record.subtotal ?? 0}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -1864,7 +1840,6 @@ export default function ClassPartyPage() {
                         selected_option_title: "Buffet Lunch",
                         selected_option_category: "Buffet",
                         subtotal: amt,
-                        subtotal_with_vat: amt,
                       });
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
@@ -1881,7 +1856,6 @@ export default function ClassPartyPage() {
                         selected_option_title: "Thai-Chinese Combo 01",
                         selected_option_category: "Thai-Chinese",
                         subtotal: amt,
-                        subtotal_with_vat: amt,
                       });
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
@@ -1896,7 +1870,6 @@ export default function ClassPartyPage() {
                         selected_option_title: "Other",
                         selected_option_category: "Other",
                         subtotal: 0,
-                        subtotal_with_vat: 0,
                       });
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer"
@@ -1952,13 +1925,12 @@ export default function ClassPartyPage() {
                   <input
                     type="number"
                     required
-                    value={editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0}
+                    value={editingRecord.subtotal ?? 0}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setEditingRecord({
                         ...editingRecord,
                         subtotal: val,
-                        subtotal_with_vat: val,
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
@@ -1972,13 +1944,12 @@ export default function ClassPartyPage() {
                   <input
                     type="number"
                     required
-                    value={editingRecord.paid_amount ?? editingRecord.total_payable ?? 0}
+                    value={editingRecord.paid_amount ?? 0}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setEditingRecord({
                         ...editingRecord,
                         paid_amount: val,
-                        total_payable: val,
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
@@ -2016,7 +1987,7 @@ export default function ClassPartyPage() {
                     </div>
                     {editingRecord.payment_status !== "verified" && (
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 pt-0.5 leading-relaxed">
-                        ⚠️ Payment is <strong>{editingRecord.payment_status}</strong>. Because it is not approved, the entire subtotal (৳{fin.subtotal.toLocaleString()}) counts as dues.
+                        Payment is <strong>{editingRecord.payment_status}</strong>. Because it is not approved, the entire subtotal (৳{fin.subtotal.toLocaleString()}) counts as dues.
                       </p>
                     )}
                   </div>
@@ -2032,7 +2003,7 @@ export default function ClassPartyPage() {
                     value={editingRecord.payment_method}
                     onChange={(e) => {
                       const newMethod = e.target.value as "cash" | "bkash";
-                      let newSubtotal = editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0;
+                      let newSubtotal = editingRecord.subtotal ?? 0;
                       const cat = (editingRecord.selected_option_title || "").toLowerCase();
                       if (cat.includes("buffet")) {
                         newSubtotal = newMethod === "bkash" ? 1380 : 1350;
@@ -2043,7 +2014,6 @@ export default function ClassPartyPage() {
                         ...editingRecord,
                         payment_method: newMethod,
                         subtotal: newSubtotal,
-                        subtotal_with_vat: newSubtotal,
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"

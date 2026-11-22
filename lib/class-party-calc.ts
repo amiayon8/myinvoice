@@ -5,17 +5,11 @@ export interface ClassPartyRegistrationRecord {
   phone: string;
   student_id: string | null;
   email: string | null;
-  selected_option_id: string;
   selected_option_title: string;
   selected_option_category: string;
-  base_price?: number;
   subtotal: number;
-  subtotal_with_vat?: number;
+  paid_amount: number | null;
   payment_method: "cash" | "bkash";
-  total_payable: number;
-  paid_amount?: number;
-  due_amount?: number;
-  raw_submitted_amount?: number;
   bkash_sender_number: string | null;
   bkash_transaction_id: string | null;
   cash_paid_to: string | null;
@@ -23,6 +17,10 @@ export interface ClassPartyRegistrationRecord {
   payment_status: "pending" | "verified" | "rejected";
   verified_by: string | null;
   verified_at: string | null;
+  due_amount?: number;
+  raw_submitted_amount?: number;
+  total_payable?: number;
+  subtotal_with_vat?: number;
 }
 
 export function getClassPartySubtotal(record: {
@@ -78,7 +76,6 @@ export function getClassPartyFinancials(record: {
     record.paid_amount !== undefined && record.paid_amount !== null
       ? Number(record.paid_amount) || 0
       : Number(record.total_payable) || 0;
-  // If payment is not approved, paid amount counted is 0 and full subtotal is counted as dues
   const paidAmount = isApproved ? rawSubmittedAmount : 0;
   const dueAmount = Math.max(0, subtotal - paidAmount);
 

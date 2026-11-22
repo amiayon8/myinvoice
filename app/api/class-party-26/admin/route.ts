@@ -89,7 +89,8 @@ export async function GET(req: Request) {
         ...(r as Record<string, any>),
         subtotal: fin.subtotal,
         subtotal_with_vat: fin.subtotal,
-        paid_amount: fin.paidAmount,
+        paid_amount: r.paid_amount !== undefined && r.paid_amount !== null ? Number(r.paid_amount) : fin.rawSubmittedAmount,
+        total_payable: fin.rawSubmittedAmount,
         raw_submitted_amount: fin.rawSubmittedAmount,
         due_amount: fin.dueAmount,
       };
@@ -251,38 +252,28 @@ export async function PATCH(req: Request) {
     }
 
     const supabaseUpdates = { ...updates };
-    if (supabaseUpdates.subtotal !== undefined) {
-      supabaseUpdates.subtotal_with_vat = supabaseUpdates.subtotal;
-    } else if (supabaseUpdates.subtotal_with_vat !== undefined) {
+    if (supabaseUpdates.subtotal === undefined && supabaseUpdates.subtotal_with_vat !== undefined) {
       supabaseUpdates.subtotal = supabaseUpdates.subtotal_with_vat;
     }
-    if (supabaseUpdates.paid_amount !== undefined) {
-      supabaseUpdates.total_payable = supabaseUpdates.paid_amount;
-    } else if (supabaseUpdates.total_payable !== undefined) {
+    if (supabaseUpdates.paid_amount === undefined && supabaseUpdates.total_payable !== undefined) {
       supabaseUpdates.paid_amount = supabaseUpdates.total_payable;
     }
+
+    delete supabaseUpdates.subtotal_with_vat;
+    delete supabaseUpdates.total_payable;
+    delete supabaseUpdates.base_price;
+    delete supabaseUpdates.selected_option_id;
+    delete supabaseUpdates.due_amount;
+    delete supabaseUpdates.raw_submitted_amount;
 
     updateLocalBackup(id, { ...updates, ...supabaseUpdates });
 
     try {
       const supabase = createServiceRoleClient();
-      let { error } = await supabase
+      const { error } = await supabase
         .from("class_party_26_registrations")
         .update(supabaseUpdates)
         .eq("id", id);
-
-      if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
-        const fallback = { ...supabaseUpdates };
-        delete fallback.subtotal;
-        delete fallback.paid_amount;
-        delete fallback.due_amount;
-        delete fallback.raw_submitted_amount;
-        const res = await supabase
-          .from("class_party_26_registrations")
-          .update(fallback)
-          .eq("id", id);
-        error = res.error;
-      }
 
       if (error) {
         console.warn("Supabase update error:", error);

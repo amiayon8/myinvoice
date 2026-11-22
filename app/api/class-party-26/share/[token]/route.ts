@@ -64,7 +64,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         created_at: r.created_at,
         full_name: r.full_name,
         student_id: r.student_id,
-        selected_option_id: r.selected_option_id,
         selected_option_title: r.selected_option_title,
         selected_option_category: r.selected_option_category,
         payment_status: r.payment_status,
@@ -89,7 +88,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         const fin = getClassPartyFinancials(r);
         record.subtotal = fin.subtotal;
         record.subtotal_with_vat = fin.subtotal;
-        record.total_payable = r.total_payable;
+        record.total_payable = fin.rawSubmittedAmount;
         record.paid_amount = fin.paidAmount;
         record.due_amount = fin.dueAmount;
       }
@@ -252,7 +251,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { link, registrations } = result;
 
-    if (!link.params.canApprovePayments) {
+    if (!link.can_approve_payments && !link.params.canApprovePayments) {
       return NextResponse.json(
         {
           success: false,
@@ -291,7 +290,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const organizer = link.params.organizer;
+    const organizer = link.organizer || link.params.organizer;
     if (organizer) {
       const organizerLower = organizer.toLowerCase();
       const isPaidToOrganizer =
@@ -333,7 +332,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           : status === "rejected"
             ? `Rejected payment for ${targetRecord.full_name} (via share link)`
             : `Reset payment for ${targetRecord.full_name} to pending (via share link)`,
-      details: `Organizer: ${actorName} | Amount: ৳${targetRecord.total_payable || 0}`,
+      details: `Organizer: ${actorName} | Amount: ৳${targetRecord.paid_amount ?? targetRecord.subtotal ?? 0}`,
       record_id: targetRecord.id,
       participant_name: targetRecord.full_name,
     });

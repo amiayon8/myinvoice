@@ -31,10 +31,11 @@ interface RegistrationItem {
   selected_option_category: string;
   payment_method: "cash" | "bkash";
   payment_status: "pending" | "verified" | "rejected";
-  subtotal_with_vat?: number;
-  total_payable?: number;
+  subtotal?: number;
   paid_amount?: number;
   due_amount?: number;
+  total_payable?: number;
+  subtotal_with_vat?: number;
   cash_paid_to?: string | null;
 }
 

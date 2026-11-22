@@ -34,6 +34,8 @@ export interface ClassPartyShareLink {
   token: string;
   label: string | null;
   type: string;
+  organizer?: string | null;
+  can_approve_payments?: boolean;
   params: {
     showFinancials?: boolean;
     showContactInfo?: boolean;
@@ -167,8 +169,12 @@ export async function getClassPartyShareLinks(): Promise<ClassPartyShareLink[]> 
       .order("created_at", { ascending: false });
 
     if (!error && data && data.length > 0) {
-      links = data;
-      writeJsonFile(linksFilePath, data);
+      links = data.map((d: any) => ({
+        ...d,
+        organizer: d.organizer ?? d.params?.organizer ?? null,
+        can_approve_payments: d.can_approve_payments ?? d.params?.canApprovePayments ?? false,
+      }));
+      writeJsonFile(linksFilePath, links);
     } else {
       links = readJsonFile<ClassPartyShareLink>(linksFilePath);
     }
@@ -221,16 +227,25 @@ export async function createClassPartyShareLink(input: {
         return d.toISOString();
       })();
 
+  const organizer = input.params?.organizer || null;
+  const canApprovePayments = Boolean(input.params?.canApprovePayments);
+
   const newLink: ClassPartyShareLink = {
     id,
     token,
     label: input.label ? input.label.trim() : null,
     type: input.type || "all",
-    params: input.params || {
-      showFinancials: true,
-      showContactInfo: true,
-      showHistory: true,
-      allowRegistration: true,
+    organizer,
+    can_approve_payments: canApprovePayments,
+    params: {
+      ...(input.params || {
+        showFinancials: true,
+        showContactInfo: true,
+        showHistory: true,
+        allowRegistration: true,
+      }),
+      organizer,
+      canApprovePayments,
     },
     never_expires: Boolean(input.neverExpires),
     expires_at: expiresAt,
@@ -309,10 +324,25 @@ export async function updateClassPartyShareLink(
     ...(updates.params || {}),
   };
 
+  const organizer =
+    mergedParams.organizer !== undefined
+      ? mergedParams.organizer
+      : existingLink.organizer || null;
+  const canApprovePayments =
+    mergedParams.canApprovePayments !== undefined
+      ? Boolean(mergedParams.canApprovePayments)
+      : existingLink.can_approve_payments || false;
+
   const updatedRecord: ClassPartyShareLink = {
     ...existingLink,
     ...updates,
-    params: mergedParams,
+    organizer,
+    can_approve_payments: canApprovePayments,
+    params: {
+      ...mergedParams,
+      organizer,
+      canApprovePayments,
+    },
   };
 
   if (localIndex !== -1) {
@@ -326,7 +356,13 @@ export async function updateClassPartyShareLink(
     const isUuid = isValidUuid(existingLink.id);
     const updatePayload = {
       ...updates,
-      params: mergedParams,
+      organizer,
+      can_approve_payments: canApprovePayments,
+      params: {
+        ...mergedParams,
+        organizer,
+        canApprovePayments,
+      },
     };
     if (isUuid) {
       await supabase
@@ -533,7 +569,11 @@ export async function getSharedClassPartyData(token: string) {
         : await query.eq("token", token).maybeSingle();
 
       if (!error && data) {
-        linkRecord = data as ClassPartyShareLink;
+        linkRecord = {
+          ...data,
+          organizer: data.organizer ?? data.params?.organizer ?? null,
+          can_approve_payments: data.can_approve_payments ?? data.params?.canApprovePayments ?? false,
+        } as ClassPartyShareLink;
       }
     } catch (err) {
       console.warn("Supabase fetch share link by token exception:", err);
