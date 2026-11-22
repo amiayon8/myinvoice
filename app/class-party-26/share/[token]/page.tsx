@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
+import { getClassPartyFinancials, getClassPartySubtotal } from "@/lib/class-party-calc";
 import {
   Users,
   CheckCircle2,
@@ -45,13 +46,13 @@ interface RegistrationRecord {
   selected_option_title: string;
   selected_option_category: string;
   base_price?: number;
-  vat_percent?: number;
-  vat_amount?: number;
+  subtotal?: number;
   subtotal_with_vat?: number;
   payment_method: "cash" | "bkash";
-  bkash_fee_percent?: number;
-  bkash_fee_amount?: number;
   total_payable?: number;
+  paid_amount?: number;
+  due_amount?: number;
+  raw_submitted_amount?: number;
   bkash_sender_number?: string | null;
   bkash_transaction_id?: string | null;
   cash_paid_to?: string | null;
@@ -77,22 +78,29 @@ interface StatsSummary {
   verifiedRegistrations: number;
   pendingRegistrations: number;
   rejectedRegistrations: number;
+  totalSubtotal?: number | null;
   totalRevenueExpected: number | null;
   totalRevenueVerified: number | null;
+  totalDues?: number | null;
   bkashCount: number;
   cashCount: number;
   bkashTotal: number | null;
   cashTotal: number | null;
+  bkashDues?: number | null;
+  cashDues?: number | null;
   menuCounts: Record<string, number>;
   coordinatorCounts: Record<
     string,
     {
       cashCount: number;
       cashTotal: number;
+      cashDues?: number;
       bkashCount: number;
       bkashTotal: number;
+      bkashDues?: number;
       totalCount: number;
       totalAmount: number;
+      totalDues?: number;
     }
   > | null;
 }
@@ -335,7 +343,13 @@ export default function ClassPartySharePage() {
 
   const filteredRegistrations = useMemo(() => {
     return registrations.filter((record) => {
-      if (statusFilter !== "all" && record.payment_status !== statusFilter) {
+      if (statusFilter === "due") {
+        const fin = getClassPartyFinancials(record as any);
+        if (fin.dueAmount <= 0) return false;
+      } else if (statusFilter === "paid") {
+        const fin = getClassPartyFinancials(record as any);
+        if (fin.dueAmount > 0) return false;
+      } else if (statusFilter !== "all" && record.payment_status !== statusFilter) {
         return false;
       }
       if (methodFilter !== "all" && record.payment_method !== methodFilter) {
@@ -530,7 +544,7 @@ export default function ClassPartySharePage() {
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
               <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                Verified
+                Verified (Paid)
               </span>
               <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {stats.verifiedRegistrations}
@@ -549,44 +563,43 @@ export default function ClassPartySharePage() {
 
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
               <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                Verified Collection
+                <DollarSign className="w-3.5 h-3.5 text-blue-500" />
+                Total Subtotal
+              </span>
+              <div className="text-xl font-bold text-zinc-900 dark:text-white">
+                {stats.totalSubtotal !== null && stats.totalSubtotal !== undefined
+                  ? `৳${stats.totalSubtotal.toLocaleString()}`
+                  : stats.totalRevenueExpected !== null
+                    ? `৳${stats.totalRevenueExpected.toLocaleString()}`
+                    : "Private"}
+              </div>
+              <div className="text-[11px] text-zinc-500">Gross expected</div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                <Banknote className="w-3.5 h-3.5 text-emerald-500" />
+                Total Collected
               </span>
               <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
                 {stats.totalRevenueVerified !== null
                   ? `৳${stats.totalRevenueVerified.toLocaleString()}`
                   : "Private"}
               </div>
+              <div className="text-[11px] text-zinc-500">Approved payments</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-pink-500" />
-                bKash (Ayon)
+            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 space-y-1 shadow-xs">
+              <span className="text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1.5 font-semibold">
+                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                Total Dues
               </span>
-              <div className="text-xl font-bold text-pink-600 dark:text-pink-400">
-                {stats.bkashCount}
+              <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
+                {stats.totalDues !== null && stats.totalDues !== undefined
+                  ? `৳${stats.totalDues.toLocaleString()}`
+                  : "Private"}
               </div>
-              {stats.bkashTotal !== null && (
-                <div className="text-[11px] text-zinc-500">
-                  ৳{stats.bkashTotal.toLocaleString()}
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1 shadow-xs">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                <Banknote className="w-3.5 h-3.5 text-emerald-500" />
-                Cash Total
-              </span>
-              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                {stats.cashCount}
-              </div>
-              {stats.cashTotal !== null && (
-                <div className="text-[11px] text-zinc-500">
-                  ৳{stats.cashTotal.toLocaleString()}
-                </div>
-              )}
+              <div className="text-[11px] text-rose-500/80 font-medium">Unapproved + partial</div>
             </div>
           </div>
         )}
@@ -596,7 +609,7 @@ export default function ClassPartySharePage() {
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
                 <Banknote className="w-4 h-4 text-emerald-500" />
-                Coordinator Collection Summary
+                Coordinator Collection & Dues Summary
               </h2>
               <span className="text-xs text-zinc-500">Live reconciliation</span>
             </div>
@@ -630,41 +643,60 @@ export default function ClassPartySharePage() {
                           <span className="w-1.5 h-1.5 rounded-full bg-violet-600 dark:bg-violet-400" />
                         )}
                       </span>
-                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        ৳{data.totalAmount.toLocaleString()}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
+                          ৳{data.totalAmount.toLocaleString()}
+                        </span>
+                        {(data.totalDues ?? 0) > 0 && (
+                          <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 block">
+                            Due: ৳{(data.totalDues ?? 0).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="text-xs space-y-1 text-zinc-600 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
                       {isAyon ? (
                         <>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center text-[11px]">
                             <span className="text-pink-600 dark:text-pink-400">
                               bKash:
                             </span>
                             <span>
-                              ৳{data.bkashTotal.toLocaleString()} (
-                              {data.bkashCount})
+                              ৳{data.bkashTotal.toLocaleString()} ({data.bkashCount})
+                              {(data.bkashDues ?? 0) > 0 && (
+                                <span className="text-rose-500 font-semibold ml-1">
+                                  [Due ৳{data.bkashDues}]
+                                </span>
+                              )}
                             </span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center text-[11px]">
                             <span className="text-emerald-600 dark:text-emerald-400">
                               Cash:
                             </span>
                             <span>
-                              ৳{data.cashTotal.toLocaleString()} (
-                              {data.cashCount})
+                              ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
+                              {(data.cashDues ?? 0) > 0 && (
+                                <span className="text-rose-500 font-semibold ml-1">
+                                  [Due ৳{data.cashDues}]
+                                </span>
+                              )}
                             </span>
                           </div>
                         </>
                       ) : (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center text-[11px]">
                           <span className="text-emerald-600 dark:text-emerald-400">
                             Cash:
                           </span>
                           <span>
-                            ৳{data.cashTotal.toLocaleString()} ({data.cashCount}
-                            )
+                            ৳{data.cashTotal.toLocaleString()} ({data.cashCount})
+                            {(data.cashDues ?? 0) > 0 && (
+                              <span className="text-rose-500 font-semibold ml-1">
+                                [Due ৳{data.cashDues}]
+                              </span>
+                            )}
                           </span>
                         </div>
                       )}
@@ -746,8 +778,10 @@ export default function ClassPartySharePage() {
                   className="px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-hidden cursor-pointer shadow-xs"
                 >
                   <option value="all">All Statuses</option>
-                  <option value="verified">Verified</option>
-                  <option value="pending">Pending</option>
+                  <option value="verified">Verified (Approved)</option>
+                  <option value="pending">Pending Approval</option>
+                  <option value="due">Has Dues (Due &gt; 0)</option>
+                  <option value="paid">Fully Settled (Due = 0)</option>
                   <option value="rejected">Rejected</option>
                 </select>
 
@@ -797,7 +831,11 @@ export default function ClassPartySharePage() {
                       <th className="py-3 px-4">Menu Choice</th>
                       <th className="py-3 px-4">Payment Method</th>
                       {linkMeta?.params.showFinancials !== false && (
-                        <th className="py-3 px-4">Amount</th>
+                        <>
+                          <th className="py-3 px-4">Subtotal</th>
+                          <th className="py-3 px-4">Paid Amount</th>
+                          <th className="py-3 px-4">Due</th>
+                        </>
                       )}
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">
@@ -810,7 +848,7 @@ export default function ClassPartySharePage() {
                     {filteredRegistrations.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={linkMeta?.params.showFinancials !== false ? 6 : 5}
+                          colSpan={linkMeta?.params.showFinancials !== false ? 8 : 5}
                           className="py-12 text-center text-zinc-500 dark:text-zinc-400 text-xs"
                         >
                           No attendee records found matching the criteria.
@@ -873,11 +911,48 @@ export default function ClassPartySharePage() {
                             )}
                           </td>
 
-                          {linkMeta?.params.showFinancials !== false && (
-                            <td className="py-3.5 px-4 font-bold text-amber-600 dark:text-amber-400">
-                              ৳{record.total_payable || 0}
-                            </td>
-                          )}
+                          {linkMeta?.params.showFinancials !== false && (() => {
+                            const fin = getClassPartyFinancials(record as any);
+                            return (
+                              <>
+                                <td className="py-3.5 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
+                                  ৳{fin.subtotal.toLocaleString()}
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  {fin.isApproved ? (
+                                    <div>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        ৳{fin.paidAmount.toLocaleString()}
+                                      </span>
+                                      <span className="block text-[10px] text-zinc-400">Verified</span>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <span className="font-semibold text-zinc-400">
+                                        ৳0
+                                      </span>
+                                      {fin.rawSubmittedAmount > 0 && (
+                                        <span className="block text-[10px] text-amber-500 font-normal">
+                                          (৳{fin.rawSubmittedAmount.toLocaleString()} unapproved)
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  {fin.dueAmount > 0 ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                      ৳{fin.dueAmount.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                      ৳0 (Paid)
+                                    </span>
+                                  )}
+                                </td>
+                              </>
+                            );
+                          })()}
 
                           <td className="py-3.5 px-4">
                             {record.payment_status === "verified" ? (
@@ -1121,12 +1196,45 @@ export default function ClassPartySharePage() {
                   </span>
                 </div>
 
-                {linkMeta?.params.showFinancials !== false && (
-                  <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80 font-bold text-amber-600 dark:text-amber-400 text-sm">
-                    <span>Payable Amount</span>
-                    <span>৳{selectedRecord.total_payable || 0}</span>
-                  </div>
-                )}
+                {linkMeta?.params.showFinancials !== false && (() => {
+                  const fin = getClassPartyFinancials(selectedRecord as any);
+                  return (
+                    <>
+                      <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          Package Subtotal
+                        </span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          ৳{fin.subtotal.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          Paid Amount
+                        </span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {fin.isApproved
+                            ? `৳${fin.paidAmount.toLocaleString()} (Verified)`
+                            : `৳0 (৳${fin.rawSubmittedAmount.toLocaleString()} Pending)`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80 text-sm font-bold">
+                        <span className="text-zinc-700 dark:text-zinc-300">
+                          Effective Due
+                        </span>
+                        <span
+                          className={
+                            fin.dueAmount > 0
+                              ? "text-rose-600 dark:text-rose-400 font-bold"
+                              : "text-emerald-600 dark:text-emerald-400 font-bold"
+                          }
+                        >
+                          ৳{fin.dueAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div className="flex justify-between py-1.5 border-b border-zinc-200/80 dark:border-zinc-800/80">
                   <span className="text-zinc-500 dark:text-zinc-400">

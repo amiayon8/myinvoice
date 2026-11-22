@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { logClassPartyActivity } from "@/services/class-party";
+import { logClassPartyActivity, getClassPartyFinancials } from "@/services/class-party";
 import fs from "fs";
 import path from "path";
 
@@ -44,10 +44,13 @@ function deleteLocalBackup(id: string) {
 interface CoordinatorSummary {
   cashCount: number;
   cashTotal: number;
+  cashDues: number;
   bkashCount: number;
   bkashTotal: number;
+  bkashDues: number;
   totalCount: number;
   totalAmount: number;
+  totalDues: number;
 }
 
 export async function GET(req: Request) {
@@ -80,26 +83,40 @@ export async function GET(req: Request) {
       records = readLocalBackup();
     }
 
-    const totalRegistrations = records.length;
-    const verifiedRegistrations = records.filter((r) => r.payment_status === "verified").length;
-    const pendingRegistrations = records.filter((r) => r.payment_status === "pending").length;
-    const rejectedRegistrations = records.filter((r) => r.payment_status === "rejected").length;
+    const enrichedRecords: Array<Record<string, any>> = records.map((r) => {
+      const fin = getClassPartyFinancials(r as any);
+      return {
+        ...(r as Record<string, any>),
+        subtotal: fin.subtotal,
+        subtotal_with_vat: fin.subtotal,
+        paid_amount: fin.paidAmount,
+        raw_submitted_amount: fin.rawSubmittedAmount,
+        due_amount: fin.dueAmount,
+      };
+    });
 
-    const totalRevenueExpected = records.reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
-    const totalRevenueVerified = records
-      .filter((r) => r.payment_status === "verified")
-      .reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
+    const totalRegistrations = enrichedRecords.length;
+    const verifiedRegistrations = enrichedRecords.filter((r) => r.payment_status === "verified").length;
+    const pendingRegistrations = enrichedRecords.filter((r) => r.payment_status === "pending").length;
+    const rejectedRegistrations = enrichedRecords.filter((r) => r.payment_status === "rejected").length;
 
-    const bkashRecords = records.filter((r) => r.payment_method === "bkash");
-    const cashRecords = records.filter((r) => r.payment_method === "cash");
+    const totalSubtotal = enrichedRecords.reduce((acc, r) => acc + (Number(r.subtotal) || 0), 0);
+    const totalRevenueVerified = enrichedRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const totalDues = enrichedRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
+    const totalRevenueExpected = totalSubtotal;
+
+    const bkashRecords = enrichedRecords.filter((r) => r.payment_method === "bkash");
+    const cashRecords = enrichedRecords.filter((r) => r.payment_method === "cash");
 
     const bkashCount = bkashRecords.length;
     const cashCount = cashRecords.length;
-    const bkashTotal = bkashRecords.reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
-    const cashTotal = cashRecords.reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
+    const bkashTotal = bkashRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const bkashDues = bkashRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
+    const cashTotal = cashRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const cashDues = cashRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
 
     const menuCounts: Record<string, number> = {};
-    records.forEach((r) => {
+    enrichedRecords.forEach((r) => {
       const key = String(r.selected_option_title || "Unknown");
       menuCounts[key] = (menuCounts[key] || 0) + 1;
     });
@@ -109,38 +126,53 @@ export async function GET(req: Request) {
     coordinatorCounts["Ayon"] = {
       cashCount: 0,
       cashTotal: 0,
+      cashDues: 0,
       bkashCount,
       bkashTotal,
+      bkashDues,
       totalCount: bkashCount,
       totalAmount: bkashTotal,
+      totalDues: bkashDues,
     };
 
-    records.forEach((r) => {
+    enrichedRecords.forEach((r) => {
       if (r.payment_method === "cash" && r.cash_paid_to) {
         const person = String(r.cash_paid_to);
-        const amount = Number(r.total_payable) || 0;
+        const paid = Number(r.paid_amount) || 0;
+        const due = Number(r.due_amount) || 0;
 
         if (!coordinatorCounts[person]) {
           coordinatorCounts[person] = {
             cashCount: 0,
             cashTotal: 0,
+            cashDues: 0,
             bkashCount: 0,
             bkashTotal: 0,
+            bkashDues: 0,
             totalCount: 0,
             totalAmount: 0,
+            totalDues: 0,
           };
         }
 
         coordinatorCounts[person].cashCount += 1;
-        coordinatorCounts[person].cashTotal += amount;
+        coordinatorCounts[person].cashTotal += paid;
+        coordinatorCounts[person].cashDues += due;
         coordinatorCounts[person].totalCount += 1;
-        coordinatorCounts[person].totalAmount += amount;
+        coordinatorCounts[person].totalAmount += paid;
+        coordinatorCounts[person].totalDues += due;
       }
     });
 
-    let filtered = [...records];
+    let filtered = [...enrichedRecords];
     if (statusFilter && statusFilter !== "all") {
-      filtered = filtered.filter((r) => r.payment_status === statusFilter);
+      if (statusFilter === "due") {
+        filtered = filtered.filter((r) => (Number(r.due_amount) || 0) > 0);
+      } else if (statusFilter === "paid") {
+        filtered = filtered.filter((r) => (Number(r.due_amount) || 0) === 0);
+      } else {
+        filtered = filtered.filter((r) => r.payment_status === statusFilter);
+      }
     }
     if (methodFilter && methodFilter !== "all") {
       filtered = filtered.filter((r) => r.payment_method === methodFilter);
@@ -175,12 +207,16 @@ export async function GET(req: Request) {
         verifiedRegistrations,
         pendingRegistrations,
         rejectedRegistrations,
+        totalSubtotal,
         totalRevenueExpected,
         totalRevenueVerified,
+        totalDues,
         bkashCount,
         cashCount,
         bkashTotal,
         cashTotal,
+        bkashDues,
+        cashDues,
         menuCounts,
         coordinatorCounts,
       },
@@ -214,14 +250,39 @@ export async function PATCH(req: Request) {
       }
     }
 
-    updateLocalBackup(id, updates);
+    const supabaseUpdates = { ...updates };
+    if (supabaseUpdates.subtotal !== undefined) {
+      supabaseUpdates.subtotal_with_vat = supabaseUpdates.subtotal;
+    } else if (supabaseUpdates.subtotal_with_vat !== undefined) {
+      supabaseUpdates.subtotal = supabaseUpdates.subtotal_with_vat;
+    }
+    if (supabaseUpdates.paid_amount !== undefined) {
+      supabaseUpdates.total_payable = supabaseUpdates.paid_amount;
+    } else if (supabaseUpdates.total_payable !== undefined) {
+      supabaseUpdates.paid_amount = supabaseUpdates.total_payable;
+    }
+
+    updateLocalBackup(id, { ...updates, ...supabaseUpdates });
 
     try {
       const supabase = createServiceRoleClient();
-      const { error } = await supabase
+      let { error } = await supabase
         .from("class_party_26_registrations")
-        .update(updates)
+        .update(supabaseUpdates)
         .eq("id", id);
+
+      if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
+        const fallback = { ...supabaseUpdates };
+        delete fallback.subtotal;
+        delete fallback.paid_amount;
+        delete fallback.due_amount;
+        delete fallback.raw_submitted_amount;
+        const res = await supabase
+          .from("class_party_26_registrations")
+          .update(fallback)
+          .eq("id", id);
+        error = res.error;
+      }
 
       if (error) {
         console.warn("Supabase update error:", error);

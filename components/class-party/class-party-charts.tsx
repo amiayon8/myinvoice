@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { getClassPartyFinancials } from "@/lib/class-party-calc";
 
 interface RegistrationItem {
   id: string;
@@ -30,7 +31,10 @@ interface RegistrationItem {
   selected_option_category: string;
   payment_method: "cash" | "bkash";
   payment_status: "pending" | "verified" | "rejected";
+  subtotal_with_vat?: number;
   total_payable?: number;
+  paid_amount?: number;
+  due_amount?: number;
   cash_paid_to?: string | null;
 }
 
@@ -135,8 +139,9 @@ export function ClassPartyCharts({
       if (!counts[title]) {
         counts[title] = { count: 0, totalAmount: 0 };
       }
+      const fin = getClassPartyFinancials(record as any);
       counts[title].count += 1;
-      counts[title].totalAmount += Number(record.total_payable) || 0;
+      counts[title].totalAmount += fin.subtotal;
     });
 
     const total = registrations.length || 1;
@@ -221,6 +226,7 @@ export function ClassPartyCharts({
     registrations.forEach((r) => {
       if (r.payment_method === "cash" && r.cash_paid_to) {
         const person = String(r.cash_paid_to).trim();
+        const fin = getClassPartyFinancials(r as any);
         if (!collectors[person]) {
           collectors[person] = {
             coordinator: person,
@@ -229,7 +235,7 @@ export function ClassPartyCharts({
           };
         }
         collectors[person].cashCount += 1;
-        collectors[person].cashTotal += Number(r.total_payable) || 0;
+        collectors[person].cashTotal += fin.paidAmount;
       }
     });
 

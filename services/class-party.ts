@@ -17,32 +17,17 @@ export const COORDINATOR_NAMES = [
   "Shehab",
 ];
 
-export interface ClassPartyRegistrationRecord {
-  id: string;
-  created_at: string;
-  full_name: string;
-  phone: string;
-  student_id: string | null;
-  email: string | null;
-  selected_option_id: string;
-  selected_option_title: string;
-  selected_option_category: string;
-  base_price: number;
-  vat_percent: number;
-  vat_amount: number;
-  subtotal_with_vat: number;
-  payment_method: "cash" | "bkash";
-  bkash_fee_percent: number;
-  bkash_fee_amount: number;
-  total_payable: number;
-  bkash_sender_number: string | null;
-  bkash_transaction_id: string | null;
-  cash_paid_to: string | null;
-  special_notes: string | null;
-  payment_status: "pending" | "verified" | "rejected";
-  verified_by: string | null;
-  verified_at: string | null;
-}
+import {
+  ClassPartyRegistrationRecord,
+  getClassPartySubtotal,
+  getClassPartyFinancials,
+} from "@/lib/class-party-calc";
+
+export {
+  type ClassPartyRegistrationRecord,
+  getClassPartySubtotal,
+  getClassPartyFinancials,
+};
 
 export interface ClassPartyShareLink {
   id: string;

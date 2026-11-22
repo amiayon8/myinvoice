@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
+import { getClassPartyFinancials, getClassPartySubtotal } from "@/lib/class-party-calc";
 import {
   Users,
   CheckCircle2,
@@ -43,14 +44,14 @@ interface RegistrationRecord {
   selected_option_id: string;
   selected_option_title: string;
   selected_option_category: string;
-  base_price: number;
-  vat_percent: number;
-  vat_amount: number;
-  subtotal_with_vat: number;
+  base_price?: number;
+  subtotal?: number;
+  subtotal_with_vat?: number;
   payment_method: "cash" | "bkash";
-  bkash_fee_percent: number;
-  bkash_fee_amount: number;
   total_payable: number;
+  paid_amount?: number;
+  due_amount?: number;
+  raw_submitted_amount?: number;
   bkash_sender_number: string | null;
   bkash_transaction_id: string | null;
   cash_paid_to: string | null;
@@ -140,6 +141,49 @@ const COORDINATOR_NAMES = [
   "Zaima",
   "Shehab",
 ];
+
+const SQL_MIGRATION_SCRIPT = `-- ==============================================================================
+-- Class Party '26: Database Migration Update
+-- 1. Remove VAT & surcharge columns
+-- 2. Add subtotal and paid_amount columns
+-- 3. Sync existing registrations to exact party rates:
+--    - Set Menu: 800 (Cash) / 820 (bKash)
+--    - Buffet: 1350 (Cash) / 1380 (bKash)
+--    - Other: 0
+-- ==============================================================================
+
+-- Step 1: Add new financial columns if they don't already exist
+ALTER TABLE public.class_party_26_registrations
+  ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(10, 2) DEFAULT NULL;
+
+-- Step 2: Populate subtotal and paid_amount based on official party amounts
+UPDATE public.class_party_26_registrations
+SET 
+  subtotal = CASE 
+    WHEN LOWER(selected_option_title) = 'other' OR LOWER(selected_option_category) = 'other' THEN 0
+    WHEN LOWER(selected_option_title) LIKE '%buffet%' OR LOWER(selected_option_category) LIKE '%buffet%' THEN 
+      CASE WHEN payment_method = 'bkash' THEN 1380 ELSE 1350 END
+    WHEN LOWER(selected_option_title) LIKE '%combo%' OR LOWER(selected_option_title) LIKE '%set%' OR LOWER(selected_option_category) LIKE '%thai-chinese%' THEN 
+      CASE WHEN payment_method = 'bkash' THEN 820 ELSE 800 END
+    ELSE COALESCE(subtotal_with_vat, base_price, 0)
+  END,
+  paid_amount = total_payable;
+
+-- Step 3: Keep subtotal_with_vat in sync for full backwards compatibility
+UPDATE public.class_party_26_registrations
+SET subtotal_with_vat = subtotal;
+
+-- Step 4: Remove all VAT and surcharge percentage/amount columns
+ALTER TABLE public.class_party_26_registrations
+  DROP COLUMN IF EXISTS vat_percent,
+  DROP COLUMN IF EXISTS vat_amount,
+  DROP COLUMN IF EXISTS bkash_fee_percent,
+  DROP COLUMN IF EXISTS bkash_fee_amount;
+
+-- Step 5: Refresh Supabase schema cache
+NOTIFY pgrst, 'reload schema';`;
+
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "Recently";
@@ -209,6 +253,7 @@ export default function ClassPartyPage() {
   >("activities");
 
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   const fetchRegistrations = useCallback(async () => {
     setLoading(true);
@@ -355,10 +400,20 @@ export default function ClassPartyPage() {
 
     setActionInProgress(editingRecord.id);
     try {
+      const subVal = Number(editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0);
+      const paidVal = Number(editingRecord.paid_amount ?? editingRecord.total_payable ?? 0);
+      const payload: RegistrationRecord = {
+        ...editingRecord,
+        subtotal: subVal,
+        subtotal_with_vat: subVal,
+        paid_amount: paidVal,
+        total_payable: paidVal,
+      };
+
       const res = await fetch("/api/class-party-26/admin", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingRecord),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -367,7 +422,7 @@ export default function ClassPartyPage() {
         setEditingRecord(null);
         fetchRegistrations();
         if (selectedRecord && selectedRecord.id === editingRecord.id) {
-          setSelectedRecord(editingRecord);
+          setSelectedRecord(payload);
         }
       } else {
         toast.error(data.message || "Failed to save updates");
@@ -534,40 +589,45 @@ export default function ClassPartyPage() {
       "Email",
       "Menu Choice",
       "Category",
-      "Base Price",
-      "VAT Amount",
-      "Subtotal",
+      "Package Subtotal",
+      "Paid Amount (Approved)",
+      "Submitted Amount",
+      "Due Amount",
       "Payment Method",
-      "bKash Fee",
-      "Total Payable",
+      "Payment Status",
       "bKash Number",
       "Transaction ID",
       "Cash Paid To",
-      "Payment Status",
+      "Verified By",
+      "Verified At",
       "Special Notes",
     ];
 
-    const rows = registrations.map((r) => [
-      `"${r.id}"`,
-      `"${r.created_at}"`,
-      `"${r.full_name.replace(/"/g, '""')}"`,
-      `"${r.phone}"`,
-      `"${(r.student_id || "").replace(/"/g, '""')}"`,
-      `"${(r.email || "").replace(/"/g, '""')}"`,
-      `"${r.selected_option_title.replace(/"/g, '""')}"`,
-      `"${r.selected_option_category}"`,
-      r.base_price,
-      r.vat_amount,
-      r.subtotal_with_vat,
-      r.payment_method,
-      r.bkash_fee_amount,
-      r.total_payable,
-      `"${r.bkash_sender_number || ""}"`,
-      `"${r.bkash_transaction_id || ""}"`,
-      `"${r.cash_paid_to || ""}"`,
-      r.payment_status,
-      `"${(r.special_notes || "").replace(/"/g, '""')}"`,
-    ]);
+    const rows = registrations.map((r) => {
+      const fin = getClassPartyFinancials(r);
+      return [
+        `"${r.id}"`,
+        `"${r.created_at}"`,
+        `"${r.full_name.replace(/"/g, '""')}"`,
+        `"${r.phone}"`,
+        `"${(r.student_id || "").replace(/"/g, '""')}"`,
+        `"${(r.email || "").replace(/"/g, '""')}"`,
+        `"${r.selected_option_title.replace(/"/g, '""')}"`,
+        `"${r.selected_option_category}"`,
+        fin.subtotal,
+        fin.paidAmount,
+        fin.rawSubmittedAmount,
+        fin.dueAmount,
+        r.payment_method,
+        r.payment_status,
+        `"${r.bkash_sender_number || ""}"`,
+        `"${r.bkash_transaction_id || ""}"`,
+        `"${r.cash_paid_to || ""}"`,
+        `"${r.verified_by || ""}"`,
+        `"${r.verified_at || ""}"`,
+        `"${(r.special_notes || "").replace(/"/g, '""')}"`,
+      ];
+    });
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -624,6 +684,15 @@ export default function ClassPartyPage() {
           >
             <History className="w-3.5 h-3.5 text-violet-500" />
             Activity & History
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSqlModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition cursor-pointer shadow-xs"
+          >
+            <Database className="w-3.5 h-3.5 text-sky-500" />
+            SQL Migration
           </button>
 
           <button
@@ -1780,6 +1849,63 @@ export default function ClassPartyPage() {
                 </div>
               </div>
 
+              <div className="space-y-1.5 p-3 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-500/20">
+                <label className="font-semibold text-violet-900 dark:text-violet-300 block text-xs">
+                  Package Presets (Set: 800 / bKash 820 | Buffet: 1350 / bKash 1380 | Other: 0)
+                </label>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isBkash = editingRecord.payment_method === "bkash";
+                      const amt = isBkash ? 1380 : 1350;
+                      setEditingRecord({
+                        ...editingRecord,
+                        selected_option_title: "Buffet Lunch",
+                        selected_option_category: "Buffet",
+                        subtotal: amt,
+                        subtotal_with_vat: amt,
+                      });
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
+                  >
+                    Buffet (৳{editingRecord.payment_method === "bkash" ? "1,380" : "1,350"})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isBkash = editingRecord.payment_method === "bkash";
+                      const amt = isBkash ? 820 : 800;
+                      setEditingRecord({
+                        ...editingRecord,
+                        selected_option_title: "Thai-Chinese Combo 01",
+                        selected_option_category: "Thai-Chinese",
+                        subtotal: amt,
+                        subtotal_with_vat: amt,
+                      });
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
+                  >
+                    Set Menu (৳{editingRecord.payment_method === "bkash" ? "820" : "800"})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingRecord({
+                        ...editingRecord,
+                        selected_option_title: "Other",
+                        selected_option_category: "Other",
+                        subtotal: 0,
+                        subtotal_with_vat: 0,
+                      });
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer"
+                  >
+                    Other (৳0)
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-700 dark:text-zinc-300">
@@ -1801,16 +1927,16 @@ export default function ClassPartyPage() {
 
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    Total Payable (BDT)
+                    Category
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    value={editingRecord.total_payable}
+                    value={editingRecord.selected_option_category}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
-                        total_payable: Number(e.target.value),
+                        selected_option_category: e.target.value,
                       })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
@@ -1821,16 +1947,105 @@ export default function ClassPartyPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Package Subtotal (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEditingRecord({
+                        ...editingRecord,
+                        subtotal: val,
+                        subtotal_with_vat: val,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Paid / Submitted Amount (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={editingRecord.paid_amount ?? editingRecord.total_payable ?? 0}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEditingRecord({
+                        ...editingRecord,
+                        paid_amount: val,
+                        total_payable: val,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {(() => {
+                const fin = getClassPartyFinancials(editingRecord);
+                return (
+                  <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">Package Subtotal:</span>
+                      <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                        ৳{fin.subtotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">Submitted / Paid Amount:</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        ৳{fin.rawSubmittedAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1 border-t border-zinc-200 dark:border-zinc-800 font-semibold">
+                      <span className="text-zinc-700 dark:text-zinc-300">Calculated Due:</span>
+                      <span
+                        className={
+                          fin.dueAmount > 0
+                            ? "text-rose-600 dark:text-rose-400 font-bold"
+                            : "text-emerald-600 dark:text-emerald-400 font-bold"
+                        }
+                      >
+                        ৳{fin.dueAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    {editingRecord.payment_status !== "verified" && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 pt-0.5 leading-relaxed">
+                        ⚠️ Payment is <strong>{editingRecord.payment_status}</strong>. Because it is not approved, the entire subtotal (৳{fin.subtotal.toLocaleString()}) counts as dues.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
                     Payment Method
                   </label>
                   <select
                     value={editingRecord.payment_method}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newMethod = e.target.value as "cash" | "bkash";
+                      let newSubtotal = editingRecord.subtotal ?? editingRecord.subtotal_with_vat ?? 0;
+                      const cat = (editingRecord.selected_option_title || "").toLowerCase();
+                      if (cat.includes("buffet")) {
+                        newSubtotal = newMethod === "bkash" ? 1380 : 1350;
+                      } else if (cat.includes("combo") || cat.includes("set") || cat.includes("thai-chinese")) {
+                        newSubtotal = newMethod === "bkash" ? 820 : 800;
+                      }
                       setEditingRecord({
                         ...editingRecord,
-                        payment_method: e.target.value as "cash" | "bkash",
-                      })
-                    }
+                        payment_method: newMethod,
+                        subtotal: newSubtotal,
+                        subtotal_with_vat: newSubtotal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
                   >
                     <option value="bkash">bKash (Ayon)</option>
@@ -1844,15 +2059,18 @@ export default function ClassPartyPage() {
                   </label>
                   <select
                     value={editingRecord.payment_status}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const nextStatus = e.target.value as "pending" | "verified" | "rejected";
+                      const updates: Partial<RegistrationRecord> = { payment_status: nextStatus };
+                      if (nextStatus === "verified" && !editingRecord.verified_at) {
+                        updates.verified_at = new Date().toISOString();
+                        if (!editingRecord.verified_by) updates.verified_by = "Admin";
+                      }
                       setEditingRecord({
                         ...editingRecord,
-                        payment_status: e.target.value as
-                          | "pending"
-                          | "verified"
-                          | "rejected",
-                      })
-                    }
+                        ...updates,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
                   >
                     <option value="pending">Pending</option>
@@ -1899,29 +2117,92 @@ export default function ClassPartyPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-1 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20">
-                  <label className="font-semibold text-emerald-800 dark:text-emerald-300">
+                <div className="space-y-2 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20">
+                  <label className="font-semibold text-emerald-800 dark:text-emerald-300 block">
                     Cash Received By Coordinator
                   </label>
-                  <select
-                    value={editingRecord.cash_paid_to || ""}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select
+                      value={
+                        COORDINATOR_NAMES.includes(editingRecord.cash_paid_to || "")
+                          ? (editingRecord.cash_paid_to || "")
+                          : editingRecord.cash_paid_to
+                          ? "custom"
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val !== "custom") {
+                          setEditingRecord({
+                            ...editingRecord,
+                            cash_paid_to: val,
+                          });
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="">-- Select Coordinator --</option>
+                      {COORDINATOR_NAMES.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                      <option value="custom">Custom / Other Coordinator</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      placeholder="Coordinator name"
+                      value={editingRecord.cash_paid_to || ""}
+                      onChange={(e) =>
+                        setEditingRecord({
+                          ...editingRecord,
+                          cash_paid_to: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800">
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Verified By
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Admin, Ayon, etc."
+                    value={editingRecord.verified_by || ""}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
-                        cash_paid_to: e.target.value,
+                        verified_by: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden cursor-pointer"
-                  >
-                    <option value="">-- Select Coordinator --</option>
-                    {COORDINATOR_NAMES.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
                 </div>
-              )}
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    Verified At
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2026-11-22T12:00:00Z"
+                    value={editingRecord.verified_at || ""}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        verified_at: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden"
+                  />
+                </div>
+              </div>
 
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-700 dark:text-zinc-300">
@@ -2055,28 +2336,54 @@ export default function ClassPartyPage() {
                   {selectedRecord.selected_option_title}
                 </span>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Base Price
-                </span>
-                <span>৳{selectedRecord.base_price}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  VAT (5%)
-                </span>
-                <span>৳{selectedRecord.vat_amount}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Payment Surcharge
-                </span>
-                <span>৳{selectedRecord.bkash_fee_amount}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800 text-sm font-bold text-amber-600 dark:text-amber-400">
-                <span>Total Amount</span>
-                <span>৳{selectedRecord.total_payable}</span>
-              </div>
+              {(() => {
+                const fin = getClassPartyFinancials(selectedRecord);
+                return (
+                  <>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        Package Subtotal
+                      </span>
+                      <span className="font-semibold text-zinc-900 dark:text-white">
+                        ৳{fin.subtotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        Paid Amount
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {fin.isApproved
+                          ? `৳${fin.paidAmount.toLocaleString()} (Verified)`
+                          : `৳0 (৳${fin.rawSubmittedAmount.toLocaleString()} Pending Approval)`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800 text-sm font-bold">
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        Effective Due
+                      </span>
+                      <span
+                        className={
+                          fin.dueAmount > 0
+                            ? "text-rose-600 dark:text-rose-400 font-bold"
+                            : "text-emerald-600 dark:text-emerald-400 font-bold"
+                        }
+                      >
+                        ৳{fin.dueAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
+              {selectedRecord.verified_by && (
+                <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800 text-[11px]">
+                  <span className="text-zinc-500 dark:text-zinc-400">Verified By</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">
+                    {selectedRecord.verified_by}
+                    {selectedRecord.verified_at && ` (${new Date(selectedRecord.verified_at).toLocaleDateString()})`}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-zinc-500 dark:text-zinc-400">Method</span>
                 <span className="uppercase font-semibold">
@@ -2168,6 +2475,113 @@ export default function ClassPartyPage() {
                 type="button"
                 onClick={() => setSelectedRecord(null)}
                 className="px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sqlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                    Database SQL Migration
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    Run this script in Supabase SQL Editor to sync party rates and drop legacy VAT columns
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSqlModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/60 text-sky-900 dark:text-sky-200 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-sky-500" />
+                  What this migration does:
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-sky-800 dark:text-sky-300">
+                  <li>Adds <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">subtotal</code> and <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">paid_amount</code> columns.</li>
+                  <li>Synchronizes existing registrations to official pricing: Set Menu (৳800/820), Buffet (৳1,350/1,380), Other (৳0).</li>
+                  <li>Drops legacy <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">vat_percent</code>, <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">vat_amount</code>, <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">bkash_fee_percent</code>, and <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">bkash_fee_amount</code>.</li>
+                  <li>Reloads Supabase PostgREST schema cache immediately.</li>
+                </ul>
+              </div>
+
+              <div className="relative">
+                <div className="flex justify-between items-center pb-1 text-zinc-500 font-mono text-[11px]">
+                  <span>supabase_class_party_migration_update.sql</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(SQL_MIGRATION_SCRIPT);
+                      setCopiedSql(true);
+                      toast.success("SQL script copied to clipboard");
+                      setTimeout(() => setCopiedSql(false), 2500);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-sans font-medium transition cursor-pointer"
+                  >
+                    {copiedSql ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Copy SQL
+                      </>
+                    )}
+                  </button>
+                </div>
+                <pre className="p-3.5 rounded-xl bg-zinc-950 text-zinc-200 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-72 border border-zinc-800">
+                  {SQL_MIGRATION_SCRIPT}
+                </pre>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(SQL_MIGRATION_SCRIPT);
+                  setCopiedSql(true);
+                  toast.success("SQL script copied to clipboard");
+                  setTimeout(() => setCopiedSql(false), 2500);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs transition cursor-pointer shadow-xs"
+              >
+                {copiedSql ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied to Clipboard
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copy SQL Script
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSqlModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-xs transition cursor-pointer"
               >
                 Close
               </button>

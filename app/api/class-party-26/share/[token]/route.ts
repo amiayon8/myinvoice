@@ -5,6 +5,7 @@ import {
   logClassPartyActivity,
   updateClassPartyRegistration,
   ClassPartyRegistrationRecord,
+  getClassPartyFinancials,
 } from "@/services/class-party";
 
 interface RouteParams {
@@ -85,13 +86,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       }
 
       if (showFinancials) {
-        record.base_price = r.base_price;
-        record.vat_percent = r.vat_percent;
-        record.vat_amount = r.vat_amount;
-        record.subtotal_with_vat = r.subtotal_with_vat;
-        record.bkash_fee_percent = r.bkash_fee_percent;
-        record.bkash_fee_amount = r.bkash_fee_amount;
+        const fin = getClassPartyFinancials(r);
+        record.subtotal = fin.subtotal;
+        record.subtotal_with_vat = fin.subtotal;
         record.total_payable = r.total_payable;
+        record.paid_amount = fin.paidAmount;
+        record.due_amount = fin.dueAmount;
       }
 
       return record;
@@ -108,13 +108,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       (r) => r.payment_status === "rejected"
     ).length;
 
-    const totalRevenueExpected = filteredRecords.reduce(
-      (acc, r) => acc + (Number(r.total_payable) || 0),
-      0
-    );
-    const totalRevenueVerified = filteredRecords
-      .filter((r) => r.payment_status === "verified")
-      .reduce((acc, r) => acc + (Number(r.total_payable) || 0), 0);
+    const enrichedFinancials = filteredRecords.map((r) => getClassPartyFinancials(r));
+    const totalSubtotal = enrichedFinancials.reduce((acc, f) => acc + f.subtotal, 0);
+    const totalRevenueExpected = totalSubtotal;
+    const totalRevenueVerified = enrichedFinancials.reduce((acc, f) => acc + f.paidAmount, 0);
+    const totalDues = enrichedFinancials.reduce((acc, f) => acc + f.dueAmount, 0);
 
     const bkashRecords = filteredRecords.filter((r) => r.payment_method === "bkash");
     const cashRecords = filteredRecords.filter((r) => r.payment_method === "cash");
@@ -122,11 +120,19 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const bkashCount = bkashRecords.length;
     const cashCount = cashRecords.length;
     const bkashTotal = bkashRecords.reduce(
-      (acc, r) => acc + (Number(r.total_payable) || 0),
+      (acc, r) => acc + getClassPartyFinancials(r).paidAmount,
+      0
+    );
+    const bkashDues = bkashRecords.reduce(
+      (acc, r) => acc + getClassPartyFinancials(r).dueAmount,
       0
     );
     const cashTotal = cashRecords.reduce(
-      (acc, r) => acc + (Number(r.total_payable) || 0),
+      (acc, r) => acc + getClassPartyFinancials(r).paidAmount,
+      0
+    );
+    const cashDues = cashRecords.reduce(
+      (acc, r) => acc + getClassPartyFinancials(r).dueAmount,
       0
     );
 
@@ -141,42 +147,53 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       {
         cashCount: number;
         cashTotal: number;
+        cashDues: number;
         bkashCount: number;
         bkashTotal: number;
+        bkashDues: number;
         totalCount: number;
         totalAmount: number;
+        totalDues: number;
       }
     > = {};
 
     coordinatorCounts["Ayon"] = {
       cashCount: 0,
       cashTotal: 0,
+      cashDues: 0,
       bkashCount,
       bkashTotal,
+      bkashDues,
       totalCount: bkashCount,
       totalAmount: bkashTotal,
+      totalDues: bkashDues,
     };
 
     filteredRecords.forEach((r) => {
       if (r.payment_method === "cash" && r.cash_paid_to) {
         const person = String(r.cash_paid_to);
-        const amount = Number(r.total_payable) || 0;
+        const fin = getClassPartyFinancials(r);
 
         if (!coordinatorCounts[person]) {
           coordinatorCounts[person] = {
             cashCount: 0,
             cashTotal: 0,
+            cashDues: 0,
             bkashCount: 0,
             bkashTotal: 0,
+            bkashDues: 0,
             totalCount: 0,
             totalAmount: 0,
+            totalDues: 0,
           };
         }
 
         coordinatorCounts[person].cashCount += 1;
-        coordinatorCounts[person].cashTotal += amount;
+        coordinatorCounts[person].cashTotal += fin.paidAmount;
+        coordinatorCounts[person].cashDues += fin.dueAmount;
         coordinatorCounts[person].totalCount += 1;
-        coordinatorCounts[person].totalAmount += amount;
+        coordinatorCounts[person].totalAmount += fin.paidAmount;
+        coordinatorCounts[person].totalDues += fin.dueAmount;
       }
     });
 
@@ -196,12 +213,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         verifiedRegistrations,
         pendingRegistrations,
         rejectedRegistrations,
+        totalSubtotal: showFinancials ? totalSubtotal : null,
         totalRevenueExpected: showFinancials ? totalRevenueExpected : null,
         totalRevenueVerified: showFinancials ? totalRevenueVerified : null,
+        totalDues: showFinancials ? totalDues : null,
         bkashCount,
         cashCount,
         bkashTotal: showFinancials ? bkashTotal : null,
         cashTotal: showFinancials ? cashTotal : null,
+        bkashDues: showFinancials ? bkashDues : null,
+        cashDues: showFinancials ? cashDues : null,
         menuCounts,
         coordinatorCounts: showFinancials ? coordinatorCounts : null,
       },
