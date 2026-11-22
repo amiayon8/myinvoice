@@ -539,8 +539,8 @@ export default function ClassPartyPage() {
       "Phone",
       "Student ID",
       "Category",
-      "Package Subtotal",
-      "Paid Amount (Approved)",
+      "Subtotal",
+      "Paid Amount",
       "Due Amount",
       "Payment Method",
       "Payment Status",
@@ -563,8 +563,12 @@ export default function ClassPartyPage() {
       ];
     });
 
-    const csvString = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    const csvString = [headers.join(","), ...rows.map((e) => e.join(","))].join(
+      "\n",
+    );
+    const blob = new Blob(["\uFEFF" + csvString], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
