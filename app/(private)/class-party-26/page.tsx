@@ -4,7 +4,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ClassPartyCharts } from "@/components/class-party/class-party-charts";
-import { getClassPartyFinancials, getClassPartySubtotal } from "@/lib/class-party-calc";
+import {
+  getClassPartyFinancials,
+  getClassPartySubtotal,
+} from "@/lib/class-party-calc";
 import {
   Users,
   CheckCircle2,
@@ -142,26 +145,6 @@ const COORDINATOR_NAMES = [
   "Shehab",
 ];
 
-const SQL_MIGRATION_SCRIPT = `ALTER TABLE public.class_party_26_registrations
-  ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10, 2) NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(10, 2) DEFAULT NULL;
-
-ALTER TABLE public.class_party_26_registrations
-  DROP COLUMN IF EXISTS base_price,
-  DROP COLUMN IF EXISTS subtotal_with_vat,
-  DROP COLUMN IF EXISTS total_payable,
-  DROP COLUMN IF EXISTS selected_option_id,
-  DROP COLUMN IF EXISTS vat_percent,
-  DROP COLUMN IF EXISTS vat_amount,
-  DROP COLUMN IF EXISTS bkash_fee_percent,
-  DROP COLUMN IF EXISTS bkash_fee_amount;
-
-ALTER TABLE public.class_party_26_share_links
-  ADD COLUMN IF NOT EXISTS organizer TEXT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS can_approve_payments BOOLEAN NOT NULL DEFAULT false;
-
-NOTIFY pgrst, 'reload schema';`;
-
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "Recently";
@@ -230,16 +213,14 @@ export default function ClassPartyPage() {
     "activities" | "views"
   >("activities");
 
-  const [sqlModalOpen, setSqlModalOpen] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
-
   const fetchRegistrations = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (methodFilter !== "all") params.set("method", methodFilter);
-      if (coordinatorFilter !== "all") params.set("coordinator", coordinatorFilter);
+      if (coordinatorFilter !== "all")
+        params.set("coordinator", coordinatorFilter);
       if (searchQuery.trim()) params.set("search", searchQuery.trim());
 
       const res = await fetch(`/api/class-party-26/admin?${params.toString()}`);
@@ -488,21 +469,18 @@ export default function ClassPartyPage() {
 
     try {
       const linkId = editingShareLink.id || editingShareLink.token;
-      const res = await fetch(
-        `/api/class-party-26/share-links/${linkId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: editingShareLink.label,
-            never_expires: editingShareLink.never_expires,
-            expires_at: editingShareLink.never_expires
-              ? null
-              : editingShareLink.expires_at,
-            params: editingShareLink.params,
-          }),
-        },
-      );
+      const res = await fetch(`/api/class-party-26/share-links/${linkId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: editingShareLink.label,
+          never_expires: editingShareLink.never_expires,
+          expires_at: editingShareLink.never_expires
+            ? null
+            : editingShareLink.expires_at,
+          params: editingShareLink.params,
+        }),
+      });
 
       const data = await res.json();
       if (data.success) {
@@ -660,15 +638,6 @@ export default function ClassPartyPage() {
           >
             <History className="w-3.5 h-3.5 text-violet-500" />
             Activity & History
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSqlModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition cursor-pointer shadow-xs"
-          >
-            <Database className="w-3.5 h-3.5 text-sky-500" />
-            SQL Migration
           </button>
 
           <button
@@ -1197,7 +1166,10 @@ export default function ClassPartyPage() {
                     <option value="none">None (General / Public View)</option>
                     {COORDINATOR_NAMES.map((name) => (
                       <option key={name} value={name}>
-                        {name} {name === "Ayon" ? "(bKash + Cash)" : "(Cash collection)"}
+                        {name}{" "}
+                        {name === "Ayon"
+                          ? "(bKash + Cash)"
+                          : "(Cash collection)"}
                       </option>
                     ))}
                   </select>
@@ -1212,9 +1184,12 @@ export default function ClassPartyPage() {
                       className="rounded text-violet-600 w-4 h-4"
                     />
                     <div>
-                      <span className="font-semibold block">Allow Payment Approvals</span>
+                      <span className="font-semibold block">
+                        Allow Payment Approvals
+                      </span>
                       <span className="text-[11px] text-zinc-400 block">
-                        Assigned organizer can approve only payments paid to them
+                        Assigned organizer can approve only payments paid to
+                        them
                       </span>
                     </div>
                   </label>
@@ -1520,7 +1495,9 @@ export default function ClassPartyPage() {
               </div>
 
               <div className="space-y-1 pt-1">
-                <label className="font-semibold">Assigned Organizer / Coordinator</label>
+                <label className="font-semibold">
+                  Assigned Organizer / Coordinator
+                </label>
                 <select
                   value={editingShareLink.params.organizer || "none"}
                   onChange={(e) => {
@@ -1532,7 +1509,8 @@ export default function ClassPartyPage() {
                         organizer: val !== "none" ? val : null,
                         canApprovePayments:
                           val !== "none"
-                            ? (editingShareLink.params.canApprovePayments ?? true)
+                            ? (editingShareLink.params.canApprovePayments ??
+                              true)
                             : editingShareLink.params.canApprovePayments,
                       },
                     });
@@ -1542,7 +1520,8 @@ export default function ClassPartyPage() {
                   <option value="none">None (General / Public View)</option>
                   {COORDINATOR_NAMES.map((name) => (
                     <option key={name} value={name}>
-                      {name} {name === "Ayon" ? "(bKash + Cash)" : "(Cash collection)"}
+                      {name}{" "}
+                      {name === "Ayon" ? "(bKash + Cash)" : "(Cash collection)"}
                     </option>
                   ))}
                 </select>
@@ -1552,7 +1531,9 @@ export default function ClassPartyPage() {
                 <label className="inline-flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={editingShareLink.params.canApprovePayments ?? false}
+                    checked={
+                      editingShareLink.params.canApprovePayments ?? false
+                    }
                     onChange={(e) =>
                       setEditingShareLink({
                         ...editingShareLink,
@@ -1827,7 +1808,8 @@ export default function ClassPartyPage() {
 
               <div className="space-y-1.5 p-3 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-500/20">
                 <label className="font-semibold text-violet-900 dark:text-violet-300 block text-xs">
-                  Package Presets (Set: 800 / bKash 820 | Buffet: 1350 / bKash 1380 | Other: 0)
+                  Package Presets (Set: 800 / bKash 820 | Buffet: 1350 / bKash
+                  1380 | Other: 0)
                 </label>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
@@ -1844,7 +1826,11 @@ export default function ClassPartyPage() {
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
                   >
-                    Buffet (৳{editingRecord.payment_method === "bkash" ? "1,380" : "1,350"})
+                    Buffet (৳
+                    {editingRecord.payment_method === "bkash"
+                      ? "1,380"
+                      : "1,350"}
+                    )
                   </button>
                   <button
                     type="button"
@@ -1860,7 +1846,8 @@ export default function ClassPartyPage() {
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
                   >
-                    Set Menu (৳{editingRecord.payment_method === "bkash" ? "820" : "800"})
+                    Set Menu (৳
+                    {editingRecord.payment_method === "bkash" ? "820" : "800"})
                   </button>
                   <button
                     type="button"
@@ -1968,13 +1955,17 @@ export default function ClassPartyPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-zinc-500">Submitted / Paid Amount:</span>
+                      <span className="text-zinc-500">
+                        Submitted / Paid Amount:
+                      </span>
                       <span className="font-bold text-emerald-600 dark:text-emerald-400">
                         ৳{fin.rawSubmittedAmount.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-1 border-t border-zinc-200 dark:border-zinc-800 font-semibold">
-                      <span className="text-zinc-700 dark:text-zinc-300">Calculated Due:</span>
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        Calculated Due:
+                      </span>
                       <span
                         className={
                           fin.dueAmount > 0
@@ -1987,7 +1978,10 @@ export default function ClassPartyPage() {
                     </div>
                     {editingRecord.payment_status !== "verified" && (
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 pt-0.5 leading-relaxed">
-                        Payment is <strong>{editingRecord.payment_status}</strong>. Because it is not approved, the entire subtotal (৳{fin.subtotal.toLocaleString()}) counts as dues.
+                        Payment is{" "}
+                        <strong>{editingRecord.payment_status}</strong>. Because
+                        it is not approved, the entire subtotal (৳
+                        {fin.subtotal.toLocaleString()}) counts as dues.
                       </p>
                     )}
                   </div>
@@ -2004,10 +1998,16 @@ export default function ClassPartyPage() {
                     onChange={(e) => {
                       const newMethod = e.target.value as "cash" | "bkash";
                       let newSubtotal = editingRecord.subtotal ?? 0;
-                      const cat = (editingRecord.selected_option_title || "").toLowerCase();
+                      const cat = (
+                        editingRecord.selected_option_title || ""
+                      ).toLowerCase();
                       if (cat.includes("buffet")) {
                         newSubtotal = newMethod === "bkash" ? 1380 : 1350;
-                      } else if (cat.includes("combo") || cat.includes("set") || cat.includes("thai-chinese")) {
+                      } else if (
+                        cat.includes("combo") ||
+                        cat.includes("set") ||
+                        cat.includes("thai-chinese")
+                      ) {
                         newSubtotal = newMethod === "bkash" ? 820 : 800;
                       }
                       setEditingRecord({
@@ -2030,11 +2030,20 @@ export default function ClassPartyPage() {
                   <select
                     value={editingRecord.payment_status}
                     onChange={(e) => {
-                      const nextStatus = e.target.value as "pending" | "verified" | "rejected";
-                      const updates: Partial<RegistrationRecord> = { payment_status: nextStatus };
-                      if (nextStatus === "verified" && !editingRecord.verified_at) {
+                      const nextStatus = e.target.value as
+                        | "pending"
+                        | "verified"
+                        | "rejected";
+                      const updates: Partial<RegistrationRecord> = {
+                        payment_status: nextStatus,
+                      };
+                      if (
+                        nextStatus === "verified" &&
+                        !editingRecord.verified_at
+                      ) {
                         updates.verified_at = new Date().toISOString();
-                        if (!editingRecord.verified_by) updates.verified_by = "Admin";
+                        if (!editingRecord.verified_by)
+                          updates.verified_by = "Admin";
                       }
                       setEditingRecord({
                         ...editingRecord,
@@ -2094,11 +2103,13 @@ export default function ClassPartyPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <select
                       value={
-                        COORDINATOR_NAMES.includes(editingRecord.cash_paid_to || "")
-                          ? (editingRecord.cash_paid_to || "")
+                        COORDINATOR_NAMES.includes(
+                          editingRecord.cash_paid_to || "",
+                        )
+                          ? editingRecord.cash_paid_to || ""
                           : editingRecord.cash_paid_to
-                          ? "custom"
-                          : ""
+                            ? "custom"
+                            : ""
                       }
                       onChange={(e) => {
                         const val = e.target.value;
@@ -2347,10 +2358,13 @@ export default function ClassPartyPage() {
               })()}
               {selectedRecord.verified_by && (
                 <div className="flex justify-between py-1.5 border-b border-zinc-200 dark:border-zinc-800 text-[11px]">
-                  <span className="text-zinc-500 dark:text-zinc-400">Verified By</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Verified By
+                  </span>
                   <span className="text-zinc-700 dark:text-zinc-300">
                     {selectedRecord.verified_by}
-                    {selectedRecord.verified_at && ` (${new Date(selectedRecord.verified_at).toLocaleDateString()})`}
+                    {selectedRecord.verified_at &&
+                      ` (${new Date(selectedRecord.verified_at).toLocaleDateString()})`}
                   </span>
                 </div>
               )}
@@ -2445,113 +2459,6 @@ export default function ClassPartyPage() {
                 type="button"
                 onClick={() => setSelectedRecord(null)}
                 className="px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {sqlModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                    Database SQL Migration
-                  </h2>
-                  <p className="text-xs text-zinc-500">
-                    Run this script in Supabase SQL Editor to sync party rates and drop legacy VAT columns
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSqlModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/60 text-sky-900 dark:text-sky-200 space-y-1">
-                <div className="font-semibold flex items-center gap-1.5 text-xs">
-                  <ShieldCheck className="w-4 h-4 text-sky-500" />
-                  What this migration does:
-                </div>
-                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-sky-800 dark:text-sky-300">
-                  <li>Adds <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">subtotal</code> and <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">paid_amount</code> columns.</li>
-                  <li>Synchronizes existing registrations to official pricing: Set Menu (৳800/820), Buffet (৳1,350/1,380), Other (৳0).</li>
-                  <li>Drops legacy <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">vat_percent</code>, <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">vat_amount</code>, <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">bkash_fee_percent</code>, and <code className="font-mono bg-sky-100 dark:bg-sky-900/50 px-1 py-0.5 rounded">bkash_fee_amount</code>.</li>
-                  <li>Reloads Supabase PostgREST schema cache immediately.</li>
-                </ul>
-              </div>
-
-              <div className="relative">
-                <div className="flex justify-between items-center pb-1 text-zinc-500 font-mono text-[11px]">
-                  <span>supabase_class_party_migration_update.sql</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(SQL_MIGRATION_SCRIPT);
-                      setCopiedSql(true);
-                      toast.success("SQL script copied to clipboard");
-                      setTimeout(() => setCopiedSql(false), 2500);
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-sans font-medium transition cursor-pointer"
-                  >
-                    {copiedSql ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        Copy SQL
-                      </>
-                    )}
-                  </button>
-                </div>
-                <pre className="p-3.5 rounded-xl bg-zinc-950 text-zinc-200 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-72 border border-zinc-800">
-                  {SQL_MIGRATION_SCRIPT}
-                </pre>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(SQL_MIGRATION_SCRIPT);
-                  setCopiedSql(true);
-                  toast.success("SQL script copied to clipboard");
-                  setTimeout(() => setCopiedSql(false), 2500);
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs transition cursor-pointer shadow-xs"
-              >
-                {copiedSql ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Copied to Clipboard
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    Copy SQL Script
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSqlModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-xs transition cursor-pointer"
               >
                 Close
               </button>
