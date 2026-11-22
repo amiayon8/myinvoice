@@ -535,61 +535,39 @@ export default function ClassPartyPage() {
     }
 
     const headers = [
-      "ID",
-      "Created At",
       "Full Name",
       "Phone",
       "Student ID",
-      "Email",
-      "Menu Choice",
       "Category",
       "Package Subtotal",
       "Paid Amount (Approved)",
-      "Submitted Amount",
       "Due Amount",
       "Payment Method",
       "Payment Status",
-      "bKash Number",
-      "Transaction ID",
       "Cash Paid To",
-      "Verified By",
-      "Verified At",
-      "Special Notes",
     ];
 
     const rows = registrations.map((r) => {
       const fin = getClassPartyFinancials(r);
       return [
-        `"${r.id}"`,
-        `"${r.created_at}"`,
-        `"${r.full_name.replace(/"/g, '""')}"`,
-        `"${r.phone}"`,
+        `"${(r.full_name || "").replace(/"/g, '""')}"`,
+        `"${(r.phone || "").replace(/"/g, '""')}"`,
         `"${(r.student_id || "").replace(/"/g, '""')}"`,
-        `"${(r.email || "").replace(/"/g, '""')}"`,
-        `"${r.selected_option_title.replace(/"/g, '""')}"`,
-        `"${r.selected_option_category}"`,
+        `"${(r.selected_option_category || "").replace(/"/g, '""')}"`,
         fin.subtotal,
         fin.paidAmount,
-        fin.rawSubmittedAmount,
         fin.dueAmount,
-        r.payment_method,
-        r.payment_status,
-        `"${r.bkash_sender_number || ""}"`,
-        `"${r.bkash_transaction_id || ""}"`,
-        `"${r.cash_paid_to || ""}"`,
-        `"${r.verified_by || ""}"`,
-        `"${r.verified_at || ""}"`,
-        `"${(r.special_notes || "").replace(/"/g, '""')}"`,
+        `"${(r.payment_method || "").replace(/"/g, '""')}"`,
+        `"${(r.payment_status || "").replace(/"/g, '""')}"`,
+        `"${(r.cash_paid_to || "").replace(/"/g, '""')}"`,
       ];
     });
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
+    const csvString = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute(
       "download",
       `class_party_26_registrations_${new Date().toISOString().slice(0, 10)}.csv`,
@@ -597,6 +575,7 @@ export default function ClassPartyPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     toast.success("CSV export downloaded");
   };
 

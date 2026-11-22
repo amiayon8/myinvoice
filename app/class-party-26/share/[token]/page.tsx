@@ -33,6 +33,7 @@ import {
   Check,
   Eye,
   Lock,
+  FileSpreadsheet,
 } from "lucide-react";
 
 interface RegistrationRecord {
@@ -293,6 +294,57 @@ export default function ClassPartySharePage() {
     }
   };
 
+  const exportCSV = () => {
+    if (!registrations.length) {
+      toast.error("No registrations to export");
+      return;
+    }
+
+    const headers = [
+      "Full Name",
+      "Phone",
+      "Student ID",
+      "Category",
+      "Package Subtotal",
+      "Paid Amount (Approved)",
+      "Due Amount",
+      "Payment Method",
+      "Payment Status",
+      "Cash Paid To",
+    ];
+
+    const rows = registrations.map((r) => {
+      const fin = getClassPartyFinancials(r);
+      return [
+        `"${(r.full_name || "").replace(/"/g, '""')}"`,
+        `"${(r.phone || "").replace(/"/g, '""')}"`,
+        `"${(r.student_id || "").replace(/"/g, '""')}"`,
+        `"${(r.selected_option_category || "").replace(/"/g, '""')}"`,
+        fin.subtotal,
+        fin.paidAmount,
+        fin.dueAmount,
+        `"${(r.payment_method || "").replace(/"/g, '""')}"`,
+        `"${(r.payment_status || "").replace(/"/g, '""')}"`,
+        `"${(r.cash_paid_to || "").replace(/"/g, '""')}"`,
+      ];
+    });
+
+    const csvString = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `class_party_26_registrations_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("CSV export downloaded");
+  };
+
   useEffect(() => {
     fetchSharedData();
   }, [fetchSharedData]);
@@ -462,6 +514,15 @@ export default function ClassPartySharePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={exportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer shadow-xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              Export CSV
+            </button>
+
             <button
               type="button"
               onClick={fetchSharedData}
