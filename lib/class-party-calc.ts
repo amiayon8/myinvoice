@@ -68,16 +68,20 @@ export function getClassPartyFinancials(record: {
   subtotal_with_vat?: number | null;
   total_payable?: number | null;
   paid_amount?: number | null;
+  raw_submitted_amount?: number | null;
   payment_status?: "pending" | "verified" | "rejected" | string | null;
 }) {
   const subtotal = getClassPartySubtotal(record);
   const isApproved = record.payment_status === "verified";
+  const isRejected = record.payment_status === "rejected";
   const rawSubmittedAmount =
-    record.paid_amount !== undefined && record.paid_amount !== null
+    record.raw_submitted_amount !== undefined && record.raw_submitted_amount !== null
+      ? Number(record.raw_submitted_amount) || 0
+      : record.paid_amount !== undefined && record.paid_amount !== null
       ? Number(record.paid_amount) || 0
       : Number(record.total_payable) || 0;
   const paidAmount = isApproved ? rawSubmittedAmount : 0;
-  const dueAmount = Math.max(0, subtotal - paidAmount);
+  const dueAmount = isRejected ? 0 : Math.max(0, subtotal - paidAmount);
 
   return {
     subtotal,
@@ -85,6 +89,7 @@ export function getClassPartyFinancials(record: {
     rawSubmittedAmount,
     dueAmount,
     isApproved,
+    isRejected,
     isFullyPaid: dueAmount === 0,
     hasDue: dueAmount > 0,
   };

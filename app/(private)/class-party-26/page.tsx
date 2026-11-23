@@ -542,11 +542,12 @@ export default function ClassPartyPage() {
       "Phone",
       "Student ID",
       "Category",
-      "Subtotal",
-      "Paid Amount",
+      "Package Subtotal",
+      "Paid Amount (Approved)",
       "Due Amount",
       "Payment Method",
       "Payment Status",
+      "Cash Paid To",
     ];
 
     const rows = registrations.map((r) => {
@@ -559,8 +560,9 @@ export default function ClassPartyPage() {
         fin.subtotal,
         fin.paidAmount,
         fin.dueAmount,
-        `"${r.payment_method === "bkash" ? (r.payment_method || "").replace(/"/g, '""') : (r.cash_paid_to || "").replace(/"/g, '""')}"`,
+        `"${(r.payment_method || "").replace(/"/g, '""')}"`,
         `"${(r.payment_status || "").replace(/"/g, '""')}"`,
+        `"${(r.cash_paid_to || "").replace(/"/g, '""')}"`,
       ];
     });
 
@@ -1015,8 +1017,23 @@ export default function ClassPartyPage() {
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 font-bold text-amber-600 dark:text-amber-400">
-                      ৳{record.paid_amount ?? record.subtotal ?? 0}
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-zinc-900 dark:text-zinc-100">
+                        ৳{(record.subtotal || 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-zinc-500">
+                        {record.payment_status === "verified" ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            Paid: ৳{(record.paid_amount || 0).toLocaleString()}
+                          </span>
+                        ) : record.payment_status === "rejected" ? (
+                          <span className="text-red-500 font-medium">Rejected</span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            Due: ৳{(record.due_amount || 0).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -1070,7 +1087,10 @@ export default function ClassPartyPage() {
 
                         <button
                           type="button"
-                          onClick={() => setEditingRecord({ ...record })}
+                          onClick={() => setEditingRecord({
+                            ...record,
+                            paid_amount: record.raw_submitted_amount ?? record.paid_amount ?? 0,
+                          })}
                           title="Edit Details"
                           className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition cursor-pointer"
                         >
@@ -2472,7 +2492,10 @@ export default function ClassPartyPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingRecord({ ...selectedRecord });
+                    setEditingRecord({
+                      ...selectedRecord,
+                      paid_amount: selectedRecord.raw_submitted_amount ?? selectedRecord.paid_amount ?? 0,
+                    });
                     setSelectedRecord(null);
                   }}
                   className="px-3 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs transition cursor-pointer"

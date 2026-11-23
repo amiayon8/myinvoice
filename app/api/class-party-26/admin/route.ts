@@ -89,7 +89,7 @@ export async function GET(req: Request) {
         ...(r as Record<string, any>),
         subtotal: fin.subtotal,
         subtotal_with_vat: fin.subtotal,
-        paid_amount: r.paid_amount !== undefined && r.paid_amount !== null ? Number(r.paid_amount) : fin.rawSubmittedAmount,
+        paid_amount: fin.paidAmount,
         total_payable: fin.rawSubmittedAmount,
         raw_submitted_amount: fin.rawSubmittedAmount,
         due_amount: fin.dueAmount,
@@ -101,20 +101,31 @@ export async function GET(req: Request) {
     const pendingRegistrations = enrichedRecords.filter((r) => r.payment_status === "pending").length;
     const rejectedRegistrations = enrichedRecords.filter((r) => r.payment_status === "rejected").length;
 
-    const totalSubtotal = enrichedRecords.reduce((acc, r) => acc + (Number(r.subtotal) || 0), 0);
-    const totalRevenueVerified = enrichedRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
-    const totalDues = enrichedRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
-    const totalRevenueExpected = totalSubtotal;
+    const validRecords = enrichedRecords.filter((r) => r.payment_status !== "rejected");
+    const verifiedRecords = enrichedRecords.filter((r) => r.payment_status === "verified");
+
+    const totalRevenueVerified = verifiedRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const totalDues = validRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
+    const totalRevenueExpected = totalRevenueVerified + totalDues;
+    const totalSubtotal = totalRevenueExpected;
 
     const bkashRecords = enrichedRecords.filter((r) => r.payment_method === "bkash");
     const cashRecords = enrichedRecords.filter((r) => r.payment_method === "cash");
 
     const bkashCount = bkashRecords.length;
     const cashCount = cashRecords.length;
-    const bkashTotal = bkashRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
-    const bkashDues = bkashRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
-    const cashTotal = cashRecords.reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
-    const cashDues = cashRecords.reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
+    const bkashTotal = bkashRecords
+      .filter((r) => r.payment_status === "verified")
+      .reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const bkashDues = bkashRecords
+      .filter((r) => r.payment_status !== "rejected")
+      .reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
+    const cashTotal = cashRecords
+      .filter((r) => r.payment_status === "verified")
+      .reduce((acc, r) => acc + (Number(r.paid_amount) || 0), 0);
+    const cashDues = cashRecords
+      .filter((r) => r.payment_status !== "rejected")
+      .reduce((acc, r) => acc + (Number(r.due_amount) || 0), 0);
 
     const menuCounts: Record<string, number> = {};
     enrichedRecords.forEach((r) => {
@@ -138,9 +149,13 @@ export async function GET(req: Request) {
 
     enrichedRecords.forEach((r) => {
       if (r.payment_method === "cash" && r.cash_paid_to) {
-        const person = String(r.cash_paid_to);
-        const paid = Number(r.paid_amount) || 0;
-        const due = Number(r.due_amount) || 0;
+        const person = String(r.cash_paid_to).trim();
+        if (!person) return;
+
+        const isVerified = r.payment_status === "verified";
+        const isRejected = r.payment_status === "rejected";
+        const paid = isVerified ? (Number(r.paid_amount) || 0) : 0;
+        const due = !isRejected ? (Number(r.due_amount) || 0) : 0;
 
         if (!coordinatorCounts[person]) {
           coordinatorCounts[person] = {
@@ -168,9 +183,9 @@ export async function GET(req: Request) {
     let filtered = [...enrichedRecords];
     if (statusFilter && statusFilter !== "all") {
       if (statusFilter === "due") {
-        filtered = filtered.filter((r) => (Number(r.due_amount) || 0) > 0);
+        filtered = filtered.filter((r) => r.payment_status !== "rejected" && (Number(r.due_amount) || 0) > 0);
       } else if (statusFilter === "paid") {
-        filtered = filtered.filter((r) => (Number(r.due_amount) || 0) === 0);
+        filtered = filtered.filter((r) => r.payment_status === "verified" && (Number(r.due_amount) || 0) === 0);
       } else {
         filtered = filtered.filter((r) => r.payment_status === statusFilter);
       }
@@ -179,15 +194,15 @@ export async function GET(req: Request) {
       filtered = filtered.filter((r) => r.payment_method === methodFilter);
     }
     if (coordinatorFilter && coordinatorFilter !== "all") {
-      const target = coordinatorFilter.toLowerCase();
+      const target = coordinatorFilter.toLowerCase().trim();
       filtered = filtered.filter((r) => {
         if (target === "ayon") {
           return (
             r.payment_method === "bkash" ||
-            String(r.cash_paid_to || "").toLowerCase() === "ayon"
+            String(r.cash_paid_to || "").toLowerCase().trim() === "ayon"
           );
         }
-        return String(r.cash_paid_to || "").toLowerCase() === target;
+        return String(r.cash_paid_to || "").toLowerCase().trim() === target;
       });
     }
     if (search) {
@@ -249,6 +264,9 @@ export async function PATCH(req: Request) {
       if (!updates.verified_by) {
         updates.verified_by = "Admin";
       }
+    } else if (updates.payment_status === "pending") {
+      updates.verified_at = null;
+      updates.verified_by = null;
     }
 
     const supabaseUpdates = { ...updates };
