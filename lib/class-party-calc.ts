@@ -29,25 +29,26 @@ export function getClassPartySubtotal(record: {
   payment_method?: "cash" | "bkash" | string | null;
   subtotal?: number | null;
   subtotal_with_vat?: number | null;
+  paid_amount?: number | null;
 }): number {
-  if (record.subtotal !== undefined && record.subtotal !== null && !isNaN(Number(record.subtotal))) {
-    return Number(record.subtotal);
-  }
-  if (record.subtotal_with_vat !== undefined && record.subtotal_with_vat !== null && !isNaN(Number(record.subtotal_with_vat))) {
-    return Number(record.subtotal_with_vat);
-  }
-
   const t = (record.selected_option_title || "").toLowerCase();
   const c = (record.selected_option_category || "").toLowerCase();
-  const isBkash = record.payment_method === "bkash";
 
-  if (t === "other" || c === "other") return 0;
+  if (t === "other" || c === "other") {
+    const raw = Number(record.subtotal ?? record.paid_amount ?? 0) || 0;
+    if (raw !== 1380 && raw !== 1350 && raw !== 820 && raw !== 800 && raw !== 812) {
+      return raw;
+    }
+    return 0;
+  }
+
   if (
     t.includes("buffet") ||
     (!t.includes("combo") && !t.includes("set") && !t.includes("thai-chinese") && c.includes("buffet"))
   ) {
-    return isBkash ? 1380 : 1350;
+    return 1350;
   }
+
   if (
     t.includes("combo") ||
     t.includes("thai-chinese") ||
@@ -55,8 +56,16 @@ export function getClassPartySubtotal(record: {
     c.includes("thai-chinese") ||
     c.includes("set")
   ) {
-    return isBkash ? 820 : 800;
+    return 800;
   }
+
+  if (record.subtotal !== undefined && record.subtotal !== null && !isNaN(Number(record.subtotal))) {
+    const val = Number(record.subtotal);
+    if (val === 1380) return 1350;
+    if (val === 820 || val === 812) return 800;
+    return val;
+  }
+
   return 0;
 }
 
@@ -80,7 +89,21 @@ export function getClassPartyFinancials(record: {
       : record.paid_amount !== undefined && record.paid_amount !== null
       ? Number(record.paid_amount) || 0
       : Number(record.total_payable) || 0;
-  const paidAmount = isApproved ? rawSubmittedAmount : 0;
+
+  let netPaidAmount = rawSubmittedAmount;
+  if (record.payment_method === "bkash") {
+    if (rawSubmittedAmount === 1380 && subtotal === 1350) {
+      netPaidAmount = 1350;
+    } else if ((rawSubmittedAmount === 820 || rawSubmittedAmount === 812) && subtotal === 800) {
+      netPaidAmount = 800;
+    } else if (subtotal > 0 && rawSubmittedAmount > subtotal) {
+      netPaidAmount = subtotal;
+    }
+  } else if (subtotal > 0 && rawSubmittedAmount > subtotal) {
+    netPaidAmount = subtotal;
+  }
+
+  const paidAmount = isApproved ? netPaidAmount : 0;
   const dueAmount = isRejected ? 0 : Math.max(0, subtotal - paidAmount);
 
   return {

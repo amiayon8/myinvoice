@@ -1864,46 +1864,36 @@ export default function ClassPartyPage() {
 
               <div className="space-y-1.5 p-3 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-500/20">
                 <label className="font-semibold text-violet-900 dark:text-violet-300 block text-xs">
-                  Package Presets (Set: 800 / bKash 820 | Buffet: 1350 / bKash
-                  1380 | Other: 0)
+                  Package Presets (Set: 800 | Buffet: 1350 | Other: 0)
                 </label>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => {
-                      const isBkash = editingRecord.payment_method === "bkash";
-                      const amt = isBkash ? 1380 : 1350;
                       setEditingRecord({
                         ...editingRecord,
                         selected_option_title: "Buffet Lunch",
                         selected_option_category: "Buffet",
-                        subtotal: amt,
+                        subtotal: 1350,
                       });
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
                   >
-                    Buffet (৳
-                    {editingRecord.payment_method === "bkash"
-                      ? "1,380"
-                      : "1,350"}
-                    )
+                    Buffet (৳1,350)
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      const isBkash = editingRecord.payment_method === "bkash";
-                      const amt = isBkash ? 820 : 800;
                       setEditingRecord({
                         ...editingRecord,
                         selected_option_title: "Thai-Chinese Combo 01",
                         selected_option_category: "Thai-Chinese",
-                        subtotal: amt,
+                        subtotal: 800,
                       });
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-900 border border-violet-300 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-800 dark:text-violet-200 cursor-pointer"
                   >
-                    Set Menu (৳
-                    {editingRecord.payment_method === "bkash" ? "820" : "800"})
+                    Set Menu (৳800)
                   </button>
                   <button
                     type="button"
@@ -2058,13 +2048,13 @@ export default function ClassPartyPage() {
                         editingRecord.selected_option_title || ""
                       ).toLowerCase();
                       if (cat.includes("buffet")) {
-                        newSubtotal = newMethod === "bkash" ? 1380 : 1350;
+                        newSubtotal = 1350;
                       } else if (
                         cat.includes("combo") ||
                         cat.includes("set") ||
                         cat.includes("thai-chinese")
                       ) {
-                        newSubtotal = newMethod === "bkash" ? 820 : 800;
+                        newSubtotal = 800;
                       }
                       setEditingRecord({
                         ...editingRecord,

@@ -178,8 +178,9 @@ export function ClassPartyCharts({
 
     registrations.forEach((r) => {
       const method = r.payment_method === "bkash" ? "bkash" : "cash";
+      const fin = getClassPartyFinancials(r as any);
       dataMap[method].totalCount += 1;
-      dataMap[method].totalAmount += Number(r.total_payable) || 0;
+      dataMap[method].totalAmount += fin.subtotal;
 
       if (r.payment_status === "verified") {
         dataMap[method].verified += 1;
