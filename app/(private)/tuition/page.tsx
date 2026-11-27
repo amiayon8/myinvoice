@@ -142,23 +142,18 @@ export default function TuitionPage() {
     currentTeachers: Teacher[]
   ): Promise<{ sessions: ClassSession[]; teachers: Teacher[] }> => {
     const now = Date.now();
-    const pastScheduled = currentSessions.filter(s => {
-      if (s.status !== "SCHEDULED") return false;
-      const sessionTime = new Date(s.scheduledAt).getTime();
-      return sessionTime < now;
-    });
-
-    if (pastScheduled.length === 0) {
-      return { sessions: currentSessions, teachers: currentTeachers };
-    }
-
     const updatedSessions = [...currentSessions];
     const teacherMap = new Map(
       currentTeachers.map(t => [t.id, { ...t, paymentPolicy: { ...t.paymentPolicy } }])
     );
     const modifiedTeacherIds = new Set<string>();
 
-    for (const session of pastScheduled) {
+    for (let i = 0; i < updatedSessions.length; i++) {
+      const session = updatedSessions[i];
+      if (session.status !== "SCHEDULED") continue;
+      const sessionTime = new Date(session.scheduledAt).getTime();
+      if (sessionTime > now) continue;
+
       const teacher = teacherMap.get(session.teacherId);
       let newPaymentStatus: PaymentStatus = session.paymentStatus;
 
@@ -180,19 +175,55 @@ export default function TuitionPage() {
         }
       }
 
-      const index = updatedSessions.findIndex(s => s.id === session.id);
-      if (index !== -1) {
-        const completedSession: ClassSession = {
-          ...updatedSessions[index],
-          status: "COMPLETED",
-          paymentStatus: newPaymentStatus,
-        };
-        updatedSessions[index] = completedSession;
+      const completedSession: ClassSession = {
+        ...session,
+        status: "COMPLETED",
+        paymentStatus: newPaymentStatus,
+      };
+      updatedSessions[i] = completedSession;
 
-        try {
-          await dbSaveSession(completedSession);
-        } catch (e) {
-          console.error("Failed to persist auto-completed session:", e);
+      try {
+        await dbSaveSession(completedSession);
+      } catch (e) {
+        console.error("Failed to persist auto-completed session:", e);
+      }
+    }
+
+    for (const teacher of teacherMap.values()) {
+      if (teacher.paymentPolicy?.type !== "ADVANCE_CYCLE") continue;
+      let balance = teacher.paymentPolicy.advanceBalance || 0;
+      if (balance <= 0) continue;
+
+      const unpaidCompleted = updatedSessions
+        .map((s, idx) => ({ s, idx }))
+        .filter(
+          ({ s }) =>
+            s.teacherId === teacher.id &&
+            s.status === "COMPLETED" &&
+            s.paymentStatus === "UNPAID" &&
+            !s.isFree &&
+            s.attendance !== "ABSENT"
+        )
+        .sort((a, b) => new Date(a.s.scheduledAt).getTime() - new Date(b.s.scheduledAt).getTime());
+
+      for (const { s, idx } of unpaidCompleted) {
+        if (balance >= s.fee) {
+          balance -= s.fee;
+          teacher.paymentPolicy.advanceBalance = balance;
+          modifiedTeacherIds.add(teacher.id);
+
+          const coveredSession: ClassSession = {
+            ...s,
+            paymentStatus: "COVERED_BY_ADVANCE",
+            paidAt: s.paidAt || new Date().toISOString(),
+          };
+          updatedSessions[idx] = coveredSession;
+
+          try {
+            await dbSaveSession(coveredSession);
+          } catch (e) {
+            console.error("Failed to persist advance-covered session:", e);
+          }
         }
       }
     }
@@ -948,6 +979,14 @@ export default function TuitionPage() {
             paymentStatus: "COVERED_BY_ADVANCE",
             paidAt: paymentTime,
           });
+        }
+      }
+
+      if (newlyCoveredSessions.length > 0) {
+        newPayment.sessionIds = newlyCoveredSessions.map(s => s.id);
+        const coveredAmount = paymentData.amount - remainingAdvance;
+        if (!newPayment.note) {
+          newPayment.note = `Settled ${newlyCoveredSessions.length} due class(es) (৳${coveredAmount.toFixed(2)}). Remaining ৳${remainingAdvance.toFixed(2)} credited as advance for upcoming classes.`;
         }
       }
 

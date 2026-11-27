@@ -20,16 +20,12 @@ export async function autoProcessTuitionClasses(
   const supabase = supabaseClient || createClient();
   const nowIso = new Date().toISOString();
 
-  const { data: pastScheduled, error: sessionsError } = await supabase
+  const { data: pastScheduled } = await supabase
     .from('tuition_class_sessions')
     .select('*')
     .eq('status', 'SCHEDULED')
     .lte('scheduled_at', nowIso)
     .order('scheduled_at', { ascending: true });
-
-  if (sessionsError || !pastScheduled || pastScheduled.length === 0) {
-    return { processedCount: 0, updatedTeacherCount: 0 };
-  }
 
   const { data: rawTeachers } = await supabase
     .from('tuition_teachers')
@@ -37,8 +33,10 @@ export async function autoProcessTuitionClasses(
 
   const teachersMap = new Map<string, any>((rawTeachers || []).map((t: any) => [t.id, t]));
   const modifiedTeachers = new Map<string, number>();
+  let processedCount = 0;
 
-  for (const session of pastScheduled) {
+  for (const session of (pastScheduled || [])) {
+    processedCount++;
     const teacher: any = teachersMap.get(session.teacher_id);
     let newPaymentStatus: PaymentStatus = session.payment_status || 'UNPAID';
 
@@ -69,6 +67,41 @@ export async function autoProcessTuitionClasses(
       .eq('id', session.id);
   }
 
+  for (const teacher of (rawTeachers || [])) {
+    if (teacher.policy_type !== 'ADVANCE_CYCLE') continue;
+    let balance = modifiedTeachers.has(teacher.id)
+      ? modifiedTeachers.get(teacher.id)!
+      : Number(teacher.advance_balance || 0);
+
+    if (balance <= 0) continue;
+
+    const { data: unpaidSessions } = await supabase
+      .from('tuition_class_sessions')
+      .select('*')
+      .eq('teacher_id', teacher.id)
+      .eq('status', 'COMPLETED')
+      .eq('payment_status', 'UNPAID')
+      .eq('is_free', false)
+      .order('scheduled_at', { ascending: true });
+
+    for (const session of (unpaidSessions || [])) {
+      if (session.attendance === 'ABSENT') continue;
+      const fee = Number(session.fee || 0);
+      if (balance >= fee) {
+        balance -= fee;
+        processedCount++;
+        modifiedTeachers.set(teacher.id, balance);
+        await supabase
+          .from('tuition_class_sessions')
+          .update({
+            payment_status: 'COVERED_BY_ADVANCE',
+            paid_at: new Date().toISOString(),
+          })
+          .eq('id', session.id);
+      }
+    }
+  }
+
   for (const [teacherId, newBalance] of modifiedTeachers.entries()) {
     await supabase
       .from('tuition_teachers')
@@ -77,7 +110,7 @@ export async function autoProcessTuitionClasses(
   }
 
   return {
-    processedCount: pastScheduled.length,
+    processedCount,
     updatedTeacherCount: modifiedTeachers.size,
   };
 }
@@ -680,6 +713,69 @@ export async function dbAddSessionNote(
 // -------------------------------------------------------------
 export async function dbCreatePayment(payment: Partial<PaymentRecord>): Promise<PaymentRecord | null> {
   const supabase = createClient();
+  let sessionIds = payment.sessionIds || [];
+  let note = payment.note || null;
+
+  if (payment.type === 'ADVANCE_DEPOSIT' && payment.teacherId && payment.amount) {
+    const { data: teacher } = await supabase
+      .from('tuition_teachers')
+      .select('*')
+      .eq('id', payment.teacherId)
+      .single();
+
+    if (teacher) {
+      let remainingAdvance = Number(payment.amount);
+      const newlyCovered: string[] = [];
+
+      const { data: unpaidSessions } = await supabase
+        .from('tuition_class_sessions')
+        .select('*')
+        .eq('teacher_id', payment.teacherId)
+        .eq('status', 'COMPLETED')
+        .eq('payment_status', 'UNPAID')
+        .eq('is_free', false)
+        .order('scheduled_at', { ascending: true });
+
+      for (const s of (unpaidSessions || [])) {
+        if (s.attendance === 'ABSENT') continue;
+        const fee = Number(s.fee || 0);
+        if (remainingAdvance >= fee) {
+          remainingAdvance -= fee;
+          newlyCovered.push(s.id);
+          await supabase
+            .from('tuition_class_sessions')
+            .update({
+              payment_status: 'COVERED_BY_ADVANCE',
+              paid_at: payment.paidAt || new Date().toISOString(),
+            })
+            .eq('id', s.id);
+        }
+      }
+
+      if (sessionIds.length === 0 && newlyCovered.length > 0) {
+        sessionIds = newlyCovered;
+      }
+
+      const currentBalance = Number(teacher.advance_balance || 0);
+      const newAdvanceBalance = currentBalance + remainingAdvance;
+
+      await supabase
+        .from('tuition_teachers')
+        .update({ advance_balance: newAdvanceBalance })
+        .eq('id', payment.teacherId);
+
+      if (!note) {
+        const coveredCount = newlyCovered.length;
+        const coveredAmount = Number(payment.amount) - remainingAdvance;
+        if (coveredCount > 0) {
+          note = `Settled ${coveredCount} due class(es) (৳${coveredAmount.toFixed(2)}). Remaining ৳${remainingAdvance.toFixed(2)} credited as advance for upcoming classes.`;
+        } else {
+          note = `Full amount credited as advance for upcoming classes.`;
+        }
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('tuition_payments')
     .insert({
@@ -688,8 +784,8 @@ export async function dbCreatePayment(payment: Partial<PaymentRecord>): Promise<
       type: payment.type || 'CYCLE_SETTLEMENT',
       method: payment.method || 'Cash',
       reference: payment.reference || null,
-      note: payment.note || null,
-      session_ids: payment.sessionIds || [],
+      note,
+      session_ids: sessionIds,
       paid_at: payment.paidAt || new Date().toISOString(),
     })
     .select()
@@ -700,12 +796,11 @@ export async function dbCreatePayment(payment: Partial<PaymentRecord>): Promise<
     return null;
   }
 
-  // Update covered sessions to PAID in database
-  if (payment.sessionIds && payment.sessionIds.length > 0) {
+  if (payment.type !== 'ADVANCE_DEPOSIT' && sessionIds.length > 0) {
     await supabase
       .from('tuition_class_sessions')
       .update({ payment_status: 'PAID', paid_at: new Date().toISOString() })
-      .in('id', payment.sessionIds);
+      .in('id', sessionIds);
   }
 
   return {
